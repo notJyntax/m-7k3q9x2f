@@ -312,6 +312,16 @@ const otherRole = () => (isWriter() ? 'listener' : 'writer');
 const moodDoc = (role) => sd('me_' + role);
 const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
 const saveMood = (emoji, text) => S.store.set('shared', 'me_' + roleName(), { emoji, text, ts: Date.now() });
+const MOOD_INFO = new Map([...MOODS_ACTIVITY.map(([e, l]) => [e, { label: l, kind: 'act' }]), ...MOODS_FEELING.map(([e, l]) => [e, { label: l, kind: 'feel' }])]);
+const short = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? 'now' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
+// 프로필 상태처럼: 동그란 이모지(행동은 강조색 테두리, 감정은 따뜻한 색 테두리) + 이름 + 상태 + 경과 시간
+function moodChip(d, { name, me, isNew, title, onClick }) {
+  const info = MOOD_INFO.get(d.emoji), has = !!(d.emoji || d.text);
+  return h('button', { type: 'button', class: `mchip ${me ? 'me' : 'they'} ${has ? info?.kind || 'act' : 'empty'}${isNew ? ' new' : ''}`, title, on: { click: onClick } },
+    h('span', { class: 'mav' }, h('span', { class: 'me-e', text: d.emoji || (me ? '＋' : '·') })),
+    h('span', { class: 'mbody' }, h('span', { class: 'mk' }, name, has && d.ts ? h('span', { class: 'ago', text: ` · ${short(d.ts)}` }) : null), h('span', { class: 'mt', text: has ? d.text || info?.label || '' : me ? 'Set status' : 'Not set' })),
+    isNew ? h('span', { class: 'ndot', 'aria-label': '새 상태' }) : null);
+}
 function renderMood() {
   const box = $('#mood'); if (!box) return;
   if (!S.ready || !S.store) { box.hidden = true; return; }
@@ -321,10 +331,8 @@ function renderMood() {
   const isNew = (they.ts || 0) > seenAt('mood');
   box.hidden = false;
   box.replaceChildren(
-    h('button', { type: 'button', class: 'mchip me', title: 'Change my status', on: { click: openMood } },
-      h('span', { class: 'mk', text: 'Me' }), h('span', { class: 'me-e', text: me.emoji || '＋' }), h('span', { class: 'mt', text: me.text || (me.emoji ? '' : 'Set status') }), h('span', { class: 'car', text: '▾' })),
-    h('button', { type: 'button', class: 'mchip they' + (isNew ? ' new' : ''), title: 'Partner status', on: { click: openTheirMood } },
-      h('span', { class: 'mk', text: 'Partner' }), h('span', { class: 'me-e', text: they.emoji || '·' }), h('span', { class: 'mt', text: they.text || (they.emoji ? '' : 'Not set') }), isNew ? h('span', { class: 'ndot', 'aria-label': '새 상태' }) : null));
+    moodChip(me, { name: 'Me', me: true, title: 'Change my status', onClick: openMood }),
+    moodChip(they, { name: 'Partner', me: false, isNew, title: 'Partner status', onClick: openTheirMood }));
 }
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';

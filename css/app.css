@@ -314,14 +314,6 @@ html[data-theme="plum"] {
 /* ───────── 상단 상태 줄: 나(Me)와 상대(Partner)의 현재 상태(이모지) ───────── */
 .mood { display: flex; gap: 8px; align-items: center; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .mood[hidden] { display: none; }
-.mchip { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 0; border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 99px; padding: 3px 10px 3px 9px; cursor: pointer; font-size: 12.5px; }
-.mchip:hover { background: var(--hover); }
-.mchip .mk { color: var(--sub); font-size: 11px; font-weight: 600; flex: none; }
-.mchip .me-e { font-size: 16px; line-height: 1.2; flex: none; }
-.mchip .mt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-.mchip .car { color: var(--sub); font-size: 10px; flex: none; }
-.mchip.they.new { border-color: var(--accent); background: var(--infobg); }
-.mchip .ndot { width: 8px; height: 8px; border-radius: 50%; background: #dc2626; flex: none; animation: pop 1.2s ease-out 3; }
 .mgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
 .mopt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; cursor: pointer; }
 .mopt:hover { background: var(--hover); }
@@ -332,3 +324,23 @@ html[data-theme="plum"] {
 .their .big { font-size: 52px; line-height: 1.2; }
 .mlab { font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .3px; text-transform: uppercase; margin: 2px 0 6px; }
 .mgrid + .mlab { margin-top: 10px; }
+
+/* 상태 칩 v2: 프로필 상태처럼 보이게 */
+.mood { gap: 8px; padding: 7px 12px; }
+.mchip { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 0; text-align: left; border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 14px; padding: 5px 10px 5px 6px; cursor: pointer; position: relative; }
+.mchip:hover { background: var(--hover); }
+.mav { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--panel); border: 2px solid var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+.mchip.act .mav { border-color: var(--accent); }
+.mchip.feel .mav { border-color: var(--warn); }
+.mchip.empty .mav { border-style: dashed; box-shadow: none; }
+.mav .me-e { font-size: 17px; line-height: 1; }
+.mbody { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.mbody .mk { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--sub); }
+.mbody .mt { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mchip.empty .mt { color: var(--sub); font-weight: 500; }
+.mchip.they.new { border-color: var(--accent); background: var(--infobg); }
+.mchip.they.new .mav::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
+.mchip .ndot { position: absolute; top: 3px; left: 31px; width: 10px; height: 10px; border-radius: 50%; background: #dc2626; border: 2px solid var(--infobg); animation: pop 1.2s ease-out 3; }
+.mchip.they.new .mav { animation: ring 2.4s ease-out 3; }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.mbody .mk .ago { text-transform: none; letter-spacing: 0; font-weight: 600; }
