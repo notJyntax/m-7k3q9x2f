@@ -342,7 +342,7 @@ function viewConsole() {
   const wrap = h('div', { class: 'console' });
   if (!m.introSeen) {
     wrap.append(card('Welcome', note(S.cloud
-      ? '여기에 적은 원문은 내 비공개 영역에만 저장돼요. 이 앱 화면에서는 상대가 볼 수 없어요. 로그로 바뀐 한 줄은 내가 "공유"를 눌러야 상대에게 가고, 원문은 "원문도 함께 보내기"를 켠 줄만 가요. Shutdown(퇴근) 후에도 내 기록은 Archive 탭에 날짜별로 남아요.'
+      ? '여기에 적은 원문은 내 비공개 영역에만 저장돼요. 이 앱 화면에서는 상대가 볼 수 없어요. 내가 "공유"를 누른 줄만 상대에게 가고, 공유하면 원문도 함께 보여요. Shutdown(퇴근) 후에도 내 기록은 Archive 탭에 날짜별로 남아요.'
       : '여기에 적은 내용은 이 기기에만 저장돼요. Shutdown(퇴근) 후에도 기록은 Archive 탭에 날짜별로 남아요.'),
     btn('확인', act(() => setMeta({ introSeen: true })), 'primary small')));
   }
@@ -408,22 +408,18 @@ async function saveLog(tr, raw) {
 function openShare(l) {
   const line = L.fmtLine(l, hms(l.ts));
   const note = h('input', { type: 'text', maxLength: 60, placeholder: '상대에게 한마디 (선택) 예: 회의 때문에 힘들었어' });
-  const withRaw = h('input', { type: 'checkbox' });
-  const prev = h('div', { class: 'gloss note-by', style: 'display:none' }, h('span', { class: 'k', text: '상대에게 보이는 원문' }), h('span', { text: l.raw || '' }));
-  withRaw.addEventListener('change', () => { prev.style.display = withRaw.checked ? '' : 'none'; });
   modal({ title: '이 로그를 상대에게 공유할까요?', body: h('div', { class: 'share' },
     h('div', { class: 'mono', text: line }),
+    l.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: '원문도 함께 보여요' }), h('span', { text: l.raw })) : null,
     note,
-    l.raw ? h('label', { class: 'opt' }, withRaw, h('span', {}, h('b', { text: '원문도 함께 보내기' }), h('small', { text: '켜면 내가 쓴 원문이 상대 화면에 그대로 보여요. 기본은 꺼짐이에요.' }))) : null,
-    l.raw ? prev : null,
-    h('p', { class: 'note', text: '원문 보내기를 끄면 위 한 줄과 한마디만 전송돼요.' })),
-  actions: [{ label: '취소', cls: 'small' }, { label: '공유', cls: 'primary', fn: () => shareLine(l, note.value.trim(), withRaw.checked) }] });
+    h('p', { class: 'note', text: l.raw ? '공유하면 위 한 줄과 원문, 한마디가 상대 화면에 그대로 보여요.' : '공유하면 위 한 줄과 한마디가 상대 화면에 보여요.' })),
+  actions: [{ label: '취소', cls: 'small' }, { label: '공유', cls: 'primary', fn: () => shareLine(l, note.value.trim()) }] });
 }
-async function shareLine(l, note = '', withRaw = false) {
+async function shareLine(l, note = '') {
   const sid = 'ln_' + uid();
-  await S.store.set('lines', sid, { ts: l.ts, day: l.day, level: l.level, text: L.fmtLine(l, hms(l.ts)), note, raw: withRaw && l.raw ? l.raw : '' });
+  await S.store.set('lines', sid, { ts: l.ts, day: l.day, level: l.level, text: L.fmtLine(l, hms(l.ts)), note, raw: l.raw || '' });
   await S.store.patch('@', l.id, { sharedId: sid });
-  toast(withRaw ? '공유했어요. 원문도 함께 보여요.' : '공유했어요. 원문은 가지 않고 이 한 줄만 보여요.');
+  toast(l.raw ? '공유했어요. 원문도 함께 보여요.' : '공유했어요.');
 }
 async function unshareLine(l) {
   for (const r of rows('reviews').filter((r) => r.lineId === l.sharedId)) await S.store.del('reviews', r.id);
@@ -550,7 +546,7 @@ async function decidePlan(l, ok) {
 
 function calendarCard() {
   const c = calState(), today = dayKey(), evs = rows('events');
-  const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), off = (first.getDay() + 6) % 7;
+  const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), off = first.getDay(); // 일요일 시작
   const cells = [];
   for (let i = 0; i < off; i += 1) cells.push(h('div', { class: 'cd x' }));
   for (let d = 1; d <= dim; d += 1) {
@@ -565,7 +561,7 @@ function calendarCard() {
   return card('Shared calendar',
     h('div', { class: 'row' }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), h('span', { class: 'sp' }),
       btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('오늘', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); c.sel = dayKey(); renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
-    h('div', { class: 'cal' }, ['월', '화', '수', '목', '금', '토', '일'].map((t) => h('div', { class: 'ch', text: t })), cells),
+    h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells),
     h('p', { class: 'note', text: '점선은 승인 대기예요. 상대가 Approve를 누르면 실선으로 바뀌어요.' }));
 }
 function dayPanel() {
@@ -627,17 +623,26 @@ function agendaCard() {
   const who = (l) => (l.by === me ? '내가' : otherName() + '가');
   const hist = agLogs().filter((l) => l.status !== 'pending').sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 5);
   const lab = (l) => (l.action === 'set' ? `"${l.text}" 설정` : '아젠다 내리기');
+  const redraw = () => renderView();
+  // 승인된 아젠다가 있으면 간소하게 보여주고, 입력칸은 "수정"을 눌렀을 때만 연다
+  const editing = !cur || S.agEdit;
+  const pendRow = pend ? h('div', { class: 'prow' + (pend.by !== me ? ' need' : '') }, h('span', { class: 'sp' }, h('b', { text: lab(pend) }), h('span', { class: 'sub', text: ` · ${who(pend)} 신청 · ${mdhm(pend.ts)}` })),
+    pend.by !== me ? [btn('Approve', act(() => decideAgenda(pend, true)), 'small primary'), btn('Reject', act(() => decideAgenda(pend, false)), 'small danger')]
+      : [badge('승인 대기', 'warn'), btn('취소', act(() => S.store.patch('agenda_log', pend.id, { status: 'cancelled', decidedAt: Date.now(), decidedBy: me })), 'small')]) : null;
+  const done = () => { S.agEdit = false; redraw(); };
+  const form = editing ? h('div', { class: 'row' }, h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: cur ? '바꿀 아젠다 한 줄' : '아젠다 한 줄 (예: 휴가 일정 정하기)' }),
+    btn(cur ? '변경 신청' : '신청', act(async () => { const t = $('#ag-text').value.trim(); if (!t) return toast('아젠다를 한 줄 적어주세요'); await requestAgenda('set', t); $('#ag-text').value = ''; done(); }), 'small primary'),
+    cur ? btn('내리기 신청', act(async () => { await requestAgenda('clear'); done(); }), 'small') : null,
+    cur ? btn('닫기', done, 'small ghost') : null) : null;
+  const histBox = hist.length ? [
+    btn(S.agHist ? '처리 내역 숨기기' : `처리 내역 보기 (${hist.length})`, () => { S.agHist = !S.agHist; redraw(); }, 'small ghost'),
+    S.agHist ? [note('처리 내역은 계속 보관돼요.'), hist.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: lab(l) }), h('span', { class: 'sub', text: ` · ${who(l)} 신청 · ${l.decidedAt ? mdhm(l.decidedAt) : ''}` })), badge(l.status, l.status === 'approved' ? 'ok' : '')))] : null] : null;
   return h('section', { class: 'card agenda' + (cur ? ' on' : '') },
-    h('h3', { text: 'Agenda' }),
-    cur ? h('div', { class: 'ag-cur' }, h('div', { class: 'ag-text', text: cur.text }), h('div', { class: 'sub', text: `합의됨 · ${who(cur)} 신청 · ${mdhm(cur.decidedAt)}` }))
+    cur ? h('div', { class: 'row' }, h('h3', { text: 'Weekly Agenda' }), h('span', { class: 'sp' }), S.agEdit ? null : btn('수정', () => { S.agEdit = true; redraw(); }, 'small'))
+      : h('h3', { text: 'Agenda' }),
+    cur ? h('div', { class: 'ag-cur' }, h('div', { class: 'ag-text', text: cur.text }))
       : note('다음 대화에서 꼭 이야기하고 싶은 주제를 정해두는 곳이에요. 한쪽이 신청하고 상대가 Approve하면 확정돼요.'),
-    pend ? h('div', { class: 'prow' + (pend.by !== me ? ' need' : '') }, h('span', { class: 'sp' }, h('b', { text: lab(pend) }), h('span', { class: 'sub', text: ` · ${who(pend)} 신청 · ${mdhm(pend.ts)}` })),
-      pend.by !== me ? [btn('Approve', act(() => decideAgenda(pend, true)), 'small primary'), btn('Reject', act(() => decideAgenda(pend, false)), 'small danger')]
-        : [badge('승인 대기', 'warn'), btn('취소', act(() => S.store.patch('agenda_log', pend.id, { status: 'cancelled', decidedAt: Date.now(), decidedBy: me })), 'small')]) : null,
-    h('div', { class: 'row' }, h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: cur ? '바꿀 아젠다 한 줄' : '아젠다 한 줄 (예: 휴가 일정 정하기)' }),
-      btn(cur ? '변경 신청' : '신청', act(async () => { const t = $('#ag-text').value.trim(); if (!t) return toast('아젠다를 한 줄 적어주세요'); await requestAgenda('set', t); $('#ag-text').value = ''; }), 'small primary'),
-      cur ? btn('내리기 신청', act(() => requestAgenda('clear')), 'small') : null),
-    hist.length ? [h('h4', { text: '처리 내역 (계속 보관돼요)' }), hist.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: lab(l) }), h('span', { class: 'sub', text: ` · ${who(l)} 신청 · ${l.decidedAt ? mdhm(l.decidedAt) : ''}` })), badge(l.status, l.status === 'approved' ? 'ok' : '')))] : null);
+    pendRow, form, histBox);
 }
 function viewPlanW() {
   const ls = sd('listener');
@@ -653,7 +658,7 @@ function viewArchive() {
   logsAll().forEach((l) => (byDay[l.day] ??= []).push(l));
   const days = Object.keys(byDay).sort();
   const sel = A.sel || days[days.length - 1] || dayKey();
-  const first = new Date(A.y, A.m, 1), dim = new Date(A.y, A.m + 1, 0).getDate(), off = (first.getDay() + 6) % 7;
+  const first = new Date(A.y, A.m, 1), dim = new Date(A.y, A.m + 1, 0).getDate(), off = first.getDay(); // 일요일 시작
   const cells = [];
   for (let i = 0; i < off; i += 1) cells.push(h('div', { class: 'cd x' }));
   for (let d = 1; d <= dim; d += 1) {
@@ -678,7 +683,7 @@ function viewArchive() {
   return h('div', { class: 'grid' },
     card('Archive',
       h('div', { class: 'row' }, h('b', { text: `${A.y}년 ${A.m + 1}월` }), h('span', { class: 'sp' }), btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
-      h('div', { class: 'cal' }, ['월', '화', '수', '목', '금', '토', '일'].map((t) => h('div', { class: 'ch', text: t })), cells),
+      h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells),
       note('기록이 있는 날에 점이 찍혀요. 퇴근(Shutdown)해도 기록은 지워지지 않아요.')),
     detail);
 }
@@ -714,7 +719,7 @@ function viewSettingsW() {
     card('Notifications',
       sw('Do not disturb', !!st.dnd, (v) => S.store.patch('shared', 'status', { kind: 'status', dnd: v, ts: Date.now() }), '켜면 상대의 응원 커밋이 도착해도 숨겨져요. 상대에게는 "방해금지" 상태로 보여요.'),
       sw('위험 신호 알림', m.alertOn !== false, (v) => setMeta({ alertOn: v }), '"죽고 싶다" 같은 표현이 입력되면 상대에게 안부 확인 신호만 가요(내용은 가지 않아요). 끄면 상대에게 아무것도 가지 않아요.')),
-    card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('원문은 내가 "원문도 함께 보내기"를 켠 줄만 상대에게 가요. 그 밖에 상대에게 가는 건 공유한 한 줄, 상태 색, 달력 표시예요.')),
+    card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
     pushCard(), themeCard(), modeCard());
 }
 function pushCard() {
@@ -784,7 +789,7 @@ function viewQueue() {
     card('Shared log lines', note('작성자가 공유한 한 줄이에요. 코드 리뷰하듯 짧게 댓글을 남겨 주세요. 하루가 지나면 함께 사라져요.'),
       lines.length ? lines.map((ln) => h('div', { class: 'item' }, h('div', { class: 'mono lv-' + ln.level, text: ln.text }),
         ln.note ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: '친구의 한마디' }), h('span', { text: ln.note })) : null,
-        ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: '원문 (친구가 함께 보냄)' }), h('span', { text: ln.raw })) : null,
+        ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: '원문 (친구가 공유함)' }), h('span', { text: ln.raw })) : null,
         rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts).map((r) => h('div', { class: 'rv' }, h('span', { class: 'sub', text: hm(r.ts) }), h('p', { class: 'msgtext', text: r.text }))),
         h('div', { class: 'row' }, h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment' }),
           btn('Comment', act(async () => { const el = $('#rv-' + ln.id); const t = el.value.trim(); if (!t) return; await S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t }); el.value = ''; }), 'small primary')))) : empty('공유된 로그 없음')));
@@ -818,7 +823,7 @@ function viewPlan() {
 }
 
 function viewSettingsL() {
-  return h('div', { class: 'grid' }, pushCard(), themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자의 원문을 볼 수 없어요(작성자가 직접 함께 보낸 줄만 예외). 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
+  return h('div', { class: 'grid' }, pushCard(), themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
 const VW = { console: viewConsole, dash: viewDash, inbox: viewInbox, plan: viewPlanW, report: viewReport, archive: viewArchive, settings: viewSettingsW };
@@ -915,13 +920,13 @@ async function shutdown({ learned, keepIds, weekend, cand }) {
 // ───────── 설명서 ─────────
 const HELP_W = [
   { t: '🏁 **시작하기**', why: '회사에서 쌓인 감정을 한 줄로 털어놓는 공간. 상대에게 부담을 주지 않고, 상태만 전달.',
-    how: ['**Console**에 한 줄 입력', '말하고 싶은 줄만 골라 **공유**', '하루가 끝나면 **Shutdown**'], tip: ['내가 쓴 원문은 나만 열람', '상대에게는 내가 고른 것과 상태 색·숫자만 전달'] },
+    how: ['**Console**에 한 줄 입력', '말하고 싶은 줄만 골라 **공유**', '하루가 끝나면 **Shutdown**'], tip: ['공유하지 않은 원문은 나만 열람', '공유한 줄은 원문과 함께 상대에게 전달', '상태 색·숫자는 자동으로 전달'] },
   { t: '✍️ **Console**', why: '입력한 한 줄을 서버 에러 로그로 바꿔 감정을 가볍게 표현.',
     how: ['입력창에 한 줄 입력 후 **Enter**', '귀찮을 땐 **+WARN** **+ERROR** **+FATAL** 버튼 클릭', '줄 클릭 시 원문 확인 (나만 열람)'],
     tip: ['로그 문장은 영어로 변환 (이 기기 안의 규칙으로 처리, 원문이 외부 AI로 나가지 않음)', '가만히 있으면 올라오는 파란 줄은 재미 문구·안부·명언 (기록·통계에 미포함)', '위험한 표현을 쓰면 안내 문구 표시'] },
   { t: '📤 **공유**', why: '말하고 싶은 한 줄만 골라 상대에게 알림.',
-    how: ['줄 클릭 후 **이 로그 공유 (리뷰 요청)**', '한마디 입력 (선택)', '**원문도 함께 보내기** 선택 (기본 꺼짐)', '**공유** 클릭'],
-    tip: ['**공유 취소**로 언제든 회수', '공유한 줄은 퇴근 또는 다음 날 새벽 4시에 자동 정리', '원문 보내기를 끄면 번역된 한 줄과 한마디만 전송'] },
+    how: ['줄 클릭 후 **이 로그 공유 (리뷰 요청)**', '한마디 입력 (선택)', '**공유** 클릭 (원문도 함께 전송)'],
+    tip: ['**공유 취소**로 언제든 회수', '공유한 줄은 퇴근 또는 다음 날 새벽 4시에 자동 정리', '공유 전에 상대에게 보일 원문을 화면에서 확인'] },
   { t: '🫁 **진정하기**', why: '감정이 높아졌을 때 잠깐 식히기.',
     how: ['**restart**: 호흡 타이머 (약 40초), 종료 시 CPU·MEM 소폭 하락', '**clear**: 화면만 비움 (기록은 유지)', '**grep**: 줄 검색'],
     tip: ['명령어도 사용 가능: **/restart** **/clear** **/grep** 단어'] },
@@ -951,12 +956,12 @@ const HELP_W = [
 ];
 const HELP_L = [
   { t: '🏁 **시작하기**', why: '친구가 부담 없이 털어놓을 수 있게 하고, 나는 상태만 가볍게 확인.',
-    how: ['**Overview**에서 친구 상태 확인', '**Queue**에서 공유된 줄에 댓글', '**Send**로 응원 메시지 전송'], tip: ['친구의 원문은 열람 불가 (친구가 **원문도 함께 보내기**를 켠 줄만 예외)'] },
+    how: ['**Overview**에서 친구 상태 확인', '**Queue**에서 공유된 줄에 댓글', '**Send**로 응원 메시지 전송'], tip: ['친구가 공유한 줄은 원문도 함께 보여요', '공유하지 않은 원문은 볼 수 없어요'] },
   { t: '👀 **Overview**', why: '친구의 현재 상태를 확인하고, 내 상태를 친구에게 알림.',
     how: ['상태 색과 **CPU** · **MEM** · **DISK** 수치 확인', '**확인 필요** 카드가 보이면 가볍게 안부 연락 후 **확인했어요** 클릭', '**My on-call status**에서 상태 선택 (대기중 / 바쁨 / 회의중 / 자는중), 한마디 저장'],
     tip: ['**안부 확인 신호**는 내용 없이 신호만 도착', '**Overview** 숫자는 **확인했어요**를 누를 때까지 유지'] },
   { t: '🎫 **Queue**', why: '친구가 공유한 로그를 확인하고 짧게 반응.',
-    how: ['공유된 줄과 **친구의 한마디** 확인', '친구가 원문을 함께 보낸 줄은 원문도 표시', '댓글 입력 후 **Comment** 클릭'],
+    how: ['공유된 줄과 **친구의 한마디** 확인', '공유된 줄은 친구의 원문도 함께 표시', '댓글 입력 후 **Comment** 클릭'],
     tip: ['공유된 줄은 하루가 지나면 함께 정리', '댓글은 코드 리뷰처럼 짧게'] },
   { t: '💌 **Send**', why: '친구가 힘든 시간에 맞춰 응원 메시지 전달.',
     how: ['메시지 입력', '시점 선택: 지금 / 1시간 뒤 / 3시간 뒤 / 내일 아침 9시 / 주말 아침 10시', '**Commit** 클릭', '**Sent**에서 전달 상태 확인, 예약은 **예약 취소** 가능'],

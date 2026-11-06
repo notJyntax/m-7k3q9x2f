@@ -230,3 +230,11 @@ textarea { resize: none; width: 100%; }
 .login .opt input { width: auto; margin: 0; }
 .login .opt span { white-space: nowrap; }
 #app { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+
+/* 좁은 화면(폰): 상단 바가 겹치지 않게 부가 표시를 줄인다 */
+@media (max-width: 480px) {
+  .env, .mode { display: none; }
+  .top { gap: 6px; padding: 10px; }
+  .brand b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .right { flex: none; gap: 6px; }
+}
