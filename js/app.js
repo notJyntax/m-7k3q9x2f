@@ -143,6 +143,7 @@ async function boot({ sandbox = false } = {}) {
   if (!sandbox) {
     try {
       sb = await getSb();
+      S.sb = sb; // 로그인 화면에서도 쓰므로 여기서 바로 저장한다
       if (sb) {
         const { data } = await withTimeout(sb.auth.getSession(), 8000).then((r) => r || { data: {} });
         user = data?.session?.user || null;
@@ -174,22 +175,36 @@ async function boot({ sandbox = false } = {}) {
 
 // ───────── 로그인 (허용된 두 계정만) ─────────
 function viewLogin() {
-  const email = h('input', { type: 'email', autocomplete: 'username', placeholder: '이메일', 'aria-label': '이메일', required: true });
-  const pw = h('input', { type: 'password', autocomplete: 'current-password', placeholder: '비밀번호', 'aria-label': '비밀번호', required: true });
+  const email = h('input', { type: 'email', autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: false, inputMode: 'email', placeholder: '이메일', 'aria-label': '이메일', required: true });
+  const pw = h('input', { type: 'password', autocomplete: 'current-password', autocapitalize: 'none', autocorrect: 'off', spellcheck: false, placeholder: '비밀번호', 'aria-label': '비밀번호', required: true });
+  const show = h('input', { type: 'checkbox', on: { change: (e) => { pw.type = e.target.checked ? 'text' : 'password'; } } });
   const msg = h('p', { class: 'note', role: 'alert', text: '' });
+  let busy = false;
   const go = async () => {
+    if (busy) return;
     msg.textContent = '';
-    if (!email.value.trim() || !pw.value) { msg.textContent = '이메일과 비밀번호를 입력해 주세요.'; return; }
-    const { error } = await S.sb.auth.signInWithPassword({ email: email.value.trim(), password: pw.value });
-    if (error) { msg.textContent = '이메일 또는 비밀번호를 확인해 주세요.'; return; }
-    boot();
+    const em = email.value.trim().toLowerCase();
+    if (!em || !pw.value) { msg.textContent = '이메일과 비밀번호를 입력해 주세요.'; return; }
+    busy = true; msg.textContent = '로그인 중…';
+    try {
+      const { error } = await S.sb.auth.signInWithPassword({ email: em, password: pw.value });
+      if (error) {
+        const code = error.code || '';
+        msg.textContent = code === 'invalid_credentials' ? '이메일 또는 비밀번호가 맞지 않아요. (비밀번호 보기를 켜서 확인해 보세요)'
+          : code === 'email_not_confirmed' ? '이메일 확인이 안 된 계정이에요. 관리자에게 알려 주세요.'
+          : /fetch|network/i.test(error.message || '') || !error.status ? '서버에 연결하지 못했어요. 인터넷을 확인해 주세요.'
+          : `로그인하지 못했어요. (${code || error.status})`;
+        return;
+      }
+      await boot();
+    } catch (e) { console.warn(e); msg.textContent = '로그인 중 문제가 생겼어요. 새로고침 후 다시 시도해 주세요.'; } finally { busy = false; }
   };
-  const onKey = (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); act(go)(); } };
+  const onKey = (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } };
   email.addEventListener('keydown', onKey); pw.addEventListener('keydown', onKey);
   return h('div', { class: 'page' }, h('section', { class: 'card login' }, h('h3', { text: 'Sign in' }),
     note('허용된 두 계정만 들어올 수 있어요. 계정은 관리자가 미리 만들어 둔 이메일과 비밀번호를 써요.'),
-    email, pw, msg,
-    h('div', { class: 'row' }, btn('체험 모드로 둘러보기', () => boot({ sandbox: true }), 'small'), h('span', { class: 'sp' }), btn('로그인', act(go), 'primary'))));
+    email, pw, h('label', { class: 'opt' }, show, h('span', { text: '비밀번호 보기' })), msg,
+    h('div', { class: 'row' }, btn('체험 모드로 둘러보기', () => boot({ sandbox: true }), 'small'), h('span', { class: 'sp' }), btn('로그인', go, 'primary'))));
 }
 function viewDenied() {
   return h('div', { class: 'page' }, card('접근할 수 없는 계정이에요', note(`${S.email || '이 계정'} 은(는) 이 앱의 허용 목록에 없어요. 허용된 이메일로 다시 로그인해 주세요.`),
