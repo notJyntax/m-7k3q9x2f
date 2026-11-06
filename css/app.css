@@ -44,7 +44,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tabs { display: flex; gap: 2px; padding: 0 8px; background: var(--panel); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
 .tab { border: 0; background: none; padding: 9px 12px; color: var(--sub); border-bottom: 2px solid transparent; white-space: nowrap; cursor: pointer; }
 .tab.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
-.cnt { margin-left: 6px; background: var(--accent); color: #fff; border-radius: 99px; font-size: 11px; padding: 0 6px; }
+.cnt { margin-left: 6px; background: var(--accent); color: var(--on-accent, #fff); border-radius: 99px; font-size: 11px; padding: 0 6px; }
 
 .view { flex: 1; overflow-y: auto; padding: 12px; }
 .page { display: flex; flex-direction: column; gap: 12px; }
@@ -61,7 +61,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .btn:hover { background: var(--hover); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
 .btn.primary:hover { background: var(--kwfg); }
 .btn.ghost { background: transparent; }
 .btn.small { padding: 3px 9px; font-size: 12.5px; }
@@ -219,7 +219,6 @@ textarea { resize: none; width: 100%; }
 .hi .why .hl { margin: 0 4px 0 0; color: var(--accent); }
 .hi ol, .hi ul { margin: 2px 0 6px; padding-left: 20px; }
 .hi ol { color: var(--sub); font-size: 13px; }
-.card.agenda.on { border-color: var(--accent); background: var(--infobg); box-shadow: 0 0 0 1px var(--accent); }
 .ag-cur { margin: 2px 0 8px; }
 .ag-text { font-size: 17px; font-weight: 700; color: var(--infofg); line-height: 1.4; }
 
@@ -238,3 +237,96 @@ textarea { resize: none; width: 100%; }
   .brand b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .right { flex: none; gap: 6px; }
 }
+
+
+/* 덜 눈에 띄는 버튼 (해결/삭제/내역 보기처럼 중요하지 않은 동작) */
+.btn.quiet { background: transparent; border-color: transparent; color: var(--sub); padding: 2px 8px; font-size: 12px; }
+.btn.quiet:hover { background: var(--hover); color: var(--text); }
+.btn.quiet.del:hover { color: var(--crit); }
+.btn.block { display: block; width: 100%; text-align: center; margin-top: 4px; }
+/* Weekly Agenda: 아이콘 + 굵은 글자 한 줄씩 */
+.ag-list { display: grid; margin: 2px 0 8px; }
+.ag-item { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+.ag-item:last-child { border-bottom: 0; }
+.ag-item .agi { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--sub); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ag-item.open .agi { stroke: var(--accent); }
+.ag-item.done .agi { stroke: var(--ok); }
+.ag-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ag-t { font-weight: 700; font-size: 14.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.ag-item.done .ag-t { color: var(--sub); }
+.ag-body .sub { font-size: 11.5px; }
+.ag-act { display: flex; gap: 2px; flex: none; }
+
+/* ───────── 스페셜 테마 ─────────
+   기본 테마(라이트·다크·웜 그레이)는 회사에서 쓰기 좋은 차분한 톤, 아래는 기분 전환용이에요.
+   각 테마가 배경뿐 아니라 강조색(--accent), 버튼 글자색(--on-accent), 안내/하이라이트 색까지 같이 바꿔요.
+   상태 색(초록·노랑·빨강)은 의미가 헷갈리지 않게 모든 테마에서 비슷하게 유지해요. */
+html[data-theme="midnight"], html[data-theme="terminal"], html[data-theme="plum"] {
+  --ok: #4ade80; --okbg: #11301f; --warn: #fbbf24; --warnbg: #33280d; --crit: #f87171; --critbg: #3a1717; --notebg: #2f270f;
+  --okline: #1f5a37; --warnline: #6b5416; --critline: #6b2a2a; --warnfg: #fcd34d; --notefg: #fcd34d; --notekw: #4a3b10;
+  --fatalbg: #dc2626; --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
+}
+html[data-theme="sakura"] {
+  --bg: #fdf3f6; --panel: #fffafc; --line: #f1d7e0; --text: #3a2430; --sub: #876876; --accent: #c9376d; --on-accent: #fff;
+  --soft: #fbe8ef; --hover: #fdeef3; --track: #f6dde6; --codebg: #fff7fa; --gloss: #fceef3;
+  --infobg: #fde6ee; --infofg: #9d2a55; --kwbg: #fbe0ea; --kwfg: #a82b5b; --ts: #b595a3; --svc: #7a5565; --codecol: #a88494;
+}
+html[data-theme="ocean"] {
+  --bg: #eef6fb; --panel: #fff; --line: #d3e5f0; --text: #112a3a; --sub: #5a788c; --accent: #0b7fa0; --on-accent: #fff;
+  --soft: #e3f0f7; --hover: #f1f8fc; --track: #dbe9f2; --codebg: #f7fbfe; --gloss: #edf6fb;
+  --infobg: #e0f2fa; --infofg: #075a75; --kwbg: #d8eef7; --kwfg: #086a87; --ts: #8fa9ba; --svc: #4b6a7e; --codecol: #7d98aa;
+}
+html[data-theme="forest"] {
+  --bg: #f1f5ee; --panel: #fbfdf9; --line: #dbe6d3; --text: #1e2b1f; --sub: #607560; --accent: #2b7a4b; --on-accent: #fff;
+  --soft: #e6efe0; --hover: #f4f8f1; --track: #dfe9d8; --codebg: #f8fbf5; --gloss: #eef4ea;
+  --infobg: #e3f1e5; --infofg: #1f5c3a; --kwbg: #dcefe0; --kwfg: #226141; --ts: #93a893; --svc: #4c614c; --codecol: #7f947f;
+}
+html[data-theme="sunset"] {
+  --bg: #fff4ea; --panel: #fffaf4; --line: #f3dcc4; --text: #3b2418; --sub: #86654f; --accent: #c24d1c; --on-accent: #fff;
+  --soft: #fbe9d8; --hover: #fff0e2; --track: #f5e0cc; --codebg: #fffaf5; --gloss: #fdeee0;
+  --infobg: #fde8d6; --infofg: #a8411a; --kwbg: #fbe0cb; --kwfg: #b04618; --ts: #bb9a84; --svc: #765643; --codecol: #a98b77;
+}
+html[data-theme="lavender"] {
+  --bg: #f4f1fb; --panel: #fdfcff; --line: #e2dcf2; --text: #261f3a; --sub: #716590; --accent: #7352d0; --on-accent: #fff;
+  --soft: #ece7f8; --hover: #f6f3fc; --track: #e6e0f4; --codebg: #faf8fe; --gloss: #f1eef9;
+  --infobg: #ebe5fa; --infofg: #4f33a0; --kwbg: #e4dcf8; --kwfg: #5f3ebb; --ts: #a89fc2; --svc: #5d5278; --codecol: #9489b2;
+}
+html[data-theme="midnight"] {
+  --bg: #0b1020; --panel: #121a30; --line: #25305a; --text: #e6ebff; --sub: #8e9acb; --accent: #4cc9f0; --on-accent: #05263a;
+  --soft: #1a2442; --hover: #172040; --track: #1e2848; --codebg: #0e1528; --gloss: #141d36;
+  --infobg: #10294a; --infofg: #8fd8f5; --kwbg: #12304f; --kwfg: #8be0fa; --ts: #66739e; --svc: #aab6e0; --codecol: #7683b0;
+}
+html[data-theme="terminal"] {
+  /* 눈이 편하도록 순수 검정/형광 초록 대신, 살짝 푸른 어두운 회색 + 차분한 민트를 쓴다 */
+  --bg: #161b1d; --panel: #1d2326; --line: #2f3a3e; --text: #d3ddd8; --sub: #8fa39b; --accent: #7fc4a2; --on-accent: #0f1d17;
+  --soft: #242c2f; --hover: #222a2d; --track: #2a3437; --codebg: #181e20; --gloss: #202729;
+  --infobg: #1f3430; --infofg: #a6dcc2; --kwbg: #23403a; --kwfg: #a6dcc2; --ts: #6c8179; --svc: #b3c4bc; --codecol: #7c9188;
+}
+html[data-theme="terminal"] body { font-family: var(--mono); }
+html[data-theme="plum"] {
+  --bg: #1e1b2b; --panel: #272437; --line: #3f3a5a; --text: #f1eefc; --sub: #a9a3c8; --accent: #b794f6; --on-accent: #1e1b2b;
+  --soft: #302c45; --hover: #2c2940; --track: #352f4d; --codebg: #211e30; --gloss: #2a2640;
+  --infobg: #2e2650; --infofg: #d3bfff; --kwbg: #342b5a; --kwfg: #d6c2ff; --ts: #7b75a0; --svc: #c4bee0; --codecol: #8c86b0;
+}
+.theme-row { flex-wrap: wrap; }
+.theme-sep { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+
+/* ───────── 상단 상태 줄: 나(Me)와 상대(Partner)의 현재 상태(이모지) ───────── */
+.mood { display: flex; gap: 8px; align-items: center; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.mood[hidden] { display: none; }
+.mchip { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 0; border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 99px; padding: 3px 10px 3px 9px; cursor: pointer; font-size: 12.5px; }
+.mchip:hover { background: var(--hover); }
+.mchip .mk { color: var(--sub); font-size: 11px; font-weight: 600; flex: none; }
+.mchip .me-e { font-size: 16px; line-height: 1.2; flex: none; }
+.mchip .mt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.mchip .car { color: var(--sub); font-size: 10px; flex: none; }
+.mchip.they.new { border-color: var(--accent); background: var(--infobg); }
+.mchip .ndot { width: 8px; height: 8px; border-radius: 50%; background: #dc2626; flex: none; animation: pop 1.2s ease-out 3; }
+.mgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.mopt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; cursor: pointer; }
+.mopt:hover { background: var(--hover); }
+.mopt .me-e { font-size: 22px; line-height: 1.2; }
+.mopt small { font-size: 10.5px; color: var(--sub); }
+.mopt.on { border-color: var(--accent); background: var(--infobg); }
+.their { text-align: center; }
+.their .big { font-size: 52px; line-height: 1.2; }
