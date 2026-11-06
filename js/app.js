@@ -3,6 +3,8 @@ import { createStore } from './store.js';
 import * as L from './logic.js';
 import { CONFIG } from './config.js';
 import * as Push from './push.js';
+import { startUpdateCheck } from './update.js';
+import { BUILD } from './version.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas'];
 
@@ -1041,5 +1043,6 @@ document.title = 'Service Monitor — prod-api-02';
 applyTheme();
 buildShell();
 boot();
+startUpdateCheck({ build: BUILD, busy: () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '') });
 // 테스트/디버깅용 훅 (화면에는 노출되지 않음)
 window.__svcmon = { S, gc: () => gcOnce(), boot };

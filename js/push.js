@@ -7,6 +7,14 @@ export const pushCapable = () => 'serviceWorker' in navigator && 'PushManager' i
 
 export async function registerSW() {
   if (!('serviceWorker' in navigator)) return null;
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  // 새 버전의 서비스워커가 일을 넘겨받으면 한 번만 새로고침해서 새 화면을 바로 보여준다 (입력 중이면 건너뜀)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return;
+    reloaded = true; location.reload();
+  });
   try { return await navigator.serviceWorker.register('./sw.js'); } catch (e) { console.warn('sw', e); return null; }
 }
 

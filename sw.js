@@ -1,5 +1,5 @@
 // 서비스워커: 앱이 꺼져 있어도 푸시를 받아 알림으로 보여준다. 본문은 서버가 정한 짧은 문구뿐이다.
-const SHELL = 'svcmon-shell-v1';
+const SHELL = 'svcmon-shell-v2';
 
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
@@ -8,12 +8,14 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
 })()));
 
 // 같은 출처의 파일만, 네트워크 우선(오프라인이면 마지막 본 파일). API 요청은 건드리지 않는다.
+// cache: 'no-cache' 는 "항상 서버에 새 버전이 있는지 물어본다"는 뜻이다(바뀐 게 없으면 304 로 가볍게 끝남).
+// 이게 없으면 호스팅이 알려준 10분 캐시 때문에 새로 올린 화면이 폰에 늦게 보인다.
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
   e.respondWith((async () => {
     try {
-      const res = await fetch(e.request);
+      const res = await fetch(e.request, { cache: 'no-cache' });
       if (res.ok) (await caches.open(SHELL)).put(e.request, res.clone());
       return res;
     } catch (err) {
