@@ -330,3 +330,5 @@ html[data-theme="plum"] {
 .mopt.on { border-color: var(--accent); background: var(--infobg); }
 .their { text-align: center; }
 .their .big { font-size: 52px; line-height: 1.2; }
+.mlab { font-size: 11px; font-weight: 700; color: var(--sub); letter-spacing: .3px; text-transform: uppercase; margin: 2px 0 6px; }
+.mgrid + .mlab { margin-top: 10px; }

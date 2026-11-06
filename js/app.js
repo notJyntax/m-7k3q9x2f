@@ -303,7 +303,9 @@ function renderChrome() {
   renderMood();
 }
 // ───────── 내 현재 상태(이모지): 상단 줄에 나와 상대의 상태가 보이고, 바뀌면 상대에게 알려준다 ─────────
-const MOODS = [['🙂', '평온'], ['💻', '집중'], ['🍚', '식사'], ['🚇', '이동'], ['☕', '휴식'], ['🎉', '신남'], ['😮‍💨', '지침'], ['😡', '화남'], ['🤒', '아픔'], ['🛌', '자는 중'], ['🌴', '휴가'], ['📞', '통화 중']];
+// 맨 윗줄은 지금 하는 일(행동), 아래는 지금 기분(감정). 너무 세세한 상태는 두지 않는다.
+const MOODS_ACTIVITY = [['💻', '집중'], ['🍚', '식사'], ['🚇', '이동'], ['☕', '휴식']];
+const MOODS_FEELING = [['🙂', '평온'], ['😄', '신남'], ['😌', '안도'], ['😮‍💨', '지침'], ['😡', '화남'], ['😢', '우울'], ['😰', '불안'], ['🤒', '아픔']];
 const otherRole = () => (isWriter() ? 'listener' : 'writer');
 const moodDoc = (role) => sd('me_' + role);
 const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
@@ -325,8 +327,12 @@ function renderMood() {
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';
   const text = h('input', { type: 'text', maxLength: 20, placeholder: '한마디 (선택) 예: 회의 중, 9시 이후 가능', value: cur.text || '' });
-  const grid = h('div', { class: 'mgrid' }, MOODS.map(([e, l]) => h('button', { type: 'button', class: 'mopt' + (e === pick ? ' on' : ''), title: l, on: { click: (ev) => { pick = e; grid.querySelectorAll('.mopt').forEach((b) => b.classList.toggle('on', b === ev.currentTarget)); } } }, h('span', { class: 'me-e', text: e }), h('small', { text: l }))));
-  modal({ title: 'My status', body: h('div', { class: 'share' }, grid, text, note(`저장하면 ${otherName()}에게 상태가 바뀌었다고 알려요.`)),
+  const opt = ([e, l]) => h('button', { type: 'button', class: 'mopt' + (e === pick ? ' on' : ''), title: l, on: { click: (ev) => { pick = e; body.querySelectorAll('.mopt').forEach((b) => b.classList.toggle('on', b === ev.currentTarget)); } } }, h('span', { class: 'me-e', text: e }), h('small', { text: l }));
+  const body = h('div', { class: 'share' },
+    h('div', { class: 'mlab', text: 'Activity' }), h('div', { class: 'mgrid' }, MOODS_ACTIVITY.map(opt)),
+    h('div', { class: 'mlab', text: 'Mood' }), h('div', { class: 'mgrid' }, MOODS_FEELING.map(opt)),
+    text, note(`저장하면 ${otherName()}에게 상태가 바뀌었다고 알려요.`));
+  modal({ title: 'My status', body,
     actions: [{ label: 'Clear', cls: 'small danger', fn: () => saveMood('', '') }, { label: 'Cancel', cls: 'small' }, { label: 'Save', cls: 'primary', fn: () => saveMood(pick, text.value.trim()) }] });
 }
 function openTheirMood() {
