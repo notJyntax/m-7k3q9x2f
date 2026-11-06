@@ -225,5 +225,8 @@ textarea { resize: none; width: 100%; }
 
 /* 로그인 */
 .login { display: grid; gap: 10px; max-width: 420px; margin: 24px auto; }
-.login input { width: 100%; }
+.login input[type=email], .login input[type=password], .login input[type=text] { width: 100%; }
+.login .opt { display: flex; align-items: center; gap: 8px; }
+.login .opt input { width: auto; margin: 0; }
+.login .opt span { white-space: nowrap; }
 #app { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
