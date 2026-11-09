@@ -124,7 +124,7 @@ function buildShell() {
   } });
   const dock = h('footer', { id: 'dock', class: 'dock', hidden: true },
     h('div', { class: 'chips' }, h('span', { class: 'k', text: 'quick' }), ['WARN', 'ERROR', 'FATAL'].map((lv) => btn('+' + lv, act(() => saveLog(L.quickLine(lv), '')), 'chip lv-' + lv))),
-    h('div', { class: 'prompt' }, h('span', { class: 'ps', text: '$' }), ta, btn('Run', act(onSubmit), 'primary')));
+    h('div', { class: 'prompt' }, h('span', { class: 'ps', text: '~$' }), ta, btn('Run', act(onSubmit), 'primary')));
   $('#app').replaceChildren(
     h('header', { class: 'top', id: 'top' }), h('div', { class: 'mood', id: 'mood', hidden: true }), h('nav', { class: 'tabs', id: 'tabs' }), h('main', { id: 'view', class: 'view' }), dock,
     h('div', { id: 'modal-root' }), h('div', { id: 'toast', class: 'toast', role: 'status', hidden: true }), h('div', { id: 'boss', class: 'boss', hidden: true }));
@@ -826,7 +826,7 @@ function viewPlanW() {
 
 // ───────── Archive (작성자: 날짜별 기록 보관함) ─────────
 function viewArchive() {
-  const A = (S.arch ??= { y: new Date().getFullYear(), m: new Date().getMonth(), sel: null });
+  const A = (S.arch ??= { y: new Date().getFullYear(), m: new Date().getMonth(), sel: null, raw: false });
   const byDay = {};
   logsAll().forEach((l) => (byDay[l.day] ??= []).push(l));
   const days = Object.keys(byDay).sort();
@@ -845,11 +845,12 @@ function viewArchive() {
   const st = L.statFromLogs(ls);
   const detail = card(`${fmtMD(sel)} Log`,
     ls.length ? [note(`${ls.length} lines · WARN ${st.WARN | 0} · ERROR ${st.ERROR | 0} · FATAL ${st.FATAL | 0} · 나만 볼 수 있어요`),
+      h('div', { class: 'row' }, btn(A.raw ? 'Hide all raw' : 'Show all raw', () => { A.raw = !A.raw; renderView(); }, 'small' + (A.raw ? ' primary' : ''))),
       ls.map((l) => {
         const open = S.open.has(l.id);
         const row = h('div', { class: `ln lv-${l.level}${String(l.code).startsWith('OK_') ? ' pos' : ''}`, on: { click: () => { open ? S.open.delete(l.id) : S.open.add(l.id); renderView(); } } },
           h('span', { class: 'ts', text: hms(l.ts) }), h('span', { class: 'lv', text: l.level }), h('span', { class: 'svc', text: l.service }), h('span', { class: 'code', text: `[${l.code}]` }), h('span', { class: 'msg', text: l.msg }));
-        return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, btn('Delete', act(() => deleteLog(l)), 'small danger')))) : row;
+        return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, btn('Delete', act(() => deleteLog(l)), 'small danger')))) : A.raw ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-rawline' }, '↳ ' + (l.raw || '(quick entry)'))) : row;
       }),
       h('div', { class: 'row' }, btn('Delete all for this day', () => modal({ title: `${fmtMD(sel)} 기록을 모두 지울까요?`, body: note('지운 기록은 복구되지 않아요. 통계 숫자는 남아요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { for (const l of ls) await deleteLog(l); }) }] }), 'small danger'))]
       : empty('이 날은 기록이 없어요'));
@@ -1121,21 +1122,31 @@ function sysRow(p, kept) {
 }
 function openCompose() {
   const me = roleName(); let urgent = false, question = false;
-  const text = h('textarea', { rows: 4, maxLength: 500, placeholder: 'Write something' });
-  const opts = [h('input', { type: 'text', maxLength: 40, placeholder: 'Option A' }), h('input', { type: 'text', maxLength: 40, placeholder: 'Option B' })];
-  const pollBox = h('div', { class: 'sl-pollform', hidden: true }, h('div', { class: 'mlab', text: 'Poll (optional)' }), opts);
-  const chip = (label, on) => h('button', { type: 'button', class: 'schip flag', on: { click: (e) => on(e.currentTarget) } }, label);
-  const urgentChip = chip('Urgent', (b) => { urgent = !urgent; b.classList.toggle('on', urgent); b.classList.toggle('crit', urgent); });
-  const questionChip = chip('Question', (b) => { question = !question; b.classList.toggle('on', question); pollBox.hidden = !question; });
-  const body = h('div', { class: 'share' }, text, h('div', { class: 'rgrid' }, urgentChip, questionChip),
-    h('p', { class: 'note', text: '긴급으로 표시하면 상대 화면에서 강조되어 맨 위에 보여요. 꼭 보고 답해야 하는 일에만 써 주세요.' }), pollBox);
-  modal({ title: 'New entry', body, actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Post', cls: 'primary', close: false, fn: async (close) => {
+  const text = h('textarea', { rows: 5, maxLength: 500, placeholder: 'type here…', 'aria-label': 'entry' });
+  const count = h('span', { class: 'tc-count', text: '0/500' });
+  const opts = [h('input', { type: 'text', maxLength: 40, placeholder: 'option A' }), h('input', { type: 'text', maxLength: 40, placeholder: 'option B' })];
+  const pollBox = h('div', { class: 'sl-pollform', hidden: true }, h('div', { class: 'tc-cmd', text: '--poll' }), opts);
+  const flag = (label, on) => h('button', { type: 'button', class: 'tc-flag', 'aria-pressed': 'false', on: { click: (e) => { const b = e.currentTarget; const v = on(); b.classList.toggle('on', v); b.setAttribute('aria-pressed', String(v)); } } }, label);
+  const urgentFlag = flag('--urgent', () => { urgent = !urgent; return urgent; });
+  const questionFlag = flag('--question', () => { question = !question; pollBox.hidden = !question; return question; });
+  const preview = h('div', { class: 'tc-cmd' });
+  const sync = () => { count.textContent = `${text.value.length}/500`; preview.textContent = `$ post syslog${urgent ? ' --urgent' : ''}${question ? ' --question' : ''}`; };
+  [urgentFlag, questionFlag].forEach((b) => b.addEventListener('click', sync));
+  text.addEventListener('input', sync); sync();
+  const body = h('div', { class: 'share term-compose' }, preview,
+    h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }), text),
+    h('div', { class: 'tc-foot' }, urgentFlag, questionFlag, h('span', { class: 'sp' }), count),
+    h('p', { class: 'note', text: '긴급으로 표시하면 상대 화면에서 강조되어 맨 위에 보여요. 꼭 보고 답해야 하는 일에만 써 주세요. (Ctrl/⌘ + Enter 로 올리기)' }), pollBox);
+  const post = async (close) => {
     const t = text.value.trim(); if (!t) return toast('내용을 써 주세요');
     const options = opts.map((o) => o.value.trim()).filter(Boolean);
     close();
     await S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), ...(urgent ? { urgent: true } : {}), ...(question ? { question: true } : {}), ...(question && options.length >= 2 ? { poll: { options } } : {}) });
     toast(urgent ? '긴급으로 올렸어요' : '올렸어요');
-  } }] });
+  };
+  const close = modal({ title: 'New entry', body, actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Post', cls: 'primary', close: false, fn: post }] });
+  text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) { e.preventDefault(); act(post)(close); } });
+  setTimeout(() => text.focus(), 50);
 }
 function viewSyslog() {
   const st = sysState(), me = roleName();

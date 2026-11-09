@@ -1,21 +1,26 @@
 /* 테마: html[data-theme] 로 바뀐다 (light 기본) */
 :root {
   --bg: #f4f5f7; --panel: #fff; --line: #e3e6ea; --text: #1f2933; --sub: #6b7785; --accent: #2563eb;
-  --ok: #15803d; --okbg: #e6f4ea; --warn: #b45309; --warnbg: #fdf3dc; --crit: #b91c1c; --critbg: #fde8e8;
+  --ok: #2f7a55; --okbg: #e8f3ed; --warn: #a8660f; --warnbg: #fbf1dc; --crit: #b3424c; --critbg: #fbeded;
   --soft: #eef1f5; --hover: #f5f7fa; --track: #eceff3; --codebg: #fafbfc; --gloss: #f4f7fb; --notebg: #fff8e6;
   --infobg: #eaf1ff; --infofg: #1e40af; --kwbg: #e6efff; --kwfg: #1d4ed8;
-  --okline: #bfe3c8; --warnline: #f1d9a0; --critline: #f2bcbc; --warnfg: #7c4a03; --notefg: #8a5a00; --notekw: #fdf0c8;
-  --ts: #94a0ad; --svc: #475569; --codecol: #7a8794; --fatalbg: #b91c1c; --scrim: rgba(15, 23, 42, .35);
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --okline: #c4e0d1; --warnline: #eed8a6; --critline: #eac4c7; --warnfg: #7c4a03; --notefg: #8a5a00; --notekw: #fdf0c8;
+  --ts: #94a0ad; --svc: #475569; --codecol: #7a8794; --fatalbg: #b3424c; --scrim: rgba(15, 23, 42, .35);
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  /* 막대 색: 채도를 낮춘 기본 색을 테마 강조색과 살짝 섞어서, 테마마다 자연스럽게 따라 바뀐다 */
+  --bp-irr: #d98a66; --bp-ok: #6fae92; --bp-warn: #d6a24a; --bp-crit: #c4515a; --bp-disk: #9a91cf;
+  --bar-irr: color-mix(in srgb, var(--bp-irr) 90%, var(--accent)); --bar-fat: color-mix(in srgb, var(--accent) 78%, var(--panel));
+  --bar-ok: color-mix(in srgb, var(--bp-ok) 88%, var(--accent)); --bar-warn: color-mix(in srgb, var(--bp-warn) 90%, var(--accent));
+  --bar-crit: color-mix(in srgb, var(--bp-crit) 92%, var(--accent)); --bar-disk: color-mix(in srgb, var(--bp-disk) 85%, var(--accent));
   color-scheme: light;
 }
 html[data-theme="dark"] {
   --bg: #0f1419; --panel: #161c24; --line: #2a3340; --text: #e5e9ef; --sub: #8b97a6; --accent: #4c8dff;
-  --ok: #4ade80; --okbg: #11301f; --warn: #fbbf24; --warnbg: #33280d; --crit: #f87171; --critbg: #3a1717;
+  --ok: #6fcf9f; --okbg: #123023; --warn: #e6b455; --warnbg: #33280d; --crit: #ee8a90; --bp-irr: #e49a78; --bp-ok: #7cc0a2; --bp-warn: #e3b563; --bp-crit: #e07780; --bp-disk: #aaa2dc; --critbg: #3a1d21;
   --soft: #212a35; --hover: #1d2630; --track: #26303c; --codebg: #131a21; --gloss: #18212b; --notebg: #2f270f;
   --infobg: #14284a; --infofg: #9cc2ff; --kwbg: #17315c; --kwfg: #a8c9ff;
-  --okline: #1f5a37; --warnline: #6b5416; --critline: #6b2a2a; --warnfg: #fcd34d; --notefg: #fcd34d; --notekw: #4a3b10;
-  --ts: #6b7787; --svc: #aab4c1; --codecol: #7d8997; --fatalbg: #dc2626; --scrim: rgba(0, 0, 0, .6);
+  --okline: #25614a; --warnline: #6b5416; --critline: #6a2f35; --warnfg: #fcd34d; --notefg: #fcd34d; --notekw: #4a3b10;
+  --ts: #6b7787; --svc: #aab4c1; --codecol: #7d8997; --fatalbg: #c8505a; --scrim: rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 html[data-theme="warm"] {
@@ -26,7 +31,7 @@ html[data-theme="warm"] {
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+body { background: var(--bg); color: var(--text); font: 14px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif; letter-spacing: -.005em; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 #app { display: flex; flex-direction: column; height: 100dvh; max-width: 980px; margin: 0 auto; background: var(--bg); }
 button, input, select, textarea { font: inherit; color: inherit; }
 
@@ -91,21 +96,21 @@ textarea { resize: none; width: 100%; }
 .switch small { display: block; color: var(--sub); font-size: 12px; }
 
 .status { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-.status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); }
-.status.yellow .dot { background: #d97706; } .status.red .dot { background: #dc2626; } .status.off .dot { background: #9aa5b1; }
+.status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bar-ok); }
+.status.yellow .dot { background: var(--bar-warn); } .status.red .dot { background: var(--bar-crit); } .status.off .dot { background: #9aa5b1; }
 .meter { display: flex; flex-direction: column; gap: 4px; }
 .mh { display: flex; gap: 8px; align-items: baseline; }
 .mh .sub { flex: 1; } .pct { font-family: var(--mono); }
 .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; }
-.bar i { display: block; height: 100%; border-radius: 99px; background: var(--ok); transition: width .4s; }
-.bar i.warn { background: #d97706; } .bar i.crit { background: #dc2626; }
+.bar i { display: block; height: 100%; border-radius: 99px; background: var(--bar-ok); transition: width .4s; }
+.bar i.warn { background: var(--bar-warn); } .bar i.crit { background: var(--bar-crit); }
 .counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .cnt-box { border: 1px solid var(--line); border-radius: 6px; padding: 6px; text-align: center; display: flex; flex-direction: column; }
 .cnt-box b { font-size: 20px; } .cnt-box span { font-size: 11px; color: var(--sub); }
 .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 120px; }
 .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .col .stick { flex: 1; width: 70%; background: var(--track); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; }
-.col .stick i { display: block; width: 100%; background: var(--accent); }
+.col .stick i { display: block; width: 100%; background: var(--bar-fat); }
 .col .n, .col .d { font-size: 11px; color: var(--sub); }
 .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .tbl th, .tbl td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); }
@@ -173,7 +178,7 @@ textarea { resize: none; width: 100%; }
 .share { display: flex; flex-direction: column; gap: 8px; }
 .share input { width: 100%; }
 
-.cnt { background: #dc2626; animation: pop 1.2s ease-out 3; }
+.cnt { background: var(--bar-crit); animation: pop 1.2s ease-out 3; }
 @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
 
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #8b97a6; margin-right: 6px; vertical-align: -1px; }
@@ -262,9 +267,9 @@ textarea { resize: none; width: 100%; }
    각 테마가 배경뿐 아니라 강조색(--accent), 버튼 글자색(--on-accent), 안내/하이라이트 색까지 같이 바꿔요.
    상태 색(초록·노랑·빨강)은 의미가 헷갈리지 않게 모든 테마에서 비슷하게 유지해요. */
 html[data-theme="midnight"], html[data-theme="terminal"], html[data-theme="plum"] {
-  --ok: #4ade80; --okbg: #11301f; --warn: #fbbf24; --warnbg: #33280d; --crit: #f87171; --critbg: #3a1717; --notebg: #2f270f;
-  --okline: #1f5a37; --warnline: #6b5416; --critline: #6b2a2a; --warnfg: #fcd34d; --notefg: #fcd34d; --notekw: #4a3b10;
-  --fatalbg: #dc2626; --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
+  --ok: #6fcf9f; --okbg: #123023; --warn: #e6b455; --warnbg: #33280d; --crit: #ee8a90; --bp-irr: #e49a78; --bp-ok: #7cc0a2; --bp-warn: #e3b563; --bp-crit: #e07780; --bp-disk: #aaa2dc; --critbg: #3a1d21; --notebg: #2f270f;
+  --okline: #25614a; --warnline: #6b5416; --critline: #6a2f35; --warnfg: #fcd34d; --notefg: #fcd34d; --notekw: #4a3b10;
+  --fatalbg: #c8505a; --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
 }
 html[data-theme="sakura"] {
   --bg: #fdf3f6; --panel: #fffafc; --line: #f1d7e0; --text: #3a2430; --sub: #876876; --accent: #c9376d; --on-accent: #fff;
@@ -350,7 +355,7 @@ html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radiu
 .mchip.empty .mt { color: var(--sub); font-weight: 500; }
 .mchip.they.new { border-color: var(--accent); background: var(--infobg); }
 .mchip.they.new .mav::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
-.mchip .ndot { position: absolute; top: 3px; left: 31px; width: 10px; height: 10px; border-radius: 50%; background: #dc2626; border: 2px solid var(--infobg); animation: pop 1.2s ease-out 3; }
+.mchip .ndot { position: absolute; top: 3px; left: 31px; width: 10px; height: 10px; border-radius: 50%; background: var(--bar-crit); border: 2px solid var(--infobg); animation: pop 1.2s ease-out 3; }
 .mchip.they.new .mav { animation: ring 2.4s ease-out 3; }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 .mbody .mk .ago { text-transform: none; letter-spacing: 0; font-weight: 600; }
@@ -392,16 +397,16 @@ html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radiu
 /* CPU 합산 막대: 짜증·화(주황)와 피로·불안(강조색)을 한 막대 안에서 색으로 구분 */
 .stackbar { display: flex; position: relative; }
 .stackbar i.seg { border-radius: 0; transition: width .4s; }
-.stackbar i.seg.irr { background: #e07a1f; }
-.stackbar i.seg.fat { background: var(--accent); }
+.stackbar i.seg.irr { background: var(--bar-irr); }
+.stackbar i.seg.fat { background: var(--bar-fat); }
 .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--sub); }
 .legend .lg { display: inline-flex; align-items: center; gap: 5px; }
 .legend .sw2 { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.legend .sw2.irr { background: #e07a1f; }
-.legend .sw2.fat { background: var(--accent); }
+.legend .sw2.irr { background: var(--bar-irr); }
+.legend .sw2.fat { background: var(--bar-fat); }
 .legend { flex-wrap: wrap; gap: 4px 14px; }
 /* DISK(이번 주 쌓인 짜증)는 값과 상관없이 고정 색: CPU(주황·파랑), CACHE(초록)와 구분 */
-.bar i.disk { background: #8b6fd6; }
+.bar i.disk { background: var(--bar-disk); }
 
 /* ───────── Syslog: 시스템 로그 뷰어처럼 (회사 화면에서 튀지 않게: 고정폭, 한 줄, 차분한 색, 그림은 눌러야 보임) ───────── */
 .syslog .row { flex-wrap: wrap; }
@@ -456,9 +461,9 @@ html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radiu
 
 /* 긴급 글: 해결되기 전까지 맨 위에 모이고, 붉은 띠와 굵은 글씨로 강조 */
 .sl.urgent { background: var(--critbg); box-shadow: inset 3px 0 0 var(--crit); }
-.sl.urgent .sl-m { font-weight: 700; }
-.sl.urgent .sl-f { color: var(--crit); font-weight: 700; }
-.sl.urgent .sl-b { color: var(--crit); font-weight: 700; }
+.sl.urgent .sl-m { font-weight: 600; }
+.sl.urgent .sl-f { color: var(--crit); font-weight: 600; }
+.sl.urgent .sl-b { color: var(--crit); font-weight: 600; }
 .sl-wrap.urgent .sl-body { box-shadow: inset 3px 0 0 var(--crit); }
 .sev-crit .sl-f { color: var(--crit); }
 .schip.hot { border-color: var(--crit); color: var(--crit); }
@@ -478,7 +483,7 @@ html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radiu
 
 /* 새로고침 버튼: 보류된 새 버전이 있으면 붉은 점 */
 .btn.refresh { position: relative; padding-left: 8px; padding-right: 8px; font-size: 14px; line-height: 1; }
-.btn.refresh.has-update::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; border: 2px solid var(--panel); animation: pop 1.2s ease-out 3; }
+.btn.refresh.has-update::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--bar-crit); border: 2px solid var(--panel); animation: pop 1.2s ease-out 3; }
 .btn.refresh.has-update::after { top: -3px; right: -3px; }
 
 /* 암호문처럼: 목록에서는 글 내용 대신 msg=U2FsdGVkX1… 이 보이고(시각, 종류, 작성자, 긴급 표시는 그대로), 눌러야 진짜 내용이 나온다 */
@@ -496,3 +501,52 @@ html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radiu
 .boot-log.out { opacity: 0; pointer-events: none; }
 .boot-log pre { margin: 0; font: 13px/1.8 var(--mono); color: var(--text); min-width: 260px; }
 @media (prefers-reduced-motion: reduce) { .ln.tailnew { animation: none; } .boot-log { transition: none; } }
+
+/* ───────── 터미널 디테일 (가늘고 조용하게) ───────── */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--sub) 40%, transparent) transparent; }
+::selection { background: color-mix(in srgb, var(--accent) 75%, transparent); color: var(--on-accent, #fff); }
+:focus-visible { outline: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; }
+.brand b, .tab, .btn, .card h3, .card h4, .chip, .env, .badge { font-family: var(--mono); }
+.brand b { font-size: 13.5px; font-weight: 600; letter-spacing: -.3px; }
+.brand b::after { content: '_'; color: var(--accent); animation: caretblink 1.1s steps(1) infinite; }
+@keyframes caretblink { 50% { opacity: 0; } }
+.top, .tabs { border-bottom-color: color-mix(in srgb, var(--line) 75%, transparent); }
+.tab { border-bottom-color: transparent !important; font-size: 12.5px; font-weight: 400; padding: 9px 9px; }
+.tab::before, .tab::after { content: ' '; white-space: pre; opacity: .5; }
+.tab.on { color: var(--accent); font-weight: 500; }
+.tab.on::before { content: '['; } .tab.on::after { content: ']'; }
+.card h3 { font-size: 12.5px; font-weight: 500; }
+.card h3::before { content: '# '; color: var(--accent); opacity: .5; }
+.card, .loglist, .sl-list { border-radius: 6px; border-color: color-mix(in srgb, var(--line) 80%, transparent); }
+.btn { border-radius: 4px; font-size: 12.5px; border-color: color-mix(in srgb, var(--line) 85%, transparent); }
+.btn.small { padding: 3px 8px; font-size: 12px; }
+.badge { border-radius: 4px; font-size: 10.5px; padding: 0 6px; }
+.toast::before { content: '> '; opacity: .6; }
+.ps { color: var(--accent); opacity: .85; }
+@media (prefers-reduced-motion: reduce) { .brand b::after { animation: none; } }
+
+/* 아카이브: 원문 한꺼번에 보기 */
+.ln-rawline { margin: 0 10px 4px 24px; padding: 2px 8px; border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); color: var(--sub); font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
+
+/* Syslog 새 글: 터미널 프롬프트처럼 */
+.term-compose .tc-cmd { font: 12px var(--mono); color: var(--accent); margin-bottom: 6px; }
+.tc-box { display: flex; gap: 8px; align-items: flex-start; background: var(--codebg); border: 1px solid color-mix(in srgb, var(--line) 85%, transparent); border-radius: 6px; padding: 8px 10px; }
+.tc-box:focus-within { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.tc-gut { font: 13px/1.6 var(--mono); color: var(--accent); user-select: none; }
+.tc-box textarea { flex: 1; border: 0 !important; background: transparent !important; padding: 0 !important; margin: 0 !important; outline: 0; resize: none; font: 13px/1.6 var(--mono); caret-shape: block; caret-color: var(--accent); min-height: 7.5em; }
+.tc-foot { display: flex; gap: 6px; align-items: center; margin: 6px 0 2px; }
+.tc-flag { font: 11.5px var(--mono); padding: 2px 8px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--line) 85%, transparent); background: transparent; color: var(--sub); cursor: pointer; }
+.tc-flag.on { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.tc-flag.on:first-of-type { color: var(--crit); border-color: var(--crit); background: color-mix(in srgb, var(--crit) 10%, transparent); }
+.tc-count { font: 11px var(--mono); color: var(--sub); }
+
+/* 글꼴 다듬기: 숫자는 폭이 같게, 막대 이름은 작고 또렷하게 */
+.pct, .ts, .mono, .sha, .cnt-box b, .loglist, .sl { font-variant-numeric: tabular-nums; }
+.mh b { font: 500 12.5px var(--mono); letter-spacing: .06em; }
+.pct { font-size: 13px; color: var(--text); }
+.cnt-box b { font: 500 19px var(--mono); }
+h1, h2, h3, h4 { letter-spacing: -.01em; }
+
+/* 로그 레벨 글자(WARN, ERROR, FATAL, PASS)는 한 단계 작고 가볍게 */
+.ln .lv, .ln.pos .lv, .lv-PASS .lv { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; min-width: 40px; }
+.lv-FATAL .lv { padding: 0 4px; border-radius: 3px; }
