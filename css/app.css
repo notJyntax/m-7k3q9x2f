@@ -467,3 +467,10 @@ html[data-theme="plum"] {
 .btn.refresh { position: relative; padding-left: 8px; padding-right: 8px; font-size: 14px; line-height: 1; }
 .btn.refresh.has-update::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; border: 2px solid var(--panel); animation: pop 1.2s ease-out 3; }
 .btn.refresh.has-update::after { top: -3px; right: -3px; }
+
+/* 암호문처럼: 목록에서는 글 내용 대신 msg=U2FsdGVkX1… 이 보이고(시각, 종류, 작성자, 긴급 표시는 그대로), 눌러야 진짜 내용이 나온다 */
+.sl-m.mask { color: var(--text-secondary); font-size: 11.5px; user-select: none; -webkit-user-select: none; pointer-events: none; }
+
+/* 쌓임 순서: 팝업 위에 토스트 */
+.overlay { z-index: 40; }
+.toast { z-index: 45; }

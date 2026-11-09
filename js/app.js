@@ -348,7 +348,7 @@ const reactOn = (role, statusTs) => { const r = reactDoc(role); return statusTs 
 function moodChip(d, { name, me, isNew, title, onClick, react }) {
   const info = MOOD_INFO.get(d.emoji), has = !!(d.emoji || d.text);
   return h('button', { type: 'button', class: `mchip ${me ? 'me' : 'they'} ${has ? info?.kind || 'act' : 'empty'}${isNew ? ' new' : ''}`, title, on: { click: onClick } },
-    h('span', { class: 'mav' }, h('span', { class: 'me-e', text: d.emoji || (me ? '＋' : '·') }), react ? h('span', { class: 'mreact', text: react, title: me ? 'Partner reacted' : 'You reacted' }) : null),
+    h('span', { class: 'mav' }, h('span', { class: 'me-e', text: d.emoji || (me ? '＋' : '·') }), react ? h('span', { class: 'mreact', text: react, title: me ? '1 reacted' : '0 reacted' }) : null),
     h('span', { class: 'mbody' }, h('span', { class: 'mk' }, name, has && d.ts ? h('span', { class: 'ago', text: ` · ${short(d.ts)}` }) : null), h('span', { class: 'mt', text: has ? d.text || info?.label || '' : me ? 'Set status' : 'Not set' })),
     isNew ? h('span', { class: 'ndot', 'aria-label': '새 상태' }) : null);
 }
@@ -364,8 +364,8 @@ function renderMood() {
   else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`${otherName()}가 내 상태에 ${onMe} 반응했어요`); }
   box.hidden = false;
   box.replaceChildren(
-    moodChip(me, { name: 'Me', me: true, title: 'Change my status', onClick: openMood, react: onMe }),
-    moodChip(they, { name: 'Partner', me: false, isNew, title: 'Partner status', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
+    moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
+    moodChip(they, { name: '1', me: false, isNew, title: 'Status 1', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
 }
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';
@@ -375,7 +375,7 @@ function openMood() {
     h('div', { class: 'mlab', text: 'Activity' }), h('div', { class: 'mgrid' }, MOODS_ACTIVITY.map(opt)),
     h('div', { class: 'mlab', text: 'Mood' }), h('div', { class: 'mgrid' }, MOODS_FEELING.map(opt)),
     text, note(`저장하면 ${otherName()}에게 상태가 바뀌었다고 알려요.`));
-  modal({ title: 'My status', body,
+  modal({ title: 'Status 0', body,
     actions: [{ label: 'Clear', cls: 'small danger', fn: () => saveMood('', '') }, { label: 'Cancel', cls: 'small' }, { label: 'Save', cls: 'primary', fn: () => saveMood(pick, text.value.trim()) }] });
 }
 function openTheirMood() {
@@ -387,7 +387,7 @@ function openTheirMood() {
   }) } }, e);
   const body = has ? h('div', { class: 'their' }, h('div', { class: 'big', text: t.emoji || '·' }), t.text ? h('p', { class: 'msgtext', text: t.text }) : null, h('p', { class: 'sub', text: `갱신 ${ago(t.ts)}` }),
     h('div', { class: 'reactrow' }, h('div', { class: 'mlab', text: 'React' }), h('div', { class: 'rgrid' }, REACTIONS.map(rbtn)))) : note('아직 상태를 정하지 않았어요.');
-  const close = modal({ title: 'Partner status', body, actions: [{ label: 'Close', cls: 'primary' }] });
+  const close = modal({ title: 'Status 1', body, actions: [{ label: 'Close', cls: 'primary' }] });
   schedule();
 }
 
@@ -760,7 +760,7 @@ function agendaCard() {
     const send = act(async () => { await sendField(box, (t) => addAgComment(a, t)); });
     box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
     return h('div', { class: 'ag-thread' },
-      list.length ? list.map((c) => h('div', { class: 'ag-c' + (c.by === me ? ' mine' : '') }, h('div', { class: 'ag-cb' }, h('span', { class: 'ag-cw', text: c.by === me ? 'Me' : 'Partner' }), h('span', { class: 'ag-ct', text: c.text }), h('span', { class: 'sub', text: mdhm(c.ts) })),
+      list.length ? list.map((c) => h('div', { class: 'ag-c' + (c.by === me ? ' mine' : '') }, h('div', { class: 'ag-cb' }, h('span', { class: 'ag-cw', text: c.by === me ? '0' : '1' }), h('span', { class: 'ag-ct', text: c.text }), h('span', { class: 'sub', text: mdhm(c.ts) })),
         c.by === me ? btn('Delete', act(() => S.store.del('agenda_comments', c.id)), 'small quiet del') : null)) : h('p', { class: 'empty', text: 'No comments yet' }),
       canAdd ? h('div', { class: 'row' }, box, btn('Add', send, 'small primary')) : null);
   };
@@ -1015,7 +1015,27 @@ const sysComments = (id) => rows('post_comments').filter((c) => c.postId === id)
 const sysReacts = (id) => rows('post_reactions').filter((r) => r.postId === id && r.emoji);
 const sysVotes = (id) => rows('post_votes').filter((v) => v.postId === id && v.option != null);
 const newSyslog = () => posts().filter((p) => p.by !== roleName() && p.ts > seenAt('syslog')).length + rows('post_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('syslog')).length;
-const sysState = () => (S.sys ??= { filter: 'all', q: '', open: new Set() });
+const sysState = () => (S.sys ??= { filter: 'all', q: '', open: new Set(), mask: lsGet('svcmon.sys.mask', true) });
+// 목록의 글은 암호문처럼 보이고(msg=U2FsdGVkX1…), 누른 글만 진짜 내용으로 펼쳐진다. 한 번에 하나만 펼치고, 일정 시간이 지나거나 앱을 벗어나면 다시 가려진다.
+// 암호문처럼 보이는 글자는 글 id 로만 만든다. 글 내용과 상관이 없어서 내용이나 길이가 새지 않고, 새로고침해도 같은 글은 같은 모양이다.
+function maskText(id) {
+  let h = 2166136261; for (const c of String(id)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'; let out = 'U2FsdGVkX1', n = 14 + ((h >>> 0) % 14);
+  for (let i = 0; i < n; i += 1) { h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; out += A[h % 64]; }
+  return 'msg=' + out + '…';
+}
+const SYS_AUTOHIDE_MS = 20000;
+function armAutoHide() {
+  const st = sysState(); clearTimeout(st.hideT);
+  if (!st.mask || !st.open.size) return;
+  const tryHide = () => {
+    if (/INPUT|TEXTAREA/.test(document.activeElement?.tagName || '') && document.activeElement.closest?.('.syslog')) { st.hideT = setTimeout(tryHide, 5000); return; }  // 쓰는 중에는 가리지 않는다
+    st.open.clear(); renderView();
+  };
+  st.hideT = setTimeout(tryHide, st.autohideMs ?? SYS_AUTOHIDE_MS);
+}
+// 앱을 벗어나면(다른 탭, 화면 꺼짐) 바로 가린다. 안 보이는 탭에서는 다음 프레임 갱신이 멈추므로 곧바로 그린다.
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.sys?.mask && S.sys.open.size) { clearTimeout(S.sys.hideT); S.sys.open.clear(); if (S.tab === 'syslog') renderView(); } });
 const syslogMuted = () => !!sd('syslog_mute_' + roleName()).muted;
 const isUrgent = (p) => !!p.urgent && p.status !== 'resolved';   // 해결된 긴급 글은 다시 평범한 글로
 const sysSev = (p) => (isUrgent(p) ? 'crit' : p.question || p.poll ? 'notice' : 'info');
@@ -1026,7 +1046,7 @@ function sysThread(id, canAdd) {
   const send = act(async () => { await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() })); });
   box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
   return h('div', { class: 'sl-thread' },
-    list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch', text: c.by === me ? 'me' : 'partner' }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }),
+    list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch', text: c.by === me ? '0' : '1' }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }),
       c.by === me ? btn('rm', act(() => S.store.del('post_comments', c.id)), 'small quiet del') : null)),
     canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small')) : null);
 }
@@ -1046,9 +1066,9 @@ function sysRow(p, kept) {
   const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me, urgent = isUrgent(p);
   const nC = sysComments(p.id).filter((c) => !c.ack).length, nR = sysReacts(p.id).length, acked = sysComments(p.id).some((c) => c.ack);
   const title = (p.text || '').split('\n')[0].slice(0, 90);
-  const line = h('div', { class: `sl sev-${sev}${urgent ? ' urgent' : ''}${open ? ' open' : ''}${p.status === 'resolved' ? ' done' : ''}`, on: { click: () => { open ? st.open.delete(p.id) : st.open.add(p.id); renderView(); } } },
-    h('span', { class: 'sl-t', text: hm(p.ts) }), h('span', { class: 'sl-f', text: `user.${sev}` }), h('span', { class: 'sl-h', text: mine ? 'me' : 'partner' }),
-    h('span', { class: 'sl-m', text: open ? p.text : title }),
+  const line = h('div', { class: `sl sev-${sev}${urgent ? ' urgent' : ''}${open ? ' open' : ''}${p.status === 'resolved' ? ' done' : ''}`, on: { click: () => { if (open) st.open.delete(p.id); else { if (st.mask) st.open.clear(); st.open.add(p.id); } armAutoHide(); renderView(); } } },
+    h('span', { class: 'sl-t', text: hm(p.ts) }), h('span', { class: 'sl-f', text: `user.${sev}` }), h('span', { class: 'sl-h', text: mine ? '0' : '1' }),
+    h('span', { class: 'sl-m' + (!open && st.mask ? ' mask' : ''), text: open ? p.text : st.mask ? maskText(p.id) : title }),
     h('span', { class: 'sl-b' }, [urgent ? '[urgent]' : '', p.poll ? '[poll]' : p.question ? '[question]' : '', p.status === 'resolved' ? '[resolved]' : acked ? '[ack]' : '', nC ? `(${nC})` : '', nR ? `+${nR}` : '', kept ? '*' : ''].filter(Boolean).join(' ')));
   if (!open) return line;
   const keepBtn2 = btn(kept ? 'Unkeep' : 'Keep', act(async () => { if (kept) { for (const x of keeps().filter((x) => x.kind === 'syslog' && x.from === p.id)) await S.store.del('@', x.id); } else await S.store.set('@', 'keep_' + uid(), { type: 'keep', kind: 'syslog', ts: Date.now(), text: title, from: p.id }); }), 'small quiet');
@@ -1094,6 +1114,8 @@ function viewSyslog() {
   const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : '') + (f === 'urgent' && n() ? ' hot' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
   return h('div', { class: 'grid' }, h('section', { class: 'card syslog' },
     h('div', { class: 'row' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sp' }),
+      st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
+      btn(`Mask: ${st.mask ? 'on' : 'off'}`, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); armAutoHide(); renderView(); }, 'small quiet'),
       btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'), btn('New entry', openCompose, 'primary small')),
     h('div', { class: 'sl-chips' }, chips),
     h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; listBox.replaceChildren(...listRows()); } } }),
@@ -1227,8 +1249,8 @@ const HELP_W = [
     how: ['**Do not disturb**: 응원 메시지 숨김', '**위험 신호 알림**: 위험한 표현 입력 시 상대에게 안부 확인 신호만 전송 (내용 미전송, 끌 수 있음)', '**Theme**: Basic(Light · Dark · Warm Gray · Auto)과 기분 전환용 Special 테마 (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '**Esc**: 엑셀 화면으로 위장 (한 번 더 누르면 복귀)', '**/exit**: 엑셀 화면으로 위장'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
-    how: ['화면 맨 위 **Me** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**Partner** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
-    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+    how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
+    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
   { t: '💬 **Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
@@ -1259,8 +1281,8 @@ const HELP_L = [
     how: ['**Theme**: Basic(Light · Dark · Warm Gray · Auto)과 기분 전환용 Special 테마 (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '다른 탭을 보는 중 새 항목이 오면 화면 아래에 짧은 안내', '어제 공유된 줄·리뷰·전달된 메시지는 새벽 4시 기준 자동 정리'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
-    how: ['화면 맨 위 **Me** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**Partner** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
-    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+    how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
+    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
   { t: '💬 **Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
