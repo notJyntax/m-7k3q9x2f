@@ -392,3 +392,73 @@ html[data-theme="plum"] {
 .legend { flex-wrap: wrap; gap: 4px 14px; }
 /* DISK(이번 주 쌓인 짜증)는 값과 상관없이 고정 색: CPU(주황·파랑), CACHE(초록)와 구분 */
 .bar i.disk { background: #8b6fd6; }
+
+/* ───────── Syslog: 시스템 로그 뷰어처럼 (회사 화면에서 튀지 않게: 고정폭, 한 줄, 차분한 색, 그림은 눌러야 보임) ───────── */
+.syslog .row { flex-wrap: wrap; }
+.sl-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.schip { font: 12px var(--mono); padding: 3px 9px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; cursor: pointer; color: var(--sub); }
+.schip i { font-style: normal; margin-left: 6px; opacity: .7; }
+.schip.on { color: var(--text); border-color: var(--accent); background: var(--infobg); }
+.syslog .grep { width: 100%; margin-bottom: 8px; }
+.sl-list { border: 1px solid var(--line); border-radius: 8px; background: var(--codebg); overflow: hidden; }
+.sl { display: flex; gap: 8px; align-items: baseline; padding: 6px 10px; font: 12px/1.45 var(--mono); cursor: pointer; border-bottom: 1px solid var(--line); }
+.sl:hover { background: var(--hover); }
+.sl.open { background: var(--soft); }
+.sl-wrap:last-child > .sl { border-bottom: 0; }
+.sl-t { color: var(--ts); flex: none; }
+.sl-f { flex: none; min-width: 84px; }
+.sl-h { color: var(--svc); flex: none; min-width: 48px; }
+.sl-m { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.sl-b { color: var(--sub); flex: none; font-size: 11px; }
+.sev-warning .sl-f { color: var(--warn); } .sev-notice .sl-f { color: var(--accent); } .sev-info .sl-f { color: var(--sub); } .sev-debug .sl-f { color: var(--ts); }
+.sl.done .sl-m { color: var(--sub); text-decoration: line-through; }
+.sl-body { padding: 8px 12px 12px 12px; border-bottom: 1px solid var(--line); background: var(--panel); display: grid; gap: 8px; font-size: 13px; }
+.sl-wrap:last-child > .sl-body { border-bottom: 0; }
+.sl-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12.5px; }
+.sl-react { display: flex; gap: 4px; flex-wrap: wrap; }
+.sl-r { font-size: 13px; padding: 2px 7px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; cursor: pointer; filter: grayscale(.4); }
+.sl-r i { font: 11px var(--mono); font-style: normal; margin-left: 4px; color: var(--sub); }
+.sl-r.on { border-color: var(--accent); background: var(--infobg); filter: none; }
+.sl-poll { display: grid; gap: 4px; }
+.sl-opt { position: relative; display: flex; justify-content: space-between; gap: 8px; text-align: left; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font: 12px var(--mono); overflow: hidden; }
+.sl-opt .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--infobg); z-index: 0; }
+.sl-opt .ot, .sl-opt .on { position: relative; z-index: 1; }
+.sl-opt.on { border-color: var(--accent); }
+.sl-thread { display: grid; gap: 3px; }
+.sl-c { display: flex; gap: 8px; align-items: baseline; font: 12px var(--mono); }
+.sl-ct { color: var(--ts); } .sl-ch { color: var(--svc); min-width: 48px; } .sl-cm { flex: 1; overflow-wrap: anywhere; }
+.sl-c.ack .sl-cm { color: var(--ok); }
+.sl-act { display: flex; gap: 2px; flex-wrap: wrap; margin-left: -8px; }
+.sl-pollform { display: grid; gap: 6px; }
+.share .rgrid { flex-wrap: wrap; justify-content: flex-start; }
+/* 넘침 방지 + 좁은 화면에서는 두 줄 (위: 시각·종류·작성자·표시, 아래: 내용) */
+.grid > *, .card.syslog, .sl-list, .sl-wrap, .sl-body { min-width: 0; max-width: 100%; }
+@media (max-width: 560px) {
+  .sl { flex-wrap: wrap; row-gap: 2px; }
+  .sl-f { min-width: 0; }
+  .sl-m { order: 10; flex: 1 1 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .sl-b { margin-left: auto; }
+}
+.sl-pollform[hidden] { display: none; }
+
+/* 긴급 글: 해결되기 전까지 맨 위에 모이고, 붉은 띠와 굵은 글씨로 강조 */
+.sl.urgent { background: var(--critbg); box-shadow: inset 3px 0 0 var(--crit); }
+.sl.urgent .sl-m { font-weight: 700; }
+.sl.urgent .sl-f { color: var(--crit); font-weight: 700; }
+.sl.urgent .sl-b { color: var(--crit); font-weight: 700; }
+.sl-wrap.urgent .sl-body { box-shadow: inset 3px 0 0 var(--crit); }
+.sev-crit .sl-f { color: var(--crit); }
+.schip.hot { border-color: var(--crit); color: var(--crit); }
+.schip.flag.crit.on { border-color: var(--crit); color: var(--crit); background: var(--critbg); }
+
+/* 글을 누르면 그 자리에서 전체 내용으로 펼쳐지고 배경색만 바뀐다 (줄과 아래 내용이 한 덩어리로 보이게 같은 배경) */
+.sl-wrap.open { background: var(--soft); }
+.sl-wrap.open .sl, .sl-wrap.open .sl-body { background: transparent; }
+.sl-wrap.open .sl { border-bottom: 0; }
+.sl.open .sl-m { white-space: pre-wrap; overflow: visible; text-overflow: clip; display: block; -webkit-line-clamp: unset; overflow-wrap: anywhere; }
+.sl-wrap.open.urgent { background: var(--critbg); }
+.sl-wrap.open .sl-body { padding-top: 2px; }
+/* 반응 이모지가 7개라서 좁은 화면에서는 줄바꿈 */
+.reactrow .rgrid { flex-wrap: wrap; }
+.reactrow .rgrid { flex-wrap: nowrap; gap: 4px; }
+.reactrow .ropt { font-size: 20px; padding: 7px 0; flex: 1 1 0; min-width: 0; text-align: center; }

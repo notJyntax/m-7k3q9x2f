@@ -6,7 +6,7 @@ import * as Push from './push.js';
 import { startUpdateCheck } from './update.js';
 import { BUILD } from './version.js';
 
-const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins'];
+const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes'];
 
 // 기본 테마(회사에서 보기 좋은 차분한 톤)와 스페셜 테마(기분 전환용). 스페셜은 강조색·버튼색까지 테마마다 달라요.
 const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['warm', 'Warm Gray'], ['auto', 'Auto']];
@@ -277,6 +277,7 @@ function newCounts() {
     const sIn = seenAt('inbox');
     return {
       inbox: (pendingCheckin() ? 1 : 0) + (sd('status').dnd ? 0 : rows('commits').filter((c) => c.deliverAt <= now && c.deliverAt > sIn).length) + rows('reviews').filter((r) => r.ts > sIn).length,
+      syslog: newSyslog(),
       plan: planNeeds() + newAgendas(),
     };
   }
@@ -284,11 +285,12 @@ function newCounts() {
     overview: rows('alerts').filter((a) => !a.ackAt).length + (checkinToday()?.status === 'answered' && checkinToday().answeredAt > seenAt('overview') ? 1 : 0),
     queue: rows('lines').filter((l) => l.ts > seenAt('queue')).length,
     send: rows('commits').filter((c) => c.ackAt && c.ackAt > seenAt('send')).length,
+    syslog: newSyslog(),
     plan: planNeeds() + newAgendas(),
   };
 }
-const TABS_W = [['console', 'Console'], ['dash', 'Dashboard'], ['inbox', 'Inbox'], ['plan', 'Plan'], ['report', 'Report'], ['archive', 'Archive'], ['settings', 'Settings']];
-const TABS_L = [['overview', 'Overview'], ['queue', 'Queue'], ['send', 'Send'], ['plan', 'Plan'], ['report', 'Report'], ['settings', 'Settings']];
+const TABS_W = [['console', 'Console'], ['dash', 'Dashboard'], ['inbox', 'Inbox'], ['syslog', 'Syslog'], ['plan', 'Plan'], ['report', 'Report'], ['archive', 'Archive'], ['settings', 'Settings']];
+const TABS_L = [['overview', 'Overview'], ['queue', 'Queue'], ['send', 'Send'], ['syslog', 'Syslog'], ['plan', 'Plan'], ['report', 'Report'], ['settings', 'Settings']];
 function tabsFor(counts) {
   return (isWriter() ? TABS_W : TABS_L).map(([id, label]) => [id, label, counts[id] || 0]);
 }
@@ -329,7 +331,7 @@ const saveMood = (emoji, text) => S.store.set('shared', 'me_' + roleName(), { em
 const MOOD_INFO = new Map([...MOODS_ACTIVITY.map(([e, l]) => [e, { label: l, kind: 'act' }]), ...MOODS_FEELING.map(([e, l]) => [e, { label: l, kind: 'feel' }])]);
 const short = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? 'now' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
 // 프로필 상태처럼: 동그란 이모지(행동은 강조색 테두리, 감정은 따뜻한 색 테두리) + 이름 + 상태 + 경과 시간
-const REACTIONS = ['👍', '❤️', '🤗', '💪', '🙏'];
+const REACTIONS = ['👍', '❤️', '😢', '😡', '💪', '🙏'];
 const reactDoc = (role) => sd('react_' + role);
 // 그 사람의 반응이 "지금 그 상태"에 대한 것일 때만 보인다 (상태가 바뀌면 이전 반응은 사라진다)
 const reactOn = (role, statusTs) => { const r = reactDoc(role); return statusTs && r.emoji && r.to === statusTs ? r.emoji : ''; };
@@ -832,8 +834,8 @@ function pushCard() {
   });
   const turnOff = act(async () => { await Push.disablePush(S.sb); toast('이 기기의 알림을 껐어요.'); await refreshPush(); });
   const wants = isWriter()
-    ? '새 commit(응원 메시지), 리뷰 댓글, Plan 일정 요청과 결과, 아젠다 댓글, 체크인 질문, 상대의 상태 변경과 반응'
-    : '새 공유 로그, 안부 신호, Plan 일정 요청과 결과, 상태 red, "배포 성공" 신호, 아젠다 댓글, 체크인 답장, 상대의 상태 변경과 반응';
+    ? '새 commit(응원 메시지), 리뷰 댓글, Plan 일정 요청과 결과, 아젠다 댓글, 체크인 질문, Syslog 새 글·댓글(긴급 구분), 상대의 상태 변경과 반응'
+    : '새 공유 로그, 안부 신호, Plan 일정 요청과 결과, 상태 red, "배포 성공" 신호, 아젠다 댓글, 체크인 답장, Syslog 새 글·댓글(긴급 구분), 상대의 상태 변경과 반응';
   if (st === 'local') kids.push(note('공유 저장소에 연결되면 쓸 수 있어요 (혼자 쓰는 모드에서는 알림이 없어요).'));
   else if (st === 'loading') kids.push(note('확인 중…'));
   else if (st === 'unconfigured') kids.push(note('이 배포에는 푸시 키가 아직 설정되지 않았어요 (config.js 의 VAPID_PUBLIC_KEY).'));
@@ -973,8 +975,97 @@ function viewSettingsL() {
   return h('div', { class: 'grid' }, pushCard(), themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
-const VW = { console: viewConsole, dash: viewDash, inbox: viewInbox, plan: viewPlanW, report: viewReport, archive: viewArchive, settings: viewSettingsW };
-const VL = { overview: viewOverview, queue: viewQueue, send: viewSend, plan: viewPlan, report: viewReport, settings: viewSettingsL };
+// ───────── Syslog: 둘이 쓰는 게시판 ─────────
+// 회사 화면에서 이상해 보이지 않게 시스템 로그 뷰어처럼 만든다: 한 줄 로그, 고정폭 글씨, 차분한 색.
+// 글 종류(태그)는 없고, 글을 쓸 때 "긴급(Urgent)"만 표시할 수 있다. 질문(Question)은 투표를 붙일 수 있다.
+const posts = () => rows('posts');
+const sysComments = (id) => rows('post_comments').filter((c) => c.postId === id).sort((a, b) => a.ts - b.ts);
+const sysReacts = (id) => rows('post_reactions').filter((r) => r.postId === id && r.emoji);
+const sysVotes = (id) => rows('post_votes').filter((v) => v.postId === id && v.option != null);
+const newSyslog = () => posts().filter((p) => p.by !== roleName() && p.ts > seenAt('syslog')).length + rows('post_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('syslog')).length;
+const sysState = () => (S.sys ??= { filter: 'all', q: '', open: new Set() });
+const syslogMuted = () => !!sd('syslog_mute_' + roleName()).muted;
+const isUrgent = (p) => !!p.urgent && p.status !== 'resolved';   // 해결된 긴급 글은 다시 평범한 글로
+const sysSev = (p) => (isUrgent(p) ? 'crit' : p.question || p.poll ? 'notice' : 'info');
+
+function sysThread(id, canAdd) {
+  const me = roleName(), list = sysComments(id);
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id });
+  const send = act(async () => { const t = box.value.trim(); if (!t) return; await S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() }); box.value = ''; });
+  box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
+  return h('div', { class: 'sl-thread' },
+    list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch', text: c.by === me ? 'me' : 'partner' }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }),
+      c.by === me ? btn('rm', act(() => S.store.del('post_comments', c.id)), 'small quiet del') : null)),
+    canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small')) : null);
+}
+function sysReactRow(p) {
+  const me = roleName(), rs = sysReacts(p.id), mine = rs.find((r) => r.by === me)?.emoji;
+  return h('div', { class: 'sl-react' }, REACTIONS.map((e) => { const n = rs.filter((r) => r.emoji === e).length;
+    return h('button', { type: 'button', class: 'sl-r' + (mine === e ? ' on' : ''), title: e, on: { click: act(() => S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: mine === e ? '' : e, ts: Date.now() })) } }, e, n ? h('i', { text: n }) : null); }));
+}
+function sysPoll(p) {
+  if (!p.poll?.options?.length) return null;
+  const me = roleName(), vs = sysVotes(p.id), mine = vs.find((v) => v.by === me)?.option, total = vs.length;
+  return h('div', { class: 'sl-poll' }, p.poll.options.map((o, i) => { const n = vs.filter((v) => v.option === i).length, pct = total ? Math.round((n / total) * 100) : 0;
+    return h('button', { type: 'button', class: 'sl-opt' + (mine === i ? ' on' : ''), on: { click: act(() => S.store.set('post_votes', `pv_${p.id}_${me}`, { postId: p.id, by: me, option: mine === i ? null : i, ts: Date.now() })) } },
+      h('i', { class: 'fill', style: `width:${pct}%` }), h('span', { class: 'ot', text: o }), h('span', { class: 'on', text: `${n}` })); }));
+}
+function sysRow(p, kept) {
+  const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me, urgent = isUrgent(p);
+  const nC = sysComments(p.id).filter((c) => !c.ack).length, nR = sysReacts(p.id).length, acked = sysComments(p.id).some((c) => c.ack);
+  const title = (p.text || '').split('\n')[0].slice(0, 90);
+  const line = h('div', { class: `sl sev-${sev}${urgent ? ' urgent' : ''}${open ? ' open' : ''}${p.status === 'resolved' ? ' done' : ''}`, on: { click: () => { open ? st.open.delete(p.id) : st.open.add(p.id); renderView(); } } },
+    h('span', { class: 'sl-t', text: hm(p.ts) }), h('span', { class: 'sl-f', text: `user.${sev}` }), h('span', { class: 'sl-h', text: mine ? 'me' : 'partner' }),
+    h('span', { class: 'sl-m', text: open ? p.text : title }),
+    h('span', { class: 'sl-b' }, [urgent ? '[urgent]' : '', p.poll ? '[poll]' : p.question ? '[question]' : '', p.status === 'resolved' ? '[resolved]' : acked ? '[ack]' : '', nC ? `(${nC})` : '', nR ? `+${nR}` : '', kept ? '*' : ''].filter(Boolean).join(' ')));
+  if (!open) return line;
+  const keepBtn2 = btn(kept ? 'Unkeep' : 'Keep', act(async () => { if (kept) { for (const x of keeps().filter((x) => x.kind === 'syslog' && x.from === p.id)) await S.store.del('@', x.id); } else await S.store.set('@', 'keep_' + uid(), { type: 'keep', kind: 'syslog', ts: Date.now(), text: title, from: p.id }); }), 'small quiet');
+  return h('div', { class: 'sl-wrap open' + (urgent ? ' urgent' : '') }, line, h('div', { class: 'sl-body' },
+    sysPoll(p),
+    sysReactRow(p),
+    sysThread(p.id, p.status !== 'resolved'),
+    h('div', { class: 'sl-act' }, keepBtn2,
+      p.urgent && !mine && !acked && p.status !== 'resolved' ? btn('I hear you', act(() => S.store.set('post_comments', 'pc_' + uid(), { postId: p.id, by: me, text: 'I hear you', ack: true, ts: Date.now() })), 'small primary') : null,
+      p.urgent && mine && p.status !== 'resolved' ? btn('Resolve', act(() => S.store.patch('posts', p.id, { status: 'resolved', resolvedAt: Date.now() })), 'small quiet') : null,
+      mine ? btn('Delete', () => modal({ title: '이 글을 삭제할까요?', body: note('댓글과 반응도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('posts', p.id)) }] }), 'small quiet del') : null)));
+}
+function openCompose() {
+  const me = roleName(); let urgent = false, question = false;
+  const text = h('textarea', { rows: 4, maxLength: 500, placeholder: 'Write something' });
+  const opts = [h('input', { type: 'text', maxLength: 40, placeholder: 'Option A' }), h('input', { type: 'text', maxLength: 40, placeholder: 'Option B' })];
+  const pollBox = h('div', { class: 'sl-pollform', hidden: true }, h('div', { class: 'mlab', text: 'Poll (optional)' }), opts);
+  const chip = (label, on) => h('button', { type: 'button', class: 'schip flag', on: { click: (e) => on(e.currentTarget) } }, label);
+  const urgentChip = chip('Urgent', (b) => { urgent = !urgent; b.classList.toggle('on', urgent); b.classList.toggle('crit', urgent); });
+  const questionChip = chip('Question', (b) => { question = !question; b.classList.toggle('on', question); pollBox.hidden = !question; });
+  const body = h('div', { class: 'share' }, text, h('div', { class: 'rgrid' }, urgentChip, questionChip),
+    h('p', { class: 'note', text: '긴급으로 표시하면 상대 화면에서 강조되어 맨 위에 보여요. 꼭 보고 답해야 하는 일에만 써 주세요.' }), pollBox);
+  modal({ title: 'New entry', body, actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Post', cls: 'primary', close: false, fn: async (close) => {
+    const t = text.value.trim(); if (!t) return toast('내용을 써 주세요');
+    const options = opts.map((o) => o.value.trim()).filter(Boolean);
+    close();
+    await S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), ...(urgent ? { urgent: true } : {}), ...(question ? { question: true } : {}), ...(question && options.length >= 2 ? { poll: { options } } : {}) });
+    toast(urgent ? '긴급으로 올렸어요' : '올렸어요');
+  } }] });
+}
+function viewSyslog() {
+  const st = sysState(), me = roleName();
+  const kept = new Set(keeps().filter((k) => k.kind === 'syslog').map((k) => k.from));
+  const all = posts();
+  const FILTERS = [['all', 'All', () => all.length], ['urgent', 'Urgent', () => all.filter(isUrgent).length], ['question', 'Question', () => all.filter((p) => p.question || p.poll).length], ['kept', 'Kept', () => all.filter((p) => kept.has(p.id)).length]];
+  let list = all.slice().sort((a, b) => (isUrgent(b) - isUrgent(a)) || b.ts - a.ts);       // 긴급(해결 전)은 맨 위에 모은다
+  if (st.filter === 'urgent') list = list.filter(isUrgent); else if (st.filter === 'question') list = list.filter((p) => p.question || p.poll); else if (st.filter === 'kept') list = list.filter((p) => kept.has(p.id));
+  const q = st.q.trim().toLowerCase(); if (q) list = list.filter((p) => (p.text || '').toLowerCase().includes(q));
+  const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : '') + (f === 'urgent' && n() ? ' hot' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
+  return h('div', { class: 'grid' }, h('section', { class: 'card syslog' },
+    h('div', { class: 'row' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sp' }),
+      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'), btn('New entry', openCompose, 'primary small')),
+    h('div', { class: 'sl-chips' }, chips),
+    h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; renderView(); const el = $('.syslog .grep'); el?.focus(); el?.setSelectionRange(st.q.length, st.q.length); } } }),
+    h('div', { class: 'sl-list' }, list.length ? list.map((p) => sysRow(p, kept.has(p.id))) : h('p', { class: 'empty', text: q || st.filter !== 'all' ? 'no match' : 'No entries yet.' }))));
+}
+
+const VW = { console: viewConsole, dash: viewDash, inbox: viewInbox, syslog: viewSyslog, plan: viewPlanW, report: viewReport, archive: viewArchive, settings: viewSettingsW };
+const VL = { overview: viewOverview, queue: viewQueue, send: viewSend, syslog: viewSyslog, plan: viewPlan, report: viewReport, settings: viewSettingsL };
 
 // ───────── 통계/상태 동기화 (작성자만) ─────────
 let syncT;
@@ -1101,10 +1192,13 @@ const HELP_W = [
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '**Esc**: 엑셀 화면으로 위장 (한 번 더 누르면 복귀)', '**/exit**: 엑셀 화면으로 위장'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **Me** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**Partner** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
-    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 🤗 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
   { t: '💬 **Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
+  { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
+    how: ['**Syslog** 탭에서 **New entry**로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
+    tip: ['긴급 글에는 상대가 **I hear you**로 답하고, 쓴 사람이 **Resolve**로 마무리해요', '**Notify**로 이 게시판 알림을 끄고 켤 수 있어요 (끄면 긴급 글 알림도 오지 않아요)', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 commit이 도착했어요" 같은 안내만)', '방해금지를 켜면 commit 알림은 오지 않아요'] },
 ];
@@ -1130,10 +1224,13 @@ const HELP_L = [
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '다른 탭을 보는 중 새 항목이 오면 화면 아래에 짧은 안내', '어제 공유된 줄·리뷰·전달된 메시지는 새벽 4시 기준 자동 정리'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **Me** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**Partner** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
-    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 🤗 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
   { t: '💬 **Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
+  { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
+    how: ['**Syslog** 탭에서 **New entry**로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
+    tip: ['긴급 글에는 상대가 **I hear you**로 답하고, 쓴 사람이 **Resolve**로 마무리해요', '**Notify**로 이 게시판 알림을 끄고 켤 수 있어요 (끄면 긴급 글 알림도 오지 않아요)', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 공유 로그가 있어요" 같은 안내만)'] },
 ];
