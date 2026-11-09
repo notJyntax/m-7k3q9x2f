@@ -308,6 +308,16 @@ html[data-theme="plum"] {
   --soft: #302c45; --hover: #2c2940; --track: #352f4d; --codebg: #211e30; --gloss: #2a2640;
   --infobg: #2e2650; --infofg: #d3bfff; --kwbg: #342b5a; --kwfg: #d6c2ff; --ts: #7b75a0; --svc: #c4bee0; --codecol: #8c86b0;
 }
+html[data-theme="excel"] {
+  /* 스프레드시트처럼: 흰 칸 + 옅은 격자선 + 엑셀 초록 */
+  --bg: #f3f3f3; --panel: #ffffff; --line: #d4d4d4; --text: #262626; --sub: #6b6b6b; --accent: #217346; --on-accent: #fff;
+  --soft: #e6f2ea; --hover: #f1f7f3; --track: #e1e1e1; --codebg: #ffffff; --gloss: #f3f8f5;
+  --infobg: #e2f0e8; --infofg: #185c37; --kwbg: #dcebe2; --kwfg: #185c37; --ts: #8a8a8a; --svc: #444; --codecol: #7a7a7a;
+}
+html[data-theme="excel"] body { font-family: Calibri, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 100% 22px, 80px 100%; background-color: #fff; }
+html[data-theme="excel"] #app { background: transparent; }
+html[data-theme="excel"] #top { border-bottom: 2px solid var(--accent); }
+html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radius: 2px; }
 .theme-row { flex-wrap: wrap; }
 .theme-sep { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 
@@ -355,7 +365,7 @@ html[data-theme="plum"] {
 .ag-thread { margin: 0 0 10px 28px; padding: 8px 10px; background: var(--soft); border-radius: 10px; display: grid; gap: 6px; }
 .ag-c { display: flex; align-items: flex-start; gap: 6px; }
 .ag-cb { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
-.ag-cw { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--sub); }
+.ag-cw { font-size: 10px; font-weight: 700; letter-spacing: .4px; color: var(--sub); }
 .ag-c.mine .ag-cw { color: var(--accent); }
 .ag-ct { font-size: 13px; overflow-wrap: anywhere; }
 .ag-thread .empty { margin: 0; font-size: 12px; }
@@ -404,6 +414,9 @@ html[data-theme="plum"] {
 .sl { display: flex; gap: 8px; align-items: baseline; padding: 6px 10px; font: 12px/1.45 var(--mono); cursor: pointer; border-bottom: 1px solid var(--line); }
 .sl:hover { background: var(--hover); }
 .sl.open { background: var(--soft); }
+.sl.fresh { box-shadow: inset 3px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.sl.fresh .sl-b { color: var(--accent); font-weight: 600; }
+.sl-c.fresh { box-shadow: inset 3px 0 0 var(--accent); padding-left: 6px; }
 .sl-wrap:last-child > .sl { border-bottom: 0; }
 .sl-t { color: var(--ts); flex: none; }
 .sl-f { flex: none; min-width: 84px; }

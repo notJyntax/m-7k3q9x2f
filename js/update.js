@@ -29,7 +29,7 @@ export function startUpdateCheck({ build, fetchFn = fetch, reload = () => locati
 
 // 새로고침 버튼: 아직 반영되지 않은 새 버전이 있으면 지금 바로 적용한다. (자동 확인과 달리 "입력 중"이나 시도 횟수에 막히지 않는다)
 // 쓰던 글이 있어서 물어봐야 하면 beforeReload 가 false 를 돌려주는 것으로 취소할 수 있다.
-export async function refreshNow({ build, fetchFn = fetch, reload = () => location.reload(), clearCaches, unregisterSW, beforeReload = async () => true }) {
+export async function refreshNow({ build, fetchFn = fetch, reload = () => location.reload(), clearCaches, updateSW, beforeReload = async () => true }) {
   let latest;
   try {
     const res = await fetchFn('./version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -39,7 +39,8 @@ export async function refreshNow({ build, fetchFn = fetch, reload = () => locati
   if (!latest || !build || build === 'dev' || latest === build) return 'current';
   if (!(await beforeReload())) return 'cancelled';
   try { await (clearCaches ? clearCaches() : globalThis.caches?.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k))))); } catch { /* 계속 */ }
-  try { await (unregisterSW ? unregisterSW() : navigator.serviceWorker?.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister())))); } catch { /* 계속 */ }   // 옛 서비스워커가 옛 파일을 붙잡고 있지 않게
+  // 서비스워커를 지우면(unregister) 푸시 알림 구독도 같이 사라지므로 지우지 않고, 새 버전을 확인만 시킨다 (파일은 sw.js 가 항상 서버에 물어봐서 최신으로 받는다)
+  try { await (updateSW ? updateSW() : navigator.serviceWorker?.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.update())))); } catch { /* 계속 */ }
   reload();
   return 'reloading';
 }
