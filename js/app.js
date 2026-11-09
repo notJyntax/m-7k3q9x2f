@@ -250,7 +250,7 @@ async function refreshPush() {
 }
 function onReady() {
   S.ready = true; S.slow = false;
-  renderChrome(); renderView();
+  renderChrome(); renderView(); bootSplash();
   gcOnce(); syncSoon(); Push.registerSW();
   S.timers.push(setInterval(() => { gcOnce(); schedule(); }, 60_000));
   scheduleIdle();
@@ -446,12 +446,39 @@ function logRow(l) {
   const row = h('div', { class: `ln lv-${l.level}${String(l.code).startsWith('OK_') ? ' pos' : ''}${l.idle ? ' idle' : ''}${l.special ? ' fx' : ''}${l.pending ? ' pend' : ''}`, on: clickable ? { click: () => { S.open.has(l.id) ? S.open.delete(l.id) : S.open.add(l.id); renderLog(); } } : {} },
     h('span', { class: 'ts', text: hms(l.ts) }), h('span', { class: 'lv', text: l.level }), h('span', { class: 'svc', text: l.service }),
     h('span', { class: 'code', text: `[${l.code}]` }), h('span', { class: 'msg', text: l.msg }), l.sharedId ? h('span', { class: 'tag', text: 'shared' }) : null);
+  row.dataset.id = l.id;
   if (!open || !clickable) return row;
   return h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' },
     h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })),
     h('div', { class: 'row' },
       l.sharedId ? btn('Unshare', act(() => unshareLine(l)), 'small') : btn('Share log', () => openShare(l), 'small'),
       btn('Delete', act(() => deleteLog(l)), 'small danger'))));
+}
+// ───────── 터미널 효과: tail -f 처럼 새 줄은 글자가 찍히며 올라오고 잠깐 밝게 깜박인다 ─────────
+const reduceFx = () => !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+function tailFx(box, shown) {
+  const ids = shown.map((l) => l.id);
+  if (!S.logSeen) { S.logSeen = new Set(ids); return; }                                   // 처음 그릴 때(탭을 열 때)는 효과 없이 보여준다
+  const fresh = shown.filter((l) => !S.logSeen.has(l.id) && !l.pending);
+  ids.forEach((id) => S.logSeen.add(id));
+  if (reduceFx()) return;
+  fresh.slice(-3).forEach((l) => {
+    const row = box.querySelector(`.ln[data-id="${l.id}"]`); if (!row) return;
+    row.classList.add('tailnew'); setTimeout(() => row.classList.remove('tailnew'), 1300);
+    const m = row.querySelector('.msg'); if (!m) return; const text = m.textContent; m.textContent = '';
+    const step = Math.max(1, Math.ceil(text.length / 22)); let i = 0;
+    const t = setInterval(() => { i += step; m.textContent = text.slice(0, i); if (i >= text.length) clearInterval(t); }, 18);
+  });
+}
+const progressBar = (pct) => { const n = Math.round(pct / 10); return `parsing ${'█'.repeat(n)}${'░'.repeat(10 - n)} ${pct}%`; };
+// 로그인 직후 잠깐 부팅 로그가 올라간다
+function bootSplash() {
+  if (S.bootShown || reduceFx()) return; S.bootShown = true;
+  const lines = ['[  OK  ] auth session restored', '[  OK  ] connected to prod-api-02', '[  OK  ] sync store ready', '[  OK  ] services nominal'];
+  const el = h('div', { class: 'boot-log' }, h('pre', {}));
+  const pre = el.firstChild; document.body.append(el);
+  lines.forEach((t, i) => setTimeout(() => { pre.textContent += (i ? '\n' : '') + t; }, i * 160));
+  setTimeout(() => el.classList.add('out'), lines.length * 160 + 260); setTimeout(() => el.remove(), lines.length * 160 + 700);
 }
 function renderLog() {
   const box = $('#loglist'); if (!box) return;
@@ -460,7 +487,9 @@ function renderLog() {
   if (f) list = list.filter((l) => `${l.level} ${l.service} ${l.code} ${l.msg} ${l.raw || ''}`.toLowerCase().includes(f));
   const view = $('#view');
   const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 90;
-  box.replaceChildren(...(list.length ? list.slice(-300).map(logRow) : [empty(f ? 'no match' : 'No entries yet. 아래 입력창에 한 줄만 적으면 돼요.')]));
+  const shown = list.slice(-300);
+  box.replaceChildren(...(list.length ? shown.map(logRow) : [empty(f ? 'no match' : 'No entries yet. 아래 입력창에 한 줄만 적으면 돼요.')]));
+  tailFx(box, shown);
   if (stick) view.scrollTop = view.scrollHeight;
 }
 function viewConsole() {
@@ -511,12 +540,14 @@ function runCmd(t) {
   else if (c === 'help') toast('/grep 검색어 · /clear · /restart · /status · /report · /exit(퇴근)');
   else toast('unknown command: ' + c);
 }
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 async function addLog(raw) {
   const risk = L.assessRisk(raw);
   const p = { id: 'p' + uid(), ts: Date.now(), level: 'INFO', service: 'log-ingest', code: 'PARSE', msg: 'parsing input…', pending: true };
   S.pending.push(p); renderLog();
+  const iv = setInterval(() => { const m = document.querySelector(`#loglist .ln[data-id="${p.id}"] .msg`); if (m) m.textContent = progressBar(Math.min(92, Math.round((Date.now() - p.ts) / 6))); }, 60);
   try {
-    const tr = risk.flagged ? L.crisisLine() : await L.translate(raw);
+    const [tr] = await Promise.all([risk.flagged ? L.crisisLine() : L.translate(raw), reduceFx() ? null : sleep(550)]);
     await saveLog(tr, raw);
     if (risk.flagged) {
       const send = meta().alertOn !== false;
@@ -524,7 +555,7 @@ async function addLog(raw) {
       S.care = { sent: send && S.store.mode === 'cloud' };
     }
   } catch (e) { console.warn(e); toast(errText(e)); }
-  finally { S.pending = S.pending.filter((x) => x !== p); schedule(); }
+  finally { clearInterval(iv); S.pending = S.pending.filter((x) => x !== p); schedule(); }
 }
 async function saveLog(tr, raw) {
   const ts = Date.now();

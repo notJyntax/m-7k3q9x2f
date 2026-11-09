@@ -487,3 +487,12 @@ html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radiu
 /* 쌓임 순서: 팝업 위에 토스트 */
 .overlay { z-index: 40; }
 .toast { z-index: 45; }
+
+/* 터미널 효과 */
+.prompt textarea { caret-shape: block; caret-color: var(--accent); }
+.ln.tailnew { animation: tailflash 1.2s ease-out; }
+@keyframes tailflash { 0% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
+.boot-log { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: opacity .4s ease; }
+.boot-log.out { opacity: 0; pointer-events: none; }
+.boot-log pre { margin: 0; font: 13px/1.8 var(--mono); color: var(--text); min-width: 260px; }
+@media (prefers-reduced-motion: reduce) { .ln.tailnew { animation: none; } .boot-log { transition: none; } }
