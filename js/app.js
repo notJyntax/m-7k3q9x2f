@@ -3,7 +3,7 @@ import { createStore } from './store.js';
 import * as L from './logic.js';
 import { CONFIG } from './config.js';
 import * as Push from './push.js';
-import { startUpdateCheck } from './update.js';
+import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes'];
@@ -294,6 +294,15 @@ const TABS_L = [['overview', 'Overview'], ['queue', 'Queue'], ['send', 'Send'], 
 function tabsFor(counts) {
   return (isWriter() ? TABS_W : TABS_L).map(([id, label]) => [id, label, counts[id] || 0]);
 }
+// 새로고침 버튼: 아직 반영되지 않은 새 버전이 있으면 지금 적용한다. 쓰던 글이 있으면 먼저 물어본다.
+async function doRefresh() {
+  const draft = () => [...document.querySelectorAll('#view input, #view textarea')].some((el) => !['checkbox', 'radio', 'search', 'file', 'button'].includes(el.type) && el.value && el.value !== el.defaultValue);
+  const r = await refreshNow({ build: BUILD, beforeReload: () => (draft() ? new Promise((ok) => modal({ title: 'Refresh', body: note('새 버전이 있어요. 새로고침하면 쓰던 글이 사라져요. 지금 새로고침할까요?'), sticky: true,
+    actions: [{ label: 'Cancel', cls: 'small', fn: () => ok(false) }, { label: 'Refresh', cls: 'primary', fn: () => ok(true) }] })) : true) });
+  if (r === 'reloading') toast('새 버전을 적용하는 중…');
+  else if (r === 'current') { S.updateReady = false; renderChrome(); toast('이미 최신 버전이에요'); }
+  else if (r === 'offline') toast('서버에 연결하지 못했어요. 인터넷을 확인해 주세요.');
+}
 function renderChrome() {
   const top = $('#top'), tabs = $('#tabs'), dock = $('#dock');
   if (!top) return;
@@ -312,6 +321,7 @@ function renderChrome() {
   top.replaceChildren(
     h('div', { class: 'brand' }, h('span', { class: 'logo', text: '◧' }), h('b', { text: 'Service Monitor' }), h('span', { class: 'env', text: 'prod-api-02' })),
     h('div', { class: 'right' },
+      btn('↻', doRefresh, 'ghost small refresh' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
       btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' }),
       S.store ? h('span', { class: 'live ' + (off ? 'off' : lvl), title: L.STATUS_TEXT[lvl], text: off ? 'offline' : { green: 'healthy', yellow: 'degraded', red: 'outage' }[lvl] }) : null,
       S.store ? h('span', { class: 'mode', text: S.sandbox ? 'sandbox' : S.cloud ? 'shared' : 'local' }) : null,
@@ -1276,6 +1286,8 @@ document.title = 'Service Monitor — prod-api-02';
 applyTheme();
 buildShell();
 boot();
-startUpdateCheck({ build: BUILD, busy: () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '') });
+// 자동 적용이 입력 중이거나 반복 실패로 보류된 새 버전이 있으면, 새로고침 버튼에 점을 띄워서 알린다
+startUpdateCheck({ build: BUILD, busy: () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || ''),
+  onStatus: (st) => { const need = st === 'busy' || st === 'gave-up'; if (need !== !!S.updateReady) { S.updateReady = need; renderChrome(); } } });
 // 테스트/디버깅용 훅 (화면에는 노출되지 않음)
 window.__svcmon = { S, gc: () => gcOnce(), boot };

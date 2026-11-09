@@ -462,3 +462,8 @@ html[data-theme="plum"] {
 .reactrow .rgrid { flex-wrap: wrap; }
 .reactrow .rgrid { flex-wrap: nowrap; gap: 4px; }
 .reactrow .ropt { font-size: 20px; padding: 7px 0; flex: 1 1 0; min-width: 0; text-align: center; }
+
+/* 새로고침 버튼: 보류된 새 버전이 있으면 붉은 점 */
+.btn.refresh { position: relative; padding-left: 8px; padding-right: 8px; font-size: 14px; line-height: 1; }
+.btn.refresh.has-update::after { content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; border: 2px solid var(--panel); animation: pop 1.2s ease-out 3; }
+.btn.refresh.has-update::after { top: -3px; right: -3px; }
