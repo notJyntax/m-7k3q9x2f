@@ -381,9 +381,31 @@ function openTheirMood() {
   schedule();
 }
 
+// 화면을 다시 그릴 때 쓰던 글(아직 보내지 않은 입력)이 지워지지 않게, 새 입력칸에 되돌려 준다. 탭을 옮기면 되돌리지 않는다.
+const DRAFT_SEL = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]),textarea,select';
+const fieldKey = (el, i) => el.id || `${el.tagName}.${el.type || ''}.${el.placeholder || ''}.${i}`;
+function snapshotDrafts(root) {
+  const m = new Map();
+  root.querySelectorAll(DRAFT_SEL).forEach((el, i) => { if (el.tagName === 'SELECT' ? true : el.value !== '' && el.value !== el.defaultValue) m.set(fieldKey(el, i), el.value); });
+  return m;
+}
+function restoreDrafts(root, m) {
+  if (!m.size) return;
+  root.querySelectorAll(DRAFT_SEL).forEach((el, i) => {
+    const k = fieldKey(el, i); if (!m.has(k)) return; const v = m.get(k);
+    if (el.tagName === 'SELECT') { if ([...el.options].some((o) => o.value === v)) el.value = v; } else if (el.value === '') el.value = v;
+  });
+}
+// 입력칸의 글을 보낼 때: 먼저 비우고 보낸다(보내는 사이 화면이 다시 그려져도 보낸 글이 되살아나지 않게). 실패하면 되돌려 놓는다.
+async function sendField(el, send) {
+  const t = el.value.trim(); if (!t) return false;
+  const id = el.id; el.value = '';
+  try { await send(t); return true; } catch (e) { const cur = (id && document.getElementById(id)) || el; if (!cur.value) cur.value = t; throw e; }
+}
 function renderView() {
   const view = $('#view'); if (!view) return;
   const keepTop = view.scrollTop;
+  const drafts = view.dataset.tab === S.tab ? snapshotDrafts(view) : new Map();
   let node;
   if (S.gate) node = S.gate();
   else if (!S.ready) node = card('Connecting…', note(S.slow ? '연결이 늦어지고 있어요. 잠시 뒤에도 안 되면 새로고침해 주세요.' : 'prod-api-02 에 연결하는 중…'));
@@ -398,6 +420,7 @@ function renderView() {
     node = h('div', { class: 'page' }, banners, (V[S.tab] || V[Object.keys(V)[0]])());
   }
   view.replaceChildren(node);
+  view.dataset.tab = S.tab; restoreDrafts(view, drafts);
   if (S.ready && isWriter() && S.tab === 'console') { renderLog(); view.scrollTop = view.scrollHeight; } else view.scrollTop = keepTop;
 }
 
@@ -713,9 +736,9 @@ function agendaCard() {
   const redraw = () => renderView();
   const opened = (S.agOpen ??= new Set());
   const add = act(async () => {
-    const el = $('#ag-text'); const t = el.value.trim();
-    if (!t) return toast('아젠다를 한 줄 적어주세요');
-    await addAgenda(t); el.value = '';
+    const el = $('#ag-text');
+    if (!el.value.trim()) return toast('아젠다를 한 줄 적어주세요');
+    await sendField(el, addAgenda);
   });
   const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)', on: { keydown: (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } } } });
   const confirmDelete = (a) => modal({ title: '이 아젠다를 삭제할까요?', body: note(`"${a.text}" 은(는) 댓글과 함께 기록 없이 사라져요. 해결된 것으로 남기려면 "Resolve"를 눌러 주세요.`),
@@ -724,7 +747,7 @@ function agendaCard() {
   const thread = (a, canAdd) => {
     const list = agComments(a.id);
     const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id });
-    const send = act(async () => { const t = box.value.trim(); if (!t) return; await addAgComment(a, t); box.value = ''; });
+    const send = act(async () => { await sendField(box, (t) => addAgComment(a, t)); });
     box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
     return h('div', { class: 'ag-thread' },
       list.length ? list.map((c) => h('div', { class: 'ag-c' + (c.by === me ? ' mine' : '') }, h('div', { class: 'ag-cb' }, h('span', { class: 'ag-cw', text: c.by === me ? 'Me' : 'Partner' }), h('span', { class: 'ag-ct', text: c.text }), h('span', { class: 'sub', text: mdhm(c.ts) })),
@@ -941,7 +964,7 @@ function viewQueue() {
         ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Raw (shared)' }), h('span', { text: ln.raw })) : null,
         rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts).map((r) => h('div', { class: 'rv' }, h('span', { class: 'sub', text: hm(r.ts) }), h('p', { class: 'msgtext', text: r.text }))),
         h('div', { class: 'row' }, h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment' }),
-          btn('Comment', act(async () => { const el = $('#rv-' + ln.id); const t = el.value.trim(); if (!t) return; await S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t }); el.value = ''; }), 'small primary')))) : empty('공유된 로그 없음')));
+          btn('Comment', act(async () => { await sendField($('#rv-' + ln.id), (t) => S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t })); }), 'small primary')))) : empty('공유된 로그 없음')));
 }
 function whenTs(v) {
   const n = new Date(), now = n.getTime();
@@ -959,10 +982,9 @@ function viewSend() {
       h('textarea', { id: 'cm-text', rows: 2, maxLength: 200, placeholder: 'commit message' }),
       h('div', { class: 'row' }, h('select', { id: 'cm-when' }, [['now', '지금'], ['1h', '1시간 뒤'], ['3h', '3시간 뒤'], ['tomorrow', '내일 아침 9시'], ['sat', '주말 아침 10시']].map(([v, t]) => h('option', { value: v, text: t }))),
         btn('Commit', act(async () => {
-          const t = $('#cm-text').value.trim(); if (!t) return toast('메시지를 적어주세요');
+          if (!$('#cm-text').value.trim()) return toast('메시지를 적어주세요');
           const deliverAt = whenTs($('#cm-when').value);
-          await S.store.set('commits', 'cm_' + uid(), { ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null });
-          $('#cm-text').value = '';
+          await sendField($('#cm-text'), (t) => S.store.set('commits', 'cm_' + uid(), { ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
         }), 'primary'))),
     card('Sent', cm.length ? cm.map((c) => h('div', { class: 'item' }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: c.sha }), c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge('deployed ✓', 'ok') : badge('delivered')), h('p', { class: 'msgtext', text: c.text }),
       c.deliverAt > now ? btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small danger') : null)) : empty('보낸 메시지 없음')));
@@ -991,7 +1013,7 @@ const sysSev = (p) => (isUrgent(p) ? 'crit' : p.question || p.poll ? 'notice' : 
 function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);
   const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id });
-  const send = act(async () => { const t = box.value.trim(); if (!t) return; await S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() }); box.value = ''; });
+  const send = act(async () => { await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() })); });
   box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
   return h('div', { class: 'sl-thread' },
     list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch', text: c.by === me ? 'me' : 'partner' }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }),
@@ -1052,16 +1074,20 @@ function viewSyslog() {
   const kept = new Set(keeps().filter((k) => k.kind === 'syslog').map((k) => k.from));
   const all = posts();
   const FILTERS = [['all', 'All', () => all.length], ['urgent', 'Urgent', () => all.filter(isUrgent).length], ['question', 'Question', () => all.filter((p) => p.question || p.poll).length], ['kept', 'Kept', () => all.filter((p) => kept.has(p.id)).length]];
-  let list = all.slice().sort((a, b) => (isUrgent(b) - isUrgent(a)) || b.ts - a.ts);       // 긴급(해결 전)은 맨 위에 모은다
-  if (st.filter === 'urgent') list = list.filter(isUrgent); else if (st.filter === 'question') list = list.filter((p) => p.question || p.poll); else if (st.filter === 'kept') list = list.filter((p) => kept.has(p.id));
-  const q = st.q.trim().toLowerCase(); if (q) list = list.filter((p) => (p.text || '').toLowerCase().includes(q));
+  const listRows = () => {
+    let list = all.slice().sort((a, b) => (isUrgent(b) - isUrgent(a)) || b.ts - a.ts);       // 긴급(해결 전)은 맨 위에 모은다
+    if (st.filter === 'urgent') list = list.filter(isUrgent); else if (st.filter === 'question') list = list.filter((p) => p.question || p.poll); else if (st.filter === 'kept') list = list.filter((p) => kept.has(p.id));
+    const q = st.q.trim().toLowerCase(); if (q) list = list.filter((p) => (p.text || '').toLowerCase().includes(q));
+    return list.length ? list.map((p) => sysRow(p, kept.has(p.id))) : [h('p', { class: 'empty', text: q || st.filter !== 'all' ? 'no match' : 'No entries yet.' })];
+  };
+  const listBox = h('div', { class: 'sl-list' }, listRows());
   const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : '') + (f === 'urgent' && n() ? ' hot' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
   return h('div', { class: 'grid' }, h('section', { class: 'card syslog' },
     h('div', { class: 'row' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sp' }),
       btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'), btn('New entry', openCompose, 'primary small')),
     h('div', { class: 'sl-chips' }, chips),
-    h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; renderView(); const el = $('.syslog .grep'); el?.focus(); el?.setSelectionRange(st.q.length, st.q.length); } } }),
-    h('div', { class: 'sl-list' }, list.length ? list.map((p) => sysRow(p, kept.has(p.id))) : h('p', { class: 'empty', text: q || st.filter !== 'all' ? 'no match' : 'No entries yet.' }))));
+    h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; listBox.replaceChildren(...listRows()); } } }),
+    listBox));
 }
 
 const VW = { console: viewConsole, dash: viewDash, inbox: viewInbox, syslog: viewSyslog, plan: viewPlanW, report: viewReport, archive: viewArchive, settings: viewSettingsW };
