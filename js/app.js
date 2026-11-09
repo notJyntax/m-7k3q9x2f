@@ -6,7 +6,7 @@ import * as Push from './push.js';
 import { startUpdateCheck } from './update.js';
 import { BUILD } from './version.js';
 
-const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas'];
+const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins'];
 
 // 기본 테마(회사에서 보기 좋은 차분한 톤)와 스페셜 테마(기분 전환용). 스페셜은 강조색·버튼색까지 테마마다 달라요.
 const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['warm', 'Warm Gray'], ['auto', 'Auto']];
@@ -76,8 +76,8 @@ const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
 const btn = (label, fn, cls = '', extra = {}) => h('button', { type: 'button', class: 'btn ' + cls, on: { click: fn }, ...extra }, label);
 const empty = (t) => h('p', { class: 'empty', text: t });
 const note = (t) => h('p', { class: 'note', text: t });
-const meter = (name, sub, v) => h('div', { class: 'meter' },
-  h('div', { class: 'mh' }, h('b', { text: name }), h('span', { class: 'sub', text: sub }), h('span', { class: 'pct', text: v + '%' })),
+const meter = (name, v) => h('div', { class: 'meter' },
+  h('div', { class: 'mh' }, h('b', { text: name }), h('span', { class: 'pct', text: v + '%' })),
   h('div', { class: 'bar' }, h('i', { class: v >= 75 ? 'crit' : v >= 40 ? 'warn' : 'ok', style: `width:${v}%` })));
 const statusPill = (level, off) => h('div', { class: 'status ' + (off ? 'off' : level) }, h('span', { class: 'dot' }), h('b', { text: off ? 'Maintenance — offline' : L.STATUS_TEXT[level] }));
 
@@ -262,12 +262,12 @@ function newCounts() {
   if (isWriter()) {
     const sIn = seenAt('inbox');
     return {
-      inbox: (sd('status').dnd ? 0 : rows('commits').filter((c) => c.deliverAt <= now && c.deliverAt > sIn).length) + rows('reviews').filter((r) => r.ts > sIn).length,
+      inbox: (pendingCheckin() ? 1 : 0) + (sd('status').dnd ? 0 : rows('commits').filter((c) => c.deliverAt <= now && c.deliverAt > sIn).length) + rows('reviews').filter((r) => r.ts > sIn).length,
       plan: planNeeds() + newAgendas(),
     };
   }
   return {
-    overview: rows('alerts').filter((a) => !a.ackAt).length,
+    overview: rows('alerts').filter((a) => !a.ackAt).length + (checkinToday()?.status === 'answered' && checkinToday().answeredAt > seenAt('overview') ? 1 : 0),
     queue: rows('lines').filter((l) => l.ts > seenAt('queue')).length,
     send: rows('commits').filter((c) => c.ackAt && c.ackAt > seenAt('send')).length,
     plan: planNeeds() + newAgendas(),
@@ -315,10 +315,14 @@ const saveMood = (emoji, text) => S.store.set('shared', 'me_' + roleName(), { em
 const MOOD_INFO = new Map([...MOODS_ACTIVITY.map(([e, l]) => [e, { label: l, kind: 'act' }]), ...MOODS_FEELING.map(([e, l]) => [e, { label: l, kind: 'feel' }])]);
 const short = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? 'now' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
 // 프로필 상태처럼: 동그란 이모지(행동은 강조색 테두리, 감정은 따뜻한 색 테두리) + 이름 + 상태 + 경과 시간
-function moodChip(d, { name, me, isNew, title, onClick }) {
+const REACTIONS = ['👍', '❤️', '🤗', '💪', '🙏'];
+const reactDoc = (role) => sd('react_' + role);
+// 그 사람의 반응이 "지금 그 상태"에 대한 것일 때만 보인다 (상태가 바뀌면 이전 반응은 사라진다)
+const reactOn = (role, statusTs) => { const r = reactDoc(role); return statusTs && r.emoji && r.to === statusTs ? r.emoji : ''; };
+function moodChip(d, { name, me, isNew, title, onClick, react }) {
   const info = MOOD_INFO.get(d.emoji), has = !!(d.emoji || d.text);
   return h('button', { type: 'button', class: `mchip ${me ? 'me' : 'they'} ${has ? info?.kind || 'act' : 'empty'}${isNew ? ' new' : ''}`, title, on: { click: onClick } },
-    h('span', { class: 'mav' }, h('span', { class: 'me-e', text: d.emoji || (me ? '＋' : '·') })),
+    h('span', { class: 'mav' }, h('span', { class: 'me-e', text: d.emoji || (me ? '＋' : '·') }), react ? h('span', { class: 'mreact', text: react, title: me ? 'Partner reacted' : 'You reacted' }) : null),
     h('span', { class: 'mbody' }, h('span', { class: 'mk' }, name, has && d.ts ? h('span', { class: 'ago', text: ` · ${short(d.ts)}` }) : null), h('span', { class: 'mt', text: has ? d.text || info?.label || '' : me ? 'Set status' : 'Not set' })),
     isNew ? h('span', { class: 'ndot', 'aria-label': '새 상태' }) : null);
 }
@@ -329,10 +333,13 @@ function renderMood() {
   if (S.prevMood == null) S.prevMood = they.ts || 0; // 처음 열 때는 알리지 않고 기준만 잡는다
   else if ((they.ts || 0) > S.prevMood) { S.prevMood = they.ts; toast(`${otherName()}가 상태를 바꿨어요 ${they.emoji || ''}`.trim()); }
   const isNew = (they.ts || 0) > seenAt('mood');
+  const theirR = reactDoc(otherRole()), onMe = reactOn(otherRole(), me.ts);
+  if (S.prevReact == null) S.prevReact = theirR.ts || 0;
+  else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`${otherName()}가 내 상태에 ${onMe} 반응했어요`); }
   box.hidden = false;
   box.replaceChildren(
-    moodChip(me, { name: 'Me', me: true, title: 'Change my status', onClick: openMood }),
-    moodChip(they, { name: 'Partner', me: false, isNew, title: 'Partner status', onClick: openTheirMood }));
+    moodChip(me, { name: 'Me', me: true, title: 'Change my status', onClick: openMood, react: onMe }),
+    moodChip(they, { name: 'Partner', me: false, isNew, title: 'Partner status', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
 }
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';
@@ -347,7 +354,14 @@ function openMood() {
 }
 function openTheirMood() {
   const t = moodDoc(otherRole()); markSeen('mood');
-  modal({ title: 'Partner status', body: t.emoji || t.text ? h('div', { class: 'their' }, h('div', { class: 'big', text: t.emoji || '·' }), t.text ? h('p', { class: 'msgtext', text: t.text }) : null, h('p', { class: 'sub', text: `갱신 ${ago(t.ts)}` })) : note('아직 상태를 정하지 않았어요.'), actions: [{ label: 'OK', cls: 'primary' }] });
+  const has = !!(t.emoji || t.text), mine = reactOn(roleName(), t.ts);
+  const rbtn = (e) => h('button', { type: 'button', class: 'ropt' + (mine === e ? ' on' : ''), title: e, on: { click: act(async () => {
+    await S.store.set('shared', 'react_' + roleName(), { emoji: mine === e ? '' : e, to: t.ts, ts: Date.now() });
+    close(); toast(mine === e ? 'Reaction removed' : 'Reaction sent');
+  }) } }, e);
+  const body = has ? h('div', { class: 'their' }, h('div', { class: 'big', text: t.emoji || '·' }), t.text ? h('p', { class: 'msgtext', text: t.text }) : null, h('p', { class: 'sub', text: `갱신 ${ago(t.ts)}` }),
+    h('div', { class: 'reactrow' }, h('div', { class: 'mlab', text: 'React' }), h('div', { class: 'rgrid' }, REACTIONS.map(rbtn)))) : note('아직 상태를 정하지 않았어요.');
+  const close = modal({ title: 'Partner status', body, actions: [{ label: 'Close', cls: 'primary' }] });
   schedule();
 }
 
@@ -359,6 +373,7 @@ function renderView() {
   else if (!S.ready) node = card('Connecting…', note(S.slow ? '연결이 늦어지고 있어요. 잠시 뒤에도 안 되면 새로고침해 주세요.' : 'prod-api-02 에 연결하는 중…'));
   else {
     const banners = [];
+    if (isWriter() && S.tab !== 'inbox' && pendingCheckin()) banners.push(h('div', { class: 'banner warn' }, h('span', { text: '상대가 무슨 일 있는지 물어봤어요.' }), btn('Reply', () => openCheckinReply(pendingCheckin()), 'small primary')));
     if (!S.canWrite) banners.push(h('div', { class: 'banner warn', text: '읽기 전용이에요. 쓰려면 소유자가 "편집 가능(Contributor)"으로 초대해야 해요.' }));
     if (S.sandbox) banners.push(h('div', { class: 'banner', text: '체험 모드: 이 기기에만 저장되고 상대에게 전달되지 않아요.' }, btn('Exit', () => boot(), 'small')));
     else if (!S.cloud) banners.push(h('div', { class: 'banner', text: '혼자 쓰는 모드: 공유 저장소에 연결되지 않아 이 기기에만 저장돼요.' }));
@@ -472,11 +487,11 @@ function openShare(l) {
     h('p', { class: 'note', text: l.raw ? '공유하면 위 한 줄과 원문, 한마디가 상대 화면에 그대로 보여요.' : '공유하면 위 한 줄과 한마디가 상대 화면에 보여요.' })),
   actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Share', cls: 'primary', fn: () => shareLine(l, note.value.trim()) }] });
 }
-async function shareLine(l, note = '') {
+async function shareLine(l, note = '', silent = false) {
   const sid = 'ln_' + uid();
   await S.store.set('lines', sid, { ts: l.ts, day: l.day, level: l.level, text: L.fmtLine(l, hms(l.ts)), note, raw: l.raw || '' });
   await S.store.patch('@', l.id, { sharedId: sid });
-  toast(l.raw ? '공유했어요. 원문도 함께 보여요.' : '공유했어요.');
+  if (!silent) toast(l.raw ? '공유했어요. 원문도 함께 보여요.' : '공유했어요.');
 }
 async function unshareLine(l) {
   for (const r of rows('reviews').filter((r) => r.lineId === l.sharedId)) await S.store.del('reviews', r.id);
@@ -530,7 +545,7 @@ function viewDash() {
   const m = metrics();
   return h('div', { class: 'grid' },
     card('Service status', statusPill(m.level, false), note('CPU = 인내심 (짜증·화) · MEM = 멘탈 (피로·불안) · DISK = 이번 주 쌓인 짜증')),
-    card('Resources', meter('CPU', '인내심', m.cpu), meter('MEM', '멘탈', m.mem), meter('DISK', '쌓인 짜증', m.disk)),
+    card('Resources', meter('CPU', m.cpu), meter('MEM', m.mem), meter('DISK', m.disk)),
     card('Today', h('div', { class: 'counts' }, L.LEVELS.map((lv) => h('div', { class: 'cnt-box lv-' + lv }, h('b', { text: m[lv] }), h('span', { text: lv }))))),
     card('This week — incidents (ERROR+FATAL)', weekBars()));
 }
@@ -544,7 +559,7 @@ function viewInbox() {
   const cm = rows('commits').filter((c) => c.deliverAt <= now).sort((a, b) => b.deliverAt - a.deliverAt);
   const lines = [...rows('lines')].sort((a, b) => b.ts - a.ts).map((ln) => [ln, rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts)]).filter(([, rv]) => rv.length);
   const kp = keeps();
-  return h('div', { class: 'grid' },
+  return h('div', { class: 'grid' }, checkinCardW(),
     card('Commits', dnd ? note('Do not disturb 가 켜져 있어요. 도착한 메시지는 끌 때까지 숨겨져요.')
       : cm.length ? cm.map((c) => h('div', { class: 'item' }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'commit ' + c.sha }), h('span', { class: 'sub', text: hm(c.deliverAt) })), h('p', { class: 'msgtext', text: c.text }),
         h('div', { class: 'row' }, c.ack ? badge('deployed ✓ ' + hm(c.ackAt), 'ok') : btn('Deployed ✓', act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), keepBtn(c.text, c.id))))
@@ -573,7 +588,7 @@ const planRange = (l) => fmtMD(l.date) + (l.endDate ? '~' + fmtMD(l.endDate) : '
 const planText = (l) => `${planRange(l)} ${l.label} ${l.action === 'add' ? '추가' : '삭제'}`;
 const calState = () => (S.cal ??= { y: new Date().getFullYear(), m: new Date().getMonth(), sel: dayKey() });
 function planNeeds() { return rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName()).length; }
-const newAgendas = () => rows('agendas').filter((a) => a.status === 'open' && a.by !== roleName() && a.ts > seenAt('plan')).length;
+const newAgendas = () => rows('agendas').filter((a) => a.status === 'open' && a.by !== roleName() && a.ts > seenAt('plan')).length + rows('agenda_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('plan')).length;
 const otherName = () => (isWriter() ? '상대' : '친구');
 
 async function addEvent({ date, endDate, kind, label, memo }) {
@@ -667,6 +682,8 @@ const agendas = () => rows('agendas');
 const addAgenda = (text) => S.store.set('agendas', 'ag_' + uid(), { text, by: roleName(), ts: Date.now(), status: 'open' });
 const resolveAgenda = (a) => S.store.patch('agendas', a.id, { status: 'resolved', resolvedAt: Date.now() });
 const removeAgenda = (a) => S.store.del('agendas', a.id);
+const agComments = (id) => rows('agenda_comments').filter((c) => c.agendaId === id).sort((a, b) => a.ts - b.ts);
+const addAgComment = (a, text) => S.store.set('agenda_comments', 'ac_' + uid(), { agendaId: a.id, by: roleName(), text, ts: Date.now() });
 const AGICON = {
   open: '<path d="M7 3h10v18l-5-3.5L7 21z"/>',
   done: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
@@ -678,21 +695,40 @@ function agendaCard() {
   const open = agendas().filter((a) => a.status === 'open').sort((a, b) => a.ts - b.ts);
   const solved = agendas().filter((a) => a.status === 'resolved').sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0));
   const redraw = () => renderView();
+  const opened = (S.agOpen ??= new Set());
   const add = act(async () => {
     const el = $('#ag-text'); const t = el.value.trim();
     if (!t) return toast('아젠다를 한 줄 적어주세요');
     await addAgenda(t); el.value = '';
   });
   const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)', on: { keydown: (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } } } });
-  const confirmDelete = (a) => modal({ title: '이 아젠다를 삭제할까요?', body: note(`"${a.text}" 은(는) 기록에 남지 않고 사라져요. 해결된 것으로 남기려면 "Resolve"를 눌러 주세요.`),
+  const confirmDelete = (a) => modal({ title: '이 아젠다를 삭제할까요?', body: note(`"${a.text}" 은(는) 댓글과 함께 기록 없이 사라져요. 해결된 것으로 남기려면 "Resolve"를 눌러 주세요.`),
     actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => removeAgenda(a)) }] });
-  const item = (a, kind) => h('div', { class: 'ag-item ' + kind },
-    agIcon(kind), h('div', { class: 'ag-body' }, h('span', { class: 'ag-t', text: a.text }),
-      h('span', { class: 'sub', text: kind === 'done' ? `${who(a)} 등록 · ${a.resolvedAt ? mdhm(a.resolvedAt) + ' 해결' : ''}` : `${who(a)} 등록 · ${mdhm(a.ts)}` })),
-    kind === 'open' && a.by === me ? h('div', { class: 'ag-act' }, btn('Resolve', act(() => resolveAgenda(a)), 'small quiet'), btn('Delete', () => confirmDelete(a), 'small quiet del')) : null);
+  // 댓글: 작성자·리스너 둘 다 달 수 있다. 내 댓글만 지울 수 있다.
+  const thread = (a, canAdd) => {
+    const list = agComments(a.id);
+    const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id });
+    const send = act(async () => { const t = box.value.trim(); if (!t) return; await addAgComment(a, t); box.value = ''; });
+    box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
+    return h('div', { class: 'ag-thread' },
+      list.length ? list.map((c) => h('div', { class: 'ag-c' + (c.by === me ? ' mine' : '') }, h('div', { class: 'ag-cb' }, h('span', { class: 'ag-cw', text: c.by === me ? 'Me' : 'Partner' }), h('span', { class: 'ag-ct', text: c.text }), h('span', { class: 'sub', text: mdhm(c.ts) })),
+        c.by === me ? btn('Delete', act(() => S.store.del('agenda_comments', c.id)), 'small quiet del') : null)) : h('p', { class: 'empty', text: 'No comments yet' }),
+      canAdd ? h('div', { class: 'row' }, box, btn('Add', send, 'small primary')) : null);
+  };
+  const item = (a, kind) => {
+    const n = agComments(a.id).length, isOpen = opened.has(a.id);
+    return h('div', { class: 'ag-wrap ' + kind },
+      h('div', { class: 'ag-item ' + kind }, agIcon(kind),
+        h('div', { class: 'ag-body' }, h('span', { class: 'ag-t', text: a.text }),
+          h('span', { class: 'sub', text: kind === 'done' ? `${who(a)} 등록 · ${a.resolvedAt ? mdhm(a.resolvedAt) + ' 해결' : ''}` : `${who(a)} 등록 · ${mdhm(a.ts)}` }),
+          h('div', { class: 'ag-act' },
+            btn(n ? `Comments (${n})` : 'Comment', () => { isOpen ? opened.delete(a.id) : opened.add(a.id); redraw(); }, 'small quiet' + (isOpen ? ' on' : '')),
+            kind === 'open' && a.by === me ? [btn('Resolve', act(() => resolveAgenda(a)), 'small quiet'), btn('Delete', () => confirmDelete(a), 'small quiet del')] : null))),
+      isOpen ? thread(a, kind === 'open') : null);
+  };
   return h('section', { class: 'card agenda' },
     h('h3', { text: 'Weekly Agenda' }),
-    open.length ? h('div', { class: 'ag-list' }, open.map((a) => item(a, 'open'))) : note('다음 대화에서 이야기하고 싶은 주제를 적어 두는 곳이에요. 누구나 등록할 수 있고, 등록한 사람이 삭제하거나 "Resolve"로 마무리해요.'),
+    open.length ? h('div', { class: 'ag-list' }, open.map((a) => item(a, 'open'))) : note('다음 대화에서 이야기하고 싶은 주제를 적어 두는 곳이에요. 누구나 등록하고 댓글을 달 수 있고, 등록한 사람이 삭제하거나 "Resolve"로 마무리해요.'),
     h('div', { class: 'row' }, input, btn('Add', add, 'small primary')),
     solved.length ? [
       btn(S.agHist ? 'Hide resolved' : `Show resolved (${solved.length})`, () => { S.agHist = !S.agHist; redraw(); }, 'small quiet block'),
@@ -782,8 +818,8 @@ function pushCard() {
   });
   const turnOff = act(async () => { await Push.disablePush(S.sb); toast('이 기기의 알림을 껐어요.'); await refreshPush(); });
   const wants = isWriter()
-    ? '새 commit(응원 메시지), 리뷰 댓글, Plan 승인 요청, 상대의 상태 변경'
-    : '새 공유 로그, 안부 신호, Plan 일정 요청과 결과, 상태 red, "배포 성공" 신호, 상대의 상태 변경';
+    ? '새 commit(응원 메시지), 리뷰 댓글, Plan 일정 요청과 결과, 아젠다 댓글, 체크인 질문, 상대의 상태 변경과 반응'
+    : '새 공유 로그, 안부 신호, Plan 일정 요청과 결과, 상태 red, "배포 성공" 신호, 아젠다 댓글, 체크인 답장, 상대의 상태 변경과 반응';
   if (st === 'local') kids.push(note('공유 저장소에 연결되면 쓸 수 있어요 (혼자 쓰는 모드에서는 알림이 없어요).'));
   else if (st === 'loading') kids.push(note('확인 중…'));
   else if (st === 'unconfigured') kids.push(note('이 배포에는 푸시 키가 아직 설정되지 않았어요 (config.js 의 VAPID_PUBLIC_KEY).'));
@@ -816,7 +852,8 @@ function themeCard() {
 }
 function modeCard() {
   const kids = [];
-  if (S.sandbox) kids.push(note('지금은 체험 모드예요.'), btn('Exit sandbox', () => boot(), 'small'));
+  if (S.sandbox) kids.push(note('지금은 체험 모드예요. 두 사람의 화면을 번갈아 볼 수 있어요.'),
+    h('div', { class: 'row' }, ['writer', 'listener'].map((r) => btn(r === 'writer' ? 'Writer view' : 'Listener view', () => { S.role = r; S.tab = r === 'writer' ? 'console' : 'overview'; S.prevMood = null; S.prevReact = null; renderChrome(); renderView(); }, 'small' + (S.role === r ? ' primary' : ''))), btn('Exit sandbox', () => boot(), 'small')));
   else if (S.cloud) kids.push(note(`공유 저장소에 연결됨 · ${isWriter() ? '작성자' : '리스너'} · ${S.email}`),
     h('div', { class: 'row' }, btn('Try sandbox', () => boot({ sandbox: true }), 'small'), btn('Sign out', act(logout), 'small danger')));
   else {
@@ -826,13 +863,57 @@ function modeCard() {
   return card('Mode', ...kids);
 }
 
+// ───────── 체크인: 작성자의 CPU가 높아지면 리스너가 "무슨 일 있어?"를 물어볼 수 있다 ─────────
+const CHECKIN_STEP = 10; // CPU 10%부터, 한 번 물어본 뒤에는 그 시점보다 10%가 더 쌓일 때마다 다시 물어볼 수 있다
+const checkinsToday = () => rows('checkins').filter((c) => c.day === dayKey()).sort((a, b) => b.ts - a.ts);
+const checkinToday = () => checkinsToday()[0] || null;
+const pendingCheckin = () => checkinsToday().find((c) => c.status === 'asked') || null;
+// 다음에 물어볼 수 있는 CPU: 오늘 처음이면 10%, 아니면 "마지막으로 물어본 CPU"의 다음 10% 단위
+const nextAskAt = () => { const t = checkinsToday(); return t.length ? Math.floor(Math.max(...t.map((c) => c.cpu | 0)) / CHECKIN_STEP) * CHECKIN_STEP + CHECKIN_STEP : CHECKIN_STEP; };
+function checkinCardL(st) {
+  const ck = checkinToday(), cpu = st.cpu | 0, waiting = ck?.status === 'asked';
+  const can = !st.off && !waiting && cpu >= nextAskAt();
+  if (!can && !ck) return null;
+  const ask = act(async () => { await S.store.set('checkins', 'ck_' + uid(), { ts: Date.now(), day: dayKey(), status: 'asked', by: 'listener', cpu }); toast('물어봤어요. 답장이 오면 알려 드릴게요.'); });
+  const kids = [];
+  if (ck?.status === 'asked') kids.push(h('div', { class: 'ih' }, badge('Waiting for reply', 'warn'), h('span', { class: 'sub', text: `Asked ${hm(ck.ts)} · CPU ${ck.cpu | 0}%` })));
+  else if (ck?.status === 'answered') kids.push(h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: `Reply · ${hm(ck.answeredAt || ck.ts)}` }), h('span', { text: ck.reply || '(메시지 없이 로그만 보냈어요)' })),
+    ck.logs ? note(`로그 ${ck.logs}개를 공유했어요. Queue 탭에서 볼 수 있어요.`) : null);
+  else if (ck) kids.push(h('div', { class: 'ih' }, badge('Not now'), h('span', { class: 'sub', text: `${hm(ck.dismissedAt || ck.ts)} · CPU ${ck.cpu | 0}%` })));
+  if (can) kids.push(note(ck ? `CPU가 ${cpu}%까지 더 올랐어요 (지난번 ${ck.cpu | 0}%). 다시 물어볼 수 있어요.` : `상대의 CPU가 ${cpu}%까지 올랐어요. 무슨 일이 있는지 물어볼 수 있어요.`), btn("Ask what's up", ask, 'primary small'));
+  return card('Check in', ...kids);
+}
+function checkinCardW() {
+  const ck = pendingCheckin(); if (!ck) return null;
+  return card('Check-in', h('p', { class: 'msgtext', text: '상대가 무슨 일 있는지 물어봤어요.' }), h('div', { class: 'sub', text: `Asked ${hm(ck.ts)}` }),
+    h('div', { class: 'row' }, btn('Reply', () => openCheckinReply(ck), 'primary small'), btn('Not now', act(() => S.store.patch('checkins', ck.id, { status: 'dismissed', dismissedAt: Date.now() })), 'small quiet')));
+}
+function openCheckinReply(ck) {
+  const msg = h('textarea', { rows: 3, maxLength: 200, placeholder: '무슨 일이 있었는지 한마디 (선택)' });
+  const logs = todayLogs().sort((a, b) => b.ts - a.ts), picks = new Set();
+  const list = logs.length ? logs.map((l) => h('label', { class: 'chk logpick' },
+    h('input', { type: 'checkbox', on: { change: (e) => (e.target.checked ? picks.add(l.id) : picks.delete(l.id)) } }),
+    h('span', {}, h('b', { class: 'lv-' + l.level, text: `${hms(l.ts)} ${l.level}` }), ' ', `${l.service} `, h('small', { class: 'sub', text: l.raw ? `“${l.raw}”` : l.msg })))) : [note('오늘 기록한 로그가 없어요.')];
+  modal({ title: 'Reply to check-in', body: h('div', { class: 'share' }, msg, h('div', { class: 'mlab', text: 'Share logs (optional)' }), h('div', { class: 'logpicks' }, list), note('고른 로그는 원문까지 함께 상대 화면에 보여요.')),
+    actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Send', cls: 'primary', close: false, fn: async (close) => {
+      const text = msg.value.trim();
+      if (!text && !picks.size) return toast('한마디를 쓰거나 공유할 로그를 골라 주세요');
+      close();
+      let n = 0;
+      for (const l of logs.filter((x) => picks.has(x.id))) { if (!l.sharedId) await shareLine(l, '', true); n += 1; }
+      await S.store.patch('checkins', ck.id, { status: 'answered', reply: text, logs: n, answeredAt: Date.now() });
+      toast('보냈어요');
+    } }] });
+}
+
 // ───────── 리스너 ─────────
 function viewOverview() {
   const st = sd('status');
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
     card('Service status', st.level || st.off ? [statusPill(st.level || 'green', st.off), st.dnd ? badge('Do not disturb', 'warn') : null, h('div', { class: 'sub', text: '갱신 ' + (st.ts ? mdhm(st.ts) : '–') })] : note('아직 신호가 없어요.'),
-      st.level ? [meter('CPU', '인내심', st.cpu | 0), meter('MEM', '멘탈', st.mem | 0), meter('DISK', '쌓인 짜증', st.disk | 0)] : null),
+      st.level ? [meter('CPU', st.cpu | 0), meter('MEM', st.mem | 0), meter('DISK', st.disk | 0)] : null),
+    checkinCardL(st),
     alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null);
 }
 function viewQueue() {
@@ -924,6 +1005,7 @@ async function gc() {
   for (const r of rows('reviews').filter((r) => r.day < today || !lineIds.has(r.lineId))) await del('reviews', r);
   for (const r of rows('alerts').filter((r) => r.day < today)) await del('alerts', r);
   for (const r of rows('commits').filter((r) => r.deliverAt <= now && dayKey(r.deliverAt) < today)) await del('commits', r);
+  for (const r of rows('checkins').filter((r) => r.day < today)) await del('checkins', r);
   const cutoff = dayKey(now - 28 * 86400e3);
   for (const r of rows('stats').filter((r) => r.day < cutoff)) await del('stats', r);
 }
@@ -990,7 +1072,7 @@ const HELP_W = [
     tip: ['**Settings**의 방해금지를 켜면 응원 메시지 숨김', '보관한 말은 퇴근해도 유지'] },
   { t: '📅 **Plan**', why: '야근·회식·출장 같은 일정을 상대와 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타**', '메모·종료일 입력 (선택, **기타**는 일정 이름 필수)', '**상대에게 전송** 클릭', '상대가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
-    tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (상대 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 다음 대화의 주제를 승인 없이 바로 등록 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관)'] },
+    tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (상대 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 다음 대화의 주제를 승인 없이 바로 등록 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
   { t: '📈 **Report**', why: '한 주를 숫자로 돌아보기.',
     how: ['보기 전용 (요일별 로그 수 표와 3줄 요약)', '**다시 작성**: 요약 문구 재생성'],
     tip: ['집계 숫자만으로 작성 (원문 미사용)', '상대도 같은 보고서 확인'] },
@@ -1005,7 +1087,10 @@ const HELP_W = [
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '**Esc**: 엑셀 화면으로 위장 (한 번 더 누르면 복귀)', '**/exit**: 엑셀 화면으로 위장'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **Me** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**Partner** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
-    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)'] },
+    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 🤗 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+  { t: '💬 **Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
+    how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
+    tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 commit이 도착했어요" 같은 안내만)', '방해금지를 켜면 commit 알림은 오지 않아요'] },
 ];
@@ -1023,7 +1108,7 @@ const HELP_L = [
     tip: ['친구가 **배포 성공 ✓**을 누르면 "deployed ✓" 표시', '친구가 방해금지를 켜면 도착해도 숨김'] },
   { t: '📅 **Plan**', why: '친구와 일정을 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타** (**기타**는 일정 이름 필수)', '**친구에게 전송** 클릭', '친구가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
-    tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (친구 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 나도 주제를 바로 등록 가능 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관)'] },
+    tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (친구 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 나도 주제를 바로 등록 가능 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
   { t: '📈 **Report**', why: '친구의 한 주를 숫자로 확인.',
     how: ['보기 전용 (요일별 로그 수 표와 3줄 요약)'], tip: ['집계 숫자만으로 작성 (원문 미사용)'] },
   { t: '⚙️ **Settings · 기타**', why: '화면 설정과 알림 안내.',
@@ -1031,7 +1116,10 @@ const HELP_L = [
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '다른 탭을 보는 중 새 항목이 오면 화면 아래에 짧은 안내', '어제 공유된 줄·리뷰·전달된 메시지는 새벽 4시 기준 자동 정리'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **Me** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**Partner** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
-    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)'] },
+    tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', 'Partner 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', 'Partner 칩을 누르면 **React**로 👍 ❤️ 🤗 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+  { t: '💬 **Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
+    how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
+    tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 공유 로그가 있어요" 같은 안내만)'] },
 ];
