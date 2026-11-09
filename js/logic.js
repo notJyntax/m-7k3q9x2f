@@ -3,7 +3,8 @@ import { assessRisk, CRISIS_RESOURCES } from './safety.js';
 import { clamp, sum, lsGet, lsSet, dayKey } from './util.js';
 export { assessRisk, CRISIS_RESOURCES };
 
-export const LEVELS = ['INFO', 'WARN', 'ERROR', 'FATAL'];
+// PASS = 좋은 말에서 나온 로그. (화면에서 가짜로 흐르는 서버 점검 줄만 INFO 를 쓰고, 기록·통계에는 들어가지 않는다)
+export const LEVELS = ['PASS', 'WARN', 'ERROR', 'FATAL'];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
@@ -11,7 +12,7 @@ const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const SERVICES = [
   [/상사|팀장|부장|대표|임원|사장|이사|실장|과장|차장/, 'approval-gateway', 'E_UPSTREAM_REVIEW'],
   [/회의|미팅|보고|발표|면담/, 'meeting-scheduler', 'E_MEETING_OVERRUN'],
-  [/야근|퇴근|주말|휴가|연차|출근/, 'overtime-daemon', 'E_OFFHOURS_LOCK'],
+  [/야근|퇴근|칼퇴|주말|휴가|연차|출근/, 'overtime-daemon', 'E_OFFHOURS_LOCK'],
   [/메일|메신저|슬랙|카톡|연락|전화|알림/, 'mail-relay', 'E_INBOX_FLOOD'],
   [/동료|후배|선배|팀원|옆자리|협업|고객|거래처|클라이언트|민원/, 'peer-sync', 'E_PEER_CONFLICT'],
   [/월급|연봉|성과|평가|승진|보너스/, 'payroll-batch', 'E_REWARD_MISMATCH'],
@@ -58,11 +59,55 @@ function pickMsg(level, code) {
   return fill(pick(pool));
 }
 
+// ── 긍정적인 말은 부정적인 로그로 바꾸지 않는다 ──
+// "너무/진짜" 같은 강조어는 감정이 아니므로 판단에서 뺀다. "안 좋다", "힘들지 않았다" 같은 부정 표현도 구분한다.
+const POS_RE = /좋|행복|기쁘|기뻐|뿌듯|고마|감사|재밌|재미있|즐겁|즐거|웃|신나|신난|설레|설렌|최고|대박|성공|잘\s*됐|잘\s*끝|잘\s*풀|다행|편하|편했|편해|편안|평온|안도|칭찬|인정받|승진|보너스|맛있|맛났|든든|따뜻|여유|상쾌|개운|힐링|푹\s*잤|칼퇴|일찍\s*퇴근|해결됐|해결됨|완료|끝냈|도와줘|도움\s*받/;
+const NEG_RE = /화나|화가|짜증|빡|열받|열 받|싫|억울|어이없|황당|무시|욕|피곤|피로|힘들|답답|귀찮|걱정|불안|지쳐|지친|지치|부담|한숨|스트레스|우울|무기력|막막|퇴사|그만\s*두|못\s*참|폭발|미치|돌아버|죽겠|터졌|터질|지옥|최악|별로|망했|망함|아쉽|속상|슬프|외롭|무서|두렵|졸려|혼났|꾸중|질책|지적/;
+// 긍정처럼 보이지만 사실은 부정인 표현 (안 좋다, 재미없다, 좋은 게 없다 …)
+const NOT_POS_RE = /(안|못|별로|전혀|하나도)\s*(좋|기쁘|행복|재밌|즐겁|괜찮|편하|뿌듯)|좋지\s*(않|못)|재미\s*없|맛\s*없|좋은\s*(게|거|것|일)?\s*(하나도|전혀|별로)?\s*없|기쁘지\s*않|행복하지\s*않/;
+// 부정처럼 보이지만 사실은 긍정인 표현 (안 힘들었다, 힘들지 않았다 …)
+const NOT_NEG_RE = /(안|하나도|전혀)\s*(힘들|피곤|짜증|지치|지쳤|답답|걱정|불안)|(힘들|피곤|짜증|답답|걱정|불안)지\s*(않|도\s*않)/;
+export function sentiment(raw) {
+  const t = String(raw ?? '');
+  const notPos = NOT_POS_RE.test(t);
+  const pos = !notPos && POS_RE.test(t) || NOT_NEG_RE.test(t);
+  const neg = notPos || NEG_RE.test(t.replace(NOT_NEG_RE, ''));
+  return { pos, neg };
+}
+const OK_CODE = { E_UPSTREAM_REVIEW: 'OK_APPROVED', E_BLAME_LOOP: 'OK_APPROVED', E_MEETING_OVERRUN: 'OK_MEETING', E_OFFHOURS_LOCK: 'OK_ON_TIME', E_PEER_CONFLICT: 'OK_PEER',
+  E_REWARD_MISMATCH: 'OK_PAID', E_QUEUE_OVERFLOW: 'OK_QUEUE_CLEARED', E_SOCIAL_OVERLOAD: 'OK_SOCIAL', E_SLEEP_DEBT: 'OK_RESTED', E_COMMUTE_DELAY: 'OK_COMMUTE' };
+const MOCK_POS = ['Health check passed (status=healthy)', 'All checks green, no action needed', 'Throughput above baseline (+{n}0%)', 'Latency improved (p95=-{n}00ms)', 'Error rate 0.0%, running smoothly', 'Mood sensor reading nominal (status=good)', 'Positive signal received, logged for the record'];
+const THEMED_POS = {
+  OK_APPROVED: ['Approval granted on first review', 'Upstream sign-off received (turnaround=fast)', 'Code review passed with no blocking comments'],
+  OK_MEETING: ['Meeting finished ahead of schedule (saved {n}0min)', 'Sync call productive (action_items=resolved)'],
+  OK_ON_TIME: ['Clock-out on schedule (off_hours=false)', 'Rest scheduler started on time'],
+  OK_PEER: ['Peer sync clean (merge conflicts=0)', 'Peer service honoring the agreed interface'],
+  OK_PAID: ['Reward calculation matches expectations', 'Batch validation passed: reward above expectation'],
+  OK_QUEUE_CLEARED: ['Task queue drained (pending=0)', 'Deadline met with margin (+{n}h)'],
+  OK_SOCIAL: ['Fuel level restored (meal=ok)', 'Social sync completed, morale +{n}'],
+  OK_RESTED: ['Rest cycle completed (sleep_debt=0h)', 'Standby mode entered, recovery on track'],
+  OK_COMMUTE: ['Commute link healthy (delay=0)', 'Arrived early, boarding retry=0'],
+};
+function positiveLine(t) {
+  const [, service, errCode] = SERVICES.find(([re]) => re.test(t)) || [null, 'workload-svc', 'E_LOAD_SPIKE'];
+  const code = OK_CODE[errCode] || 'OK_NOMINAL';
+  const pool = [...MOCK_POS, ...(THEMED_POS[code] || []), ...(THEMED_POS[code] || [])];
+  let msg = fill(pick(pool));
+  for (let i = 0; i < 6 && msg === lastMsg; i += 1) msg = fill(pick(pool));
+  lastMsg = msg;
+  // 좋은 말은 스트레스(짜증·피로) 점수를 올리지 않고, CPU 막대의 초록 구간(pos)으로만 쌓인다
+  const hits = (t.match(new RegExp(POS_RE.source, 'g')) || []).length;
+  return { level: 'PASS', service, code, msg, cpu: 0, mem: 0, disk: 0, pos: clamp(4 + Math.max(0, hits - 1) * 2, 4, 8), via: 'rules' };
+}
+
 export function mockTranslate(raw) {
   const t = String(raw);
-  const level = FATAL_RE.test(t) ? 'FATAL' : ERROR_RE.test(t) ? 'ERROR' : WARN_RE.test(t) ? 'WARN' : t.length > 80 ? 'ERROR' : 'WARN';
+  const sm = sentiment(t);
+  if (sm.pos && !sm.neg) return positiveLine(t);          // 좋은 말: PASS, 짜증·피로 점수 0
+  let level = FATAL_RE.test(t) ? 'FATAL' : ERROR_RE.test(t) ? 'ERROR' : WARN_RE.test(t) ? 'WARN' : t.length > 80 ? 'ERROR' : 'WARN';
+  if (sm.pos && sm.neg && level !== 'FATAL') level = 'WARN';  // 좋은 말과 힘든 말이 섞이면 가볍게
   const [, service, code] = SERVICES.find(([re]) => re.test(t)) || [null, 'workload-svc', 'E_LOAD_SPIKE'];
-  const w = { INFO: 1, WARN: 3, ERROR: 6, FATAL: 9 }[level];
+  const w = { PASS: 0, WARN: 3, ERROR: 6, FATAL: 9 }[level];
   // 짜증·화 → CPU(인내심)가 크게, 피로·불안 → MEM(멘탈)이 크게, 둘 다/둘 다 아니면 비슷하게
   const anger = ANGER_RE.test(t), tired = TIRED_RE.test(t);
   const hi = () => clamp(w + rnd(0, 2), 0, 10), lo = () => clamp(Math.round(w * 0.4) + rnd(-1, 1), 0, 10), mid = () => clamp(Math.round(w * 0.8) + rnd(-1, 1), 0, 10);
@@ -86,18 +131,18 @@ export async function translate(raw) { return mockTranslate(raw); }
 
 // ── 통계 ──
 export function statFromLogs(logs) {
-  const c = { INFO: 0, WARN: 0, ERROR: 0, FATAL: 0 };
+  const c = { PASS: 0, WARN: 0, ERROR: 0, FATAL: 0 };
   for (const l of logs) if (c[l.level] != null) c[l.level] += 1;
-  return { ...c, cpu: sum(logs, (l) => l.cpu), mem: sum(logs, (l) => l.mem), disk: sum(logs, (l) => l.disk) };
+  return { ...c, cpu: sum(logs, (l) => l.cpu), mem: sum(logs, (l) => l.mem), disk: sum(logs, (l) => l.disk), pos: sum(logs, (l) => l.pos) };
 }
-export const sameStat = (a, b) => !!a && !!b && ['INFO', 'WARN', 'ERROR', 'FATAL', 'cpu', 'mem', 'disk'].every((k) => (a[k] | 0) === (b[k] | 0));
+export const sameStat = (a, b) => !!a && !!b && ['PASS', 'WARN', 'ERROR', 'FATAL', 'cpu', 'mem', 'disk'].every((k) => (a[k] | 0) === (b[k] | 0));
 export const levelOf = (cpu, mem, fatal) => (fatal >= 3 || Math.max(cpu, mem) >= 80 ? 'red' : Math.max(cpu, mem) >= 50 ? 'yellow' : 'green');
 export const STATUS_TEXT = { green: 'All systems operational', yellow: 'Degraded performance', red: 'Major outage' };
 
 // ── 주간 보고서 (집계 숫자만 사용) ──
 export function weekSummary(rows) {
   const days = [...rows].sort((a, b) => a.day.localeCompare(b.day));
-  const tot = { INFO: 0, WARN: 0, ERROR: 0, FATAL: 0 };
+  const tot = { PASS: 0, WARN: 0, ERROR: 0, FATAL: 0 };
   for (const d of days) for (const k of LEVELS) tot[k] += d[k] | 0;
   const incidents = tot.ERROR + tot.FATAL;
   const peak = [...days].sort((a, b) => ((b.ERROR | 0) + (b.FATAL | 0) * 2) - ((a.ERROR | 0) + (a.FATAL | 0) * 2))[0];
@@ -105,7 +150,7 @@ export function weekSummary(rows) {
 }
 export function templateReport(s) {
   if (!s.days.length) return ['이번 주 기록된 이벤트가 없습니다.'];
-  const t = s.tot, total = t.INFO + t.WARN + t.ERROR + t.FATAL;
+  const t = s.tot, total = t.PASS + t.WARN + t.ERROR + t.FATAL;
   const out = [`이번 주 총 ${total}건 중 장애 ${s.incidents}건 (ERROR ${t.ERROR}, FATAL ${t.FATAL}), 경고 ${t.WARN}건이 기록되었습니다.`];
   if (s.peakDay) {
     const [y, m, d] = s.peakDay.split('-').map(Number);
@@ -151,12 +196,15 @@ const SERVICE_GLOSS = {
   'approval-gateway': '상사·결재 관련', 'meeting-scheduler': '회의 관련', 'overtime-daemon': '야근·퇴근 관련', 'mail-relay': '메일·메신저 관련',
   'peer-sync': '동료·고객 관련', 'payroll-batch': '보상·평가 관련', 'task-queue': '업무량·마감 관련', 'career-daemon': '진로·이직 고민', 'incident-handler': '실수·책임 관련', 'social-scheduler': '회식·모임 관련', 'sleep-scheduler': '수면 관련', 'commute-agent': '출퇴근 관련', 'workload-svc': '전반적인 업무 부담', 'safety-monitor': '안부 확인',
 };
-const LEVEL_GLOSS = { INFO: '가벼운 불편', WARN: '조금씩 쌓이는 중', ERROR: '꽤 힘든 상태', FATAL: '한계에 가까움' };
+const LEVEL_GLOSS = { PASS: '좋은 일', INFO: '가벼운 불편', WARN: '조금씩 쌓이는 중', ERROR: '꽤 힘든 상태', FATAL: '한계에 가까움' };
 /** 공유된 로그 한 줄("hh:mm:ss LEVEL service [CODE] msg")을 쉬운 말로 풀어준다. 원문은 쓰지 않는다. */
+const OK_GLOSS = { OK_APPROVED: '결재·칭찬 쪽에서 좋은 일이 있었음', OK_MEETING: '회의가 잘 풀림', OK_ON_TIME: '제시간에 퇴근·휴식함', OK_PEER: '동료·고객과 잘 맞았음', OK_PAID: '보상·평가가 만족스러움',
+  OK_QUEUE_CLEARED: '일이 잘 마무리됨', OK_SOCIAL: '식사·모임이 즐거웠음', OK_RESTED: '잘 쉬었음', OK_COMMUTE: '출퇴근이 수월했음', OK_NOMINAL: '기분 좋은 일이 있었음' };
 export function gloss(text) {
-  const m = String(text).match(/^\S+ (INFO|WARN|ERROR|FATAL) (\S+) \[([A-Z0-9_]+)\]/);
+  const m = String(text).match(/^\S+ (PASS|INFO|WARN|ERROR|FATAL) (\S+) \[([A-Z0-9_]+)\]/);
   if (!m) return '';
   const [, level, service, code] = m;
+  if (OK_GLOSS[code]) return `${OK_GLOSS[code]} · 좋은 신호`;
   const what = CODE_GLOSS[code] || SERVICE_GLOSS[service] || '자세한 내용은 친구의 한마디를 참고';
   return `${what} · 강도: ${LEVEL_GLOSS[level]}`;
 }

@@ -57,7 +57,7 @@ function metrics() {
   const past = sum(wrows.filter((r) => r.day !== today), (r) => r.disk);
   const todayDisk = logs.length ? live.disk : wrows.find((r) => r.day === today)?.disk || 0;
   const disk = clamp((past + todayDisk) * 0.3);
-  return { ...live, cpu, mem, disk, level: L.levelOf(cpu, mem, live.FATAL) };
+  return { ...live, cpu, mem, disk, pos: clamp(live.pos), level: L.levelOf(cpu, mem, live.FATAL) }; // 상태 색은 짜증·피로(cpu, mem)만으로 정한다
 }
 function weekRows() {
   const wk = weekKey(), today = dayKey();
@@ -76,9 +76,23 @@ const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
 const btn = (label, fn, cls = '', extra = {}) => h('button', { type: 'button', class: 'btn ' + cls, on: { click: fn }, ...extra }, label);
 const empty = (t) => h('p', { class: 'empty', text: t });
 const note = (t) => h('p', { class: 'note', text: t });
-const meter = (name, v) => h('div', { class: 'meter' },
+const meter = (name, v, fixed) => h('div', { class: 'meter' },
   h('div', { class: 'mh' }, h('b', { text: name }), h('span', { class: 'pct', text: v + '%' })),
-  h('div', { class: 'bar' }, h('i', { class: v >= 75 ? 'crit' : v >= 40 ? 'warn' : 'ok', style: `width:${v}%` })));
+  h('div', { class: 'bar' }, h('i', { class: fixed || (v >= 75 ? 'crit' : v >= 40 ? 'warn' : 'ok'), style: `width:${v}%` })));
+// CPU 하나로 힘든 로그를 합치고, 막대 안을 색으로 나눈다: 짜증·화(Irritation) · 피로·불안(Fatigue). 좋은 말은 CPU가 아니라 바로 아래 Positive 막대에 쌓는다.
+const LOAD_PARTS = [['Irritation', 'irr'], ['Fatigue', 'fat']];
+const stackMeter = (name, a, b) => {
+  const vals = [a | 0, b | 0], sumv = vals[0] + vals[1], total = clamp(sumv), k = sumv > 100 ? 100 / sumv : 1;
+  return h('div', { class: 'meter stack' },
+    h('div', { class: 'mh' }, h('b', { text: name }), h('span', { class: 'pct', text: total + '%' })),
+    h('div', { class: 'bar stackbar' }, LOAD_PARTS.map(([label, cls], i) => h('i', { class: 'seg ' + cls, style: `width:${vals[i] * k}%`, title: `${label} ${vals[i]}` }))),
+    h('div', { class: 'legend' }, LOAD_PARTS.map(([label, cls], i) => h('span', { class: 'lg' }, h('i', { class: 'sw2 ' + cls }), `${label} ${vals[i]}`))));
+};
+// 좋은 말 막대(CACHE = 좋은 일을 빠르게 꺼내 쓰도록 쌓아 둔 것): 많을수록 좋은 거라서 높아도 빨갛게 바뀌지 않고 항상 초록이다.
+const GOOD_LABEL = 'CACHE';
+const goodMeter = (v) => h('div', { class: 'meter' },
+  h('div', { class: 'mh' }, h('b', { text: GOOD_LABEL }), h('span', { class: 'pct', text: clamp(v | 0) + '%' })),
+  h('div', { class: 'bar' }, h('i', { class: 'ok', style: `width:${clamp(v | 0)}%` })));
 const statusPill = (level, off) => h('div', { class: 'status ' + (off ? 'off' : level) }, h('span', { class: 'dot' }), h('b', { text: off ? 'Maintenance — offline' : L.STATUS_TEXT[level] }));
 
 function errText(e) {
@@ -389,7 +403,7 @@ function renderView() {
 function logRow(l) {
   const open = S.open.has(l.id);
   const clickable = !l.idle && !l.pending;
-  const row = h('div', { class: `ln lv-${l.level}${l.idle ? ' idle' : ''}${l.special ? ' fx' : ''}${l.pending ? ' pend' : ''}`, on: clickable ? { click: () => { S.open.has(l.id) ? S.open.delete(l.id) : S.open.add(l.id); renderLog(); } } : {} },
+  const row = h('div', { class: `ln lv-${l.level}${String(l.code).startsWith('OK_') ? ' pos' : ''}${l.idle ? ' idle' : ''}${l.special ? ' fx' : ''}${l.pending ? ' pend' : ''}`, on: clickable ? { click: () => { S.open.has(l.id) ? S.open.delete(l.id) : S.open.add(l.id); renderLog(); } } : {} },
     h('span', { class: 'ts', text: hms(l.ts) }), h('span', { class: 'lv', text: l.level }), h('span', { class: 'svc', text: l.service }),
     h('span', { class: 'code', text: `[${l.code}]` }), h('span', { class: 'msg', text: l.msg }), l.sharedId ? h('span', { class: 'tag', text: 'shared' }) : null);
   if (!open || !clickable) return row;
@@ -474,7 +488,7 @@ async function addLog(raw) {
 }
 async function saveLog(tr, raw) {
   const ts = Date.now();
-  await S.store.set('@', 'log_' + uid(), { type: 'log', ts, day: dayKey(ts), raw: raw || '', level: tr.level, service: tr.service, code: tr.code, msg: tr.msg, cpu: tr.cpu, mem: tr.mem, disk: tr.disk });
+  await S.store.set('@', 'log_' + uid(), { type: 'log', ts, day: dayKey(ts), raw: raw || '', level: tr.level, service: tr.service, code: tr.code, msg: tr.msg, cpu: tr.cpu, mem: tr.mem, disk: tr.disk, pos: tr.pos | 0 });
   syncSoon();
 }
 function openShare(l) {
@@ -544,8 +558,8 @@ function weekBars() {
 function viewDash() {
   const m = metrics();
   return h('div', { class: 'grid' },
-    card('Service status', statusPill(m.level, false), note('CPU = 인내심 (짜증·화) · MEM = 멘탈 (피로·불안) · DISK = 이번 주 쌓인 짜증')),
-    card('Resources', meter('CPU', m.cpu), meter('MEM', m.mem), meter('DISK', m.disk)),
+    card('Service status', statusPill(m.level, false), note('CPU = 오늘 쌓인 부하 (주황 = 짜증·화, 파랑 = 피로·불안) · CACHE = 오늘의 좋은 말 · DISK = 이번 주 쌓인 짜증')),
+    card('Resources', stackMeter('CPU', m.cpu, m.mem), goodMeter(m.pos), meter('DISK', m.disk, 'disk')),
     card('Today', h('div', { class: 'counts' }, L.LEVELS.map((lv) => h('div', { class: 'cnt-box lv-' + lv }, h('b', { text: m[lv] }), h('span', { text: lv }))))),
     card('This week — incidents (ERROR+FATAL)', weekBars()));
 }
@@ -762,7 +776,7 @@ function viewArchive() {
     ls.length ? [note(`${ls.length} lines · WARN ${st.WARN | 0} · ERROR ${st.ERROR | 0} · FATAL ${st.FATAL | 0} · 나만 볼 수 있어요`),
       ls.map((l) => {
         const open = S.open.has(l.id);
-        const row = h('div', { class: `ln lv-${l.level}`, on: { click: () => { open ? S.open.delete(l.id) : S.open.add(l.id); renderView(); } } },
+        const row = h('div', { class: `ln lv-${l.level}${String(l.code).startsWith('OK_') ? ' pos' : ''}`, on: { click: () => { open ? S.open.delete(l.id) : S.open.add(l.id); renderView(); } } },
           h('span', { class: 'ts', text: hms(l.ts) }), h('span', { class: 'lv', text: l.level }), h('span', { class: 'svc', text: l.service }), h('span', { class: 'code', text: `[${l.code}]` }), h('span', { class: 'msg', text: l.msg }));
         return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, btn('Delete', act(() => deleteLog(l)), 'small danger')))) : row;
       }),
@@ -871,7 +885,7 @@ const pendingCheckin = () => checkinsToday().find((c) => c.status === 'asked') |
 // 다음에 물어볼 수 있는 CPU: 오늘 처음이면 10%, 아니면 "마지막으로 물어본 CPU"의 다음 10% 단위
 const nextAskAt = () => { const t = checkinsToday(); return t.length ? Math.floor(Math.max(...t.map((c) => c.cpu | 0)) / CHECKIN_STEP) * CHECKIN_STEP + CHECKIN_STEP : CHECKIN_STEP; };
 function checkinCardL(st) {
-  const ck = checkinToday(), cpu = st.cpu | 0, waiting = ck?.status === 'asked';
+  const ck = checkinToday(), cpu = clamp((st.cpu | 0) + (st.mem | 0)), waiting = ck?.status === 'asked'; // 좋은 말은 제외한 짜증+피로 합계
   const can = !st.off && !waiting && cpu >= nextAskAt();
   if (!can && !ck) return null;
   const ask = act(async () => { await S.store.set('checkins', 'ck_' + uid(), { ts: Date.now(), day: dayKey(), status: 'asked', by: 'listener', cpu }); toast('물어봤어요. 답장이 오면 알려 드릴게요.'); });
@@ -912,7 +926,7 @@ function viewOverview() {
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
     card('Service status', st.level || st.off ? [statusPill(st.level || 'green', st.off), st.dnd ? badge('Do not disturb', 'warn') : null, h('div', { class: 'sub', text: '갱신 ' + (st.ts ? mdhm(st.ts) : '–') })] : note('아직 신호가 없어요.'),
-      st.level ? [meter('CPU', st.cpu | 0), meter('MEM', st.mem | 0), meter('DISK', st.disk | 0)] : null),
+      st.level ? [stackMeter('CPU', st.cpu, st.mem), goodMeter(st.pos), meter('DISK', st.disk | 0, 'disk')] : null),
     checkinCardL(st),
     alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null);
 }
@@ -976,8 +990,8 @@ async function syncNow() {
   }
   const m = metrics(), cur = sd('status'), m5 = (v) => Math.round(v / 5) * 5, mm = meta();
   const off = !!(mm.lastShutdown && dayKey(mm.lastShutdown) === today && !logs.some((l) => l.ts > mm.lastShutdown));
-  const next = { level: m.level, cpu: m5(m.cpu), mem: m5(m.mem), disk: m5(m.disk), off };
-  if (!cur.kind || ['level', 'cpu', 'mem', 'disk', 'off'].some((k) => cur[k] !== next[k])) await st.patch('shared', 'status', { kind: 'status', ...next, dnd: !!cur.dnd, ts: Date.now() });
+  const next = { level: m.level, cpu: m5(m.cpu), mem: m5(m.mem), disk: m5(m.disk), pos: m5(m.pos), off };
+  if (!cur.kind || ['level', 'cpu', 'mem', 'disk', 'pos', 'off'].some((k) => (cur[k] ?? 0) !== (next[k] ?? 0) && cur[k] !== next[k])) await st.patch('shared', 'status', { kind: 'status', ...next, dnd: !!cur.dnd, ts: Date.now() });
 }
 
 // ───────── 정리(GC) / 퇴근 ─────────

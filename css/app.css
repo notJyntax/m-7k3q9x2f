@@ -120,13 +120,13 @@ textarea { resize: none; width: 100%; }
 .ln:hover { background: var(--hover); }
 .ln .ts { color: var(--ts); } .ln .svc { color: var(--svc); } .ln .code { color: var(--codecol); } .ln .msg { color: var(--text); word-break: break-word; }
 .ln .lv { font-weight: 700; min-width: 44px; }
-.lv-INFO .lv { color: var(--sub); } .lv-WARN .lv { color: var(--warn); } .lv-ERROR .lv { color: var(--crit); } .lv-FATAL .lv { color: #fff; background: var(--fatalbg); padding: 0 4px; border-radius: 3px; min-width: 0; }
+.lv-INFO .lv { color: var(--sub); } .lv-PASS .lv { color: var(--ok); font-weight: 700; } .lv-WARN .lv { color: var(--warn); } .lv-ERROR .lv { color: var(--crit); } .lv-FATAL .lv { color: #fff; background: var(--fatalbg); padding: 0 4px; border-radius: 3px; min-width: 0; }
 .ln.idle, .ln.pend { cursor: default; opacity: .6; }
 .ln .tag { font-size: 10.5px; background: var(--infobg); color: var(--infofg); border-radius: 3px; padding: 0 4px; }
 .ln-detail { margin: 2px 10px 6px 24px; padding: 8px; border-left: 2px solid var(--line); background: var(--codebg); display: flex; flex-direction: column; gap: 6px; font-family: system-ui, sans-serif; }
 .raw { display: flex; gap: 8px; } .raw .k { color: var(--sub); font-size: 11px; white-space: nowrap; }
 .raw span:last-child { white-space: pre-wrap; word-break: break-word; }
-.mono.lv-INFO, .mono.lv-WARN, .mono.lv-ERROR, .mono.lv-FATAL { color: var(--text); }
+.mono.lv-PASS, .mono.lv-INFO, .mono.lv-WARN, .mono.lv-ERROR, .mono.lv-FATAL { color: var(--text); }
 .care { border: 1px solid var(--warnline); background: var(--warnbg); color: var(--warnfg); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .care p { margin: 0; }
 
@@ -374,3 +374,21 @@ html[data-theme="plum"] {
 .share textarea { width: 100%; margin-bottom: 8px; }
 .share input[type=checkbox] { width: auto; flex: none; margin: 3px 0 0; }
 .logpick > span { flex: 1; min-width: 0; }
+
+/* 긍정적인 말에서 나온 로그: INFO 이지만 초록으로 보여서 한눈에 좋은 신호임을 알 수 있게 */
+.ln.pos .lv { color: var(--ok); font-weight: 700; }
+.ln.pos .code { color: var(--ok); }
+
+/* CPU 합산 막대: 짜증·화(주황)와 피로·불안(강조색)을 한 막대 안에서 색으로 구분 */
+.stackbar { display: flex; position: relative; }
+.stackbar i.seg { border-radius: 0; transition: width .4s; }
+.stackbar i.seg.irr { background: #e07a1f; }
+.stackbar i.seg.fat { background: var(--accent); }
+.legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--sub); }
+.legend .lg { display: inline-flex; align-items: center; gap: 5px; }
+.legend .sw2 { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.legend .sw2.irr { background: #e07a1f; }
+.legend .sw2.fat { background: var(--accent); }
+.legend { flex-wrap: wrap; gap: 4px 14px; }
+/* DISK(이번 주 쌓인 짜증)는 값과 상관없이 고정 색: CPU(주황·파랑), CACHE(초록)와 구분 */
+.bar i.disk { background: #8b6fd6; }
