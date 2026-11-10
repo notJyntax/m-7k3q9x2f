@@ -326,17 +326,29 @@ function activityFeed() {
   }
   return out.sort((x, y) => y.ts - x.ts).slice(0, 100);
 }
-const notifUnread = () => { const seen = lsGet(notifKey(), 0); return activityFeed().filter((i) => i.ts > seen).length; };
+// 읽음: "모두 읽음" 을 누른 시각 이전 것은 모두 읽은 것, 그 뒤 것은 하나씩 눌러서(또는 눌러 이동해서) 읽음 처리한다
+const notifReadKey = () => notifKey() + '.read';
+const notifRead = () => new Set(lsGet(notifReadKey(), []));
+const isUnreadItem = (i, base, read) => i.ts > base && !read.has(i.id);
+const notifUnread = () => { const base = lsGet(notifKey(), 0), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
+function markRead(id) { const r = notifRead(); r.add(id); lsSet(notifReadKey(), [...r].slice(-300)); }
+function markAllRead() { lsSet(notifKey(), Date.now()); lsSet(notifReadKey(), []); }
 function closeNotif() { S.notifOpen = false; $('#notif')?.remove(); }
-function toggleNotif() { if (S.notifOpen) { closeNotif(); renderChrome(); return; } S.notifOpen = true; S.notifSince = lsGet(notifKey(), 0); renderNotif(); lsSet(notifKey(), Date.now()); renderChrome(); }
+function toggleNotif() { if (S.notifOpen) { closeNotif(); renderChrome(); return; } S.notifOpen = true; renderNotif(); renderChrome(); }
 function renderNotif() {
   $('#notif')?.remove();
-  const feed = activityFeed(), since = S.notifSince ?? 0;
-  const list = feed.length ? feed.map((i) => h('button', { type: 'button', class: 'nt-i' + (i.ts > since ? ' new' : '') + (i.urgent ? ' urgent' : ''), on: { click: () => openActivity(i) } },
-    h('span', { class: 'nt-t', text: mdhm(i.ts) }), h('span', { class: 'nt-g', text: i.tag }), h('span', { class: 'nt-m', text: i.text }), i.ts > since ? h('span', { class: 'new-tag', text: 'new' }) : null)) : [h('p', { class: 'empty', text: 'No alerts yet' })];
+  const feed = activityFeed(), base = lsGet(notifKey(), 0), read = notifRead(), unread = feed.filter((i) => isUnreadItem(i, base, read)).length;
+  const redo = () => { renderNotif(); renderChrome(); };
+  const list = feed.length ? feed.map((i) => { const un = isUnreadItem(i, base, read);
+    return h('div', { class: 'nt-row' },
+      h('button', { type: 'button', class: 'nt-i' + (un ? ' new' : '') + (i.urgent ? ' urgent' : ''), on: { click: () => { markRead(i.id); openActivity(i); } } },
+        h('span', { class: 'nt-t', text: mdhm(i.ts) }), h('span', { class: 'nt-g', text: i.tag }), h('span', { class: 'nt-m', text: i.text }), un ? h('span', { class: 'new-tag', text: 'new' }) : null),
+      un ? h('button', { type: 'button', class: 'btn small quiet nt-read', title: 'Mark as read', 'aria-label': 'Mark as read', on: { click: () => { markRead(i.id); redo(); } } }, 'Read') : null); })
+    : [h('p', { class: 'empty', text: 'No alerts yet' })];
   const el = h('section', { id: 'notif', class: 'notif', role: 'dialog', 'aria-label': 'Alerts' },
-    h('div', { class: 'nt-h' }, h('b', { text: '# Alerts' }), h('span', { class: 'sp' }), btn('Close', () => { closeNotif(); renderChrome(); }, 'small quiet')),
-    h('div', { class: 'nt-l' }, list), h('p', { class: 'nt-f', text: '내용 없이 종류만 보여요. 누르면 그 자리로 이동해요.' }));
+    h('div', { class: 'nt-h' }, h('b', { text: '# Alerts' }), h('span', { class: 'sub', text: unread ? `${unread} unread` : 'all read' }), h('span', { class: 'sp' }),
+      unread ? btn('Mark all read', () => { markAllRead(); redo(); }, 'small quiet') : null, btn('Close', () => { closeNotif(); renderChrome(); }, 'small quiet')),
+    h('div', { class: 'nt-l' }, list), h('p', { class: 'nt-f', text: '내용 없이 종류만 보여요. 누르면 그 자리로 이동하고 읽음 처리돼요.' }));
   document.body.append(el);
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.notifOpen) { closeNotif(); renderChrome(); } });

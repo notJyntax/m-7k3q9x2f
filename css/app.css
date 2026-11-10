@@ -573,3 +573,8 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .nt-f { margin: 0; padding: 6px 12px; font-size: 11px; color: var(--sub); border-top: 1px solid var(--line); }
 .jump { animation: jumpflash 1.5s ease-out; }
 @keyframes jumpflash { 0% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
+
+.nt-row { display: flex; align-items: stretch; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.nt-row .nt-i { flex: 1; min-width: 0; border-bottom: 0; }
+.nt-read { align-self: center; margin-right: 8px; flex: none; }
+.nt-h .sub { font: 11px var(--mono); }
