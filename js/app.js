@@ -1438,7 +1438,13 @@ buildShell();
 boot();
 // 자동 적용이 입력 중이거나 반복 실패로 보류된 새 버전이 있으면, 새로고침 버튼에 점을 띄워서 알린다
 startUpdateCheck({ build: BUILD, busy: () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || ''),
-  delayMs: 6000,
-  onStatus: (st) => { const need = st === 'found' || st === 'busy' || st === 'gave-up'; if (need !== !!S.updateReady) { S.updateReady = need; renderChrome(); if (st === 'found') toast('새 버전이 있어요. 잠시 뒤 새로고침해요 (↻ 로 바로 적용)'); } } });
+  delayMs: 6000, maxTries: 3, minGapMs: 120000,
+  onStatus: (st) => {
+    if (st === 'running' || st === 'hidden' || st === 'offline') return;
+    const need = st === 'found' || st === 'busy' || st === 'gave-up' || st === 'waiting';
+    if (st === 'current') S.updToast = false;
+    if (need !== !!S.updateReady) { S.updateReady = need; renderChrome(); }
+    if (st === 'found' && !S.updToast) { S.updToast = true; toast('새 버전이 있어요. 잠시 뒤 새로고침해요 (↻ 로 바로 적용)'); }
+  } });
 // 테스트/디버깅용 훅 (화면에는 노출되지 않음)
 window.__svcmon = { S, gc: () => gcOnce(), boot };

@@ -1,8 +1,9 @@
 // 새 버전 자동 적용: 올릴 때마다 붙는 버전 번호(version.json)를 서버에서 확인해서, 지금 실행 중인 코드의 번호와 다르면
 // 캐시를 비우고 새로고침한다. 앱을 열 때, 다시 앞으로 돌아올 때, 열어 둔 채로 5분마다 확인한다.
-export function startUpdateCheck({ build, fetchFn = fetch, reload = () => location.reload(), clearCaches, busy = () => false, store = sessionStorage, doc = document, intervalMs = 5 * 60e3, setIv = setInterval, onStatus = () => {}, delayMs = 0, sleep = (ms) => new Promise((ok) => setTimeout(ok, ms)) }) {
+export function startUpdateCheck({ build, fetchFn = fetch, reload = () => location.reload(), clearCaches, busy = () => false, store = sessionStorage, doc = document, intervalMs = 5 * 60e3, setIv = setInterval, onStatus = () => {}, delayMs = 0, sleep = (ms) => new Promise((ok) => setTimeout(ok, ms)), maxTries = 2, minGapMs = 0, now = () => Date.now(), setTo = (f, ms) => setTimeout(f, ms) }) {
   if (!build || build === 'dev') return { check: async () => 'dev' }; // 개발 중에는 끈다
-  const KEY = 'svcmon.update.tries';
+  const KEY = 'svcmon.update.tries', KEY_T = 'svcmon.update.last';
+  let announcing = false;                            // 새로고침 예고 중에 확인이 또 걸려서 새로고침이 여러 번 되지 않게 한다
   async function check() { const r = await run(); onStatus(r); return r; }
   async function run() {
     if (doc.visibilityState === 'hidden') return 'hidden';
@@ -12,15 +13,21 @@ export function startUpdateCheck({ build, fetchFn = fetch, reload = () => locati
       if (!res.ok) return 'offline';
       latest = (await res.json()).v;
     } catch { return 'offline'; }
-    if (!latest || latest === build) { store.removeItem(KEY); return 'current'; }
+    if (!latest || latest === build) { store.removeItem(KEY); store.removeItem(KEY_T); return 'current'; }
     if (busy()) return 'busy';                       // 입력 중이면 방해하지 않고 다음에
+    const tries = Number(store.getItem(KEY) || 0), last = Number(store.getItem(KEY_T) || 0);
+    if (tries >= maxTries) return 'gave-up';         // 무한 새로고침 방지
+    if (tries >= 1 && now() - last < minGapMs) {     // 방금 새로고침했는데도 옛 파일이면 호스팅이 아직 새 파일로 바뀌는 중이다: 잠시 기다렸다가 다시 확인한다
+      if (minGapMs > 0) setTo(check, minGapMs - (now() - last) + 1000);
+      return 'waiting';
+    }
     if (delayMs > 0) {                               // 새로 고치기 전에 잠깐 알려서, 새로고침 버튼의 표시가 보이게 한다
-      onStatus('found'); await sleep(delayMs);
+      if (announcing) return 'running';
+      announcing = true;
+      try { onStatus('found'); await sleep(delayMs); } finally { announcing = false; }
       if (busy()) return 'busy';
     }
-    const tries = Number(store.getItem(KEY) || 0);
-    if (tries >= 2) return 'gave-up';                // 무한 새로고침 방지
-    store.setItem(KEY, String(tries + 1));
+    store.setItem(KEY, String(tries + 1)); store.setItem(KEY_T, String(now()));
     try { await (clearCaches ? clearCaches() : globalThis.caches?.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k))))); } catch { /* 캐시 비우기 실패해도 새로고침은 한다 */ }
     reload();
     return 'reloading';
