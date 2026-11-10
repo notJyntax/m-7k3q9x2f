@@ -13,18 +13,25 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
+  if (u.pathname.endsWith('/version.json')) return;                 // 버전 확인은 항상 네트워크로 직접 (저장하지 않는다)
   e.respondWith((async () => {
     try {
       const res = await fetch(e.request, { cache: 'no-cache' });
-      if (res.ok) (await caches.open(SHELL)).put(e.request, res.clone());
+      if (res.ok) { const c = await caches.open(SHELL); c.put(e.request, res.clone()); prune(c, u); }
       return res;
     } catch (err) {
-      const hit = await caches.match(e.request);
+      // 오프라인: 같은 주소가 없으면 "?v=" 만 다른 같은 파일(마지막으로 본 것)이라도 쓴다
+      const hit = (await caches.match(e.request)) || (await caches.match(e.request, { ignoreSearch: true }));
       if (hit) return hit;
       throw err;
     }
   })());
 });
+// "?v=버전" 이 붙은 파일은 새 버전이 오면 같은 파일의 옛 버전 저장분을 지운다 (저장 공간이 늘어나지 않게)
+async function prune(c, u) {
+  if (!u.search) return;
+  try { for (const k of await c.keys()) { const ku = new URL(k.url); if (ku.pathname === u.pathname && ku.search !== u.search) await c.delete(k); } } catch { /* 정리에 실패해도 괜찮다 */ }
+}
 
 self.addEventListener('push', (e) => {
   let d = {};
