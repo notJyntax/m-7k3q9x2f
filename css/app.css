@@ -550,3 +550,26 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 /* 로그 레벨 글자(WARN, ERROR, FATAL, PASS)는 한 단계 작고 가볍게 */
 .ln .lv, .ln.pos .lv, .lv-PASS .lv { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; min-width: 40px; }
 .lv-FATAL .lv { padding: 0 4px; border-radius: 3px; }
+
+/* Syslog 댓글 좋아요 */
+.sl-like { font: 12px var(--mono); border: 0; background: transparent; color: var(--sub); padding: 0 4px; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+.sl-like:hover { background: var(--hover); }
+.sl-like.on, .sl-like.own { color: var(--bar-crit); }
+.sl-like.own { cursor: default; }
+
+.new-tag { font: 600 10px var(--mono); letter-spacing: .04em; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 3px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
+
+/* 알림창 (PC) */
+.bell { position: relative; }
+.bell .cnt { margin-left: 6px; }
+.notif { position: fixed; top: 52px; right: max(12px, calc((100vw - 980px) / 2 + 12px)); z-index: 70; width: 380px; max-height: 70vh; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, .14); }
+.nt-h { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); font: 13px var(--mono); }
+.nt-l { overflow-y: auto; display: flex; flex-direction: column; }
+.nt-i { display: flex; gap: 8px; align-items: baseline; text-align: left; padding: 7px 12px; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); background: transparent; cursor: pointer; font: 12.5px/1.5 var(--mono); color: var(--sub); }
+.nt-i:hover { background: var(--hover); }
+.nt-i.new { color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+.nt-i.urgent .nt-m { color: var(--crit); }
+.nt-t { color: var(--ts); flex: none; } .nt-g { flex: none; min-width: 58px; color: var(--accent); } .nt-m { flex: 1; min-width: 0; }
+.nt-f { margin: 0; padding: 6px 12px; font-size: 11px; color: var(--sub); border-top: 1px solid var(--line); }
+.jump { animation: jumpflash 1.5s ease-out; }
+@keyframes jumpflash { 0% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
