@@ -578,3 +578,20 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .nt-row .nt-i { flex: 1; min-width: 0; border-bottom: 0; }
 .nt-read { align-self: center; margin-right: 8px; flex: none; }
 .nt-h .sub { font: 11px var(--mono); }
+
+/* Syslog 새 글 입력줄: 팝업 없이 목록 위에 놓인다. grep(검색)보다 아주 조금만 눈에 띄게 — 왼쪽 강조선과 accent 색 > 로 "쓰는 곳"임을 구별한다 */
+.sl-compose { margin: 8px 0; }
+.sl-compose .tc-box { background: color-mix(in srgb, var(--accent) 5%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); border-left: 3px solid var(--accent); border-radius: 6px; padding: 6px 9px; opacity: 1; transition: border-color .15s, background .15s; }
+.sl-compose:focus-within .tc-box { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.sl-compose .tc-gut { font-weight: 700; }
+.sl-compose .tc-box textarea { min-height: 0; height: 1.6em; max-height: 120px; }
+.sl-compose .tc-box textarea::placeholder { color: color-mix(in srgb, var(--accent) 55%, var(--sub)); }
+.sl-compose .tc-foot { display: none; }
+.sl-compose:focus-within .tc-foot, .sl-compose.open .tc-foot { display: flex; }
+.sl-compose .sl-pollform { margin-top: 6px; }
+/* 옵션은 기능별로 색을 달리한다: urgent = 빨강, question = 노랑 */
+.sl-compose .tc-flag { font-weight: 600; }
+.sl-compose .tc-flag:nth-of-type(1) { color: color-mix(in srgb, var(--crit) 75%, var(--sub)); }
+.sl-compose .tc-flag:nth-of-type(2) { color: color-mix(in srgb, var(--warn) 80%, var(--sub)); }
+.sl-compose .tc-flag.on:nth-of-type(1) { color: var(--crit); border-color: var(--crit); background: color-mix(in srgb, var(--crit) 12%, transparent); }
+.sl-compose .tc-flag.on:nth-of-type(2) { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }

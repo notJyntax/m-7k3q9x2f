@@ -1233,34 +1233,31 @@ function sysRow(p, kept) {
       p.urgent && mine && p.status !== 'resolved' ? btn('Resolve', act(() => S.store.patch('posts', p.id, { status: 'resolved', resolvedAt: Date.now() })), 'small quiet') : null,
       mine ? btn('Delete', () => modal({ title: '이 글을 삭제할까요?', body: note('댓글, 반응, 좋아요도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('posts', p.id)) }] }), 'small quiet del') : null)));
 }
-function openCompose() {
-  const me = roleName(); let urgent = false, question = false;
-  const text = h('textarea', { rows: 5, maxLength: 500, placeholder: 'type here…', 'aria-label': 'entry' });
+// 새 글은 팝업 없이 목록 위의 작은 입력줄에 쓴다 (평소엔 흐릿하고, 누르면 옵션이 펼쳐진다)
+function composeBar() {
+  const me = roleName(), c = (S.cmp ??= { urgent: false, question: false });
+  const text = h('textarea', { id: 'sl-compose', rows: 1, maxLength: 500, placeholder: 'new entry…', 'aria-label': 'new entry', autocomplete: 'off', spellcheck: 'false' });
   const count = h('span', { class: 'tc-count', text: '0/500' });
-  const opts = [h('input', { type: 'text', maxLength: 40, placeholder: 'option A' }), h('input', { type: 'text', maxLength: 40, placeholder: 'option B' })];
-  const pollBox = h('div', { class: 'sl-pollform', hidden: true }, h('div', { class: 'tc-cmd', text: '--poll' }), opts);
-  const flag = (label, on) => h('button', { type: 'button', class: 'tc-flag', 'aria-pressed': 'false', on: { click: (e) => { const b = e.currentTarget; const v = on(); b.classList.toggle('on', v); b.setAttribute('aria-pressed', String(v)); } } }, label);
-  const urgentFlag = flag('--urgent', () => { urgent = !urgent; return urgent; });
-  const questionFlag = flag('--question', () => { question = !question; pollBox.hidden = !question; return question; });
-  const preview = h('div', { class: 'tc-cmd' });
-  const sync = () => { count.textContent = `${text.value.length}/500`; preview.textContent = `$ post syslog${urgent ? ' --urgent' : ''}${question ? ' --question' : ''}`; };
-  [urgentFlag, questionFlag].forEach((b) => b.addEventListener('click', sync));
-  text.addEventListener('input', sync); sync();
-  const body = h('div', { class: 'share term-compose' }, preview,
-    h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }), text),
-    h('div', { class: 'tc-foot' }, urgentFlag, questionFlag, h('span', { class: 'sp' }), count),
-    pollBox);
-  const post = async (close) => {
-    const t = text.value.trim(); if (!t) return toast('내용을 써 주세요');
-    const options = opts.map((o) => o.value.trim()).filter(Boolean);
-    close();
-    await S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), ...(urgent ? { urgent: true } : {}), ...(question ? { question: true } : {}), ...(question && options.length >= 2 ? { poll: { options } } : {}) });
+  const opts = [0, 1].map((n) => h('input', { id: 'sl-opt-' + n, type: 'text', maxLength: 40, placeholder: 'option ' + 'AB'[n] }));
+  const pollBox = h('div', { class: 'sl-pollform', hidden: !c.question }, opts);
+  const wrap = h('div', { class: 'sl-compose' + (c.urgent || c.question ? ' open' : '') });
+  const flag = (label, key) => h('button', { type: 'button', class: 'tc-flag' + (c[key] ? ' on' : ''), 'aria-pressed': String(c[key]), on: { click: (e) => { c[key] = !c[key]; e.currentTarget.classList.toggle('on', c[key]); e.currentTarget.setAttribute('aria-pressed', String(c[key])); pollBox.hidden = !c.question; wrap.classList.toggle('open', c.urgent || c.question); } } }, label);
+  const post = act(async () => {
+    const t = text.value.trim(); if (!t) return;
+    const options = opts.map((o) => o.value.trim()).filter(Boolean), { urgent, question } = c;
+    text.value = ''; opts.forEach((o) => { o.value = ''; }); c.urgent = c.question = false;
+    try { await S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), ...(urgent ? { urgent: true } : {}), ...(question ? { question: true } : {}), ...(question && options.length >= 2 ? { poll: { options } } : {}) }); }
+    catch (e) { text.value = t; throw e; }
     toast(urgent ? '긴급으로 올렸어요' : '올렸어요');
-  };
-  const close = modal({ title: 'New entry', body, actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Post', cls: 'primary', close: false, fn: post }] });
-  text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) { e.preventDefault(); act(post)(close); } });
-  setTimeout(() => text.focus(), 50);
+    S.dirty = false; renderView(); renderChrome(); $('#sl-compose')?.focus();   // 입력줄에 커서가 있으면 목록 갱신이 미뤄지므로 직접 다시 그린다
+  });
+  text.addEventListener('input', () => { autoGrow(text); count.textContent = `${text.value.length}/500`; });
+  text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); post(); } else if (e.key === 'Escape') text.blur(); });
+  wrap.append(h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }, ), text),
+    h('div', { class: 'tc-foot' }, flag('--urgent', 'urgent'), flag('--question', 'question'), h('span', { class: 'sp' }), count, btn('Post', post, 'small primary')), pollBox);
+  return wrap;
 }
+const focusCompose = () => { const t = $('#sl-compose'); if (t) { t.scrollIntoView({ block: 'center' }); t.focus(); } };
 function viewSyslog() {
   const st = sysState(), me = roleName();
   const kept = new Set(keeps().filter((k) => k.kind === 'syslog').map((k) => k.from));
@@ -1278,9 +1275,10 @@ function viewSyslog() {
     h('div', { class: 'row' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sp' }),
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
       btn(`Mask: ${st.mask ? 'on' : 'off'}`, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); armAutoHide(); renderView(); }, 'small quiet'),
-      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'), btn('New entry', openCompose, 'primary small')),
+      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'), btn('New entry', focusCompose, 'primary small')),
     h('div', { class: 'sl-chips' }, chips),
     h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; listBox.replaceChildren(...listRows()); } } }),
+    composeBar(),
     listBox));
 }
 
