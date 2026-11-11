@@ -13,11 +13,9 @@ const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'eve
 const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk'], ['n-frost', 'Frost']];
 const DEFAULT_THEME = 'n-ink';
 const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['warm', 'Warm Gray'], ['auto', 'Auto']];
-const THEMES_FUN = [['sakura', 'Sakura'], ['ocean', 'Ocean'], ['forest', 'Forest'], ['sunset', 'Sunset'], ['lavender', 'Lavender'], ['midnight', 'Midnight'], ['terminal', 'Terminal'], ['plum', 'Plum'], ['excel', 'Excel']];
+const THEMES_FUN = [['terminal', 'Terminal'], ['excel', 'Excel']];
 const SWATCH = { 'n-frost': 'linear-gradient(135deg, #ffffff 50%, #0969da 50%)', 'n-ink': 'linear-gradient(135deg, #191919 50%, #6aaaf0 50%)', 'n-moss': 'linear-gradient(135deg, #1a1f1c 50%, #7fc4a2 50%)', 'n-dusk': 'linear-gradient(135deg, #1b1d2b 50%, #b4a0f0 50%)', light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
-  sakura: 'linear-gradient(135deg, #fdf3f6 50%, #c9376d 50%)', ocean: 'linear-gradient(135deg, #eef6fb 50%, #0b7fa0 50%)', forest: 'linear-gradient(135deg, #f1f5ee 50%, #2b7a4b 50%)',
-  sunset: 'linear-gradient(135deg, #fff4ea 50%, #c24d1c 50%)', lavender: 'linear-gradient(135deg, #f4f1fb 50%, #7352d0 50%)', midnight: 'linear-gradient(135deg, #0b1020 50%, #4cc9f0 50%)',
-  terminal: 'linear-gradient(135deg, #161b1d 50%, #7fc4a2 50%)', plum: 'linear-gradient(135deg, #1e1b2b 50%, #b794f6 50%)', excel: 'linear-gradient(135deg, #ffffff 50%, #217346 50%)' };
+  terminal: 'linear-gradient(135deg, #161b1d 50%, #7fc4a2 50%)', excel: 'linear-gradient(135deg, #ffffff 50%, #217346 50%)' };
 const ALL_THEMES = [...THEMES_V2, ...THEMES, ...THEMES_FUN];
 window.matchMedia?.('(min-width: 900px)').addEventListener?.('change', () => { if (S.tab === 'syslog') renderView(); });   // PC↔폰 폭이 바뀌면 Syslog 배치를 다시 그린다
 const darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -81,9 +79,22 @@ const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
 // 버튼은 기능별로 색을 달리한다 (굵기 X): 보내기·추가=파랑, 해결·확인=초록, 삭제·중단=빨강, 보관=노랑, 설정 켜고 끄기=상태만 색, 나머지(취소·닫기·이동)=회색
 const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Shutdown|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you|Confirm)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/]];
 const btnKind = (label) => (BTN_KIND.find(([, re]) => re.test(String(label))) || [''])[0];
+// Edit·Delete·Keep·Resolve·Share·Copy 같은 짧은 동작 버튼은 글자 대신 아이콘으로 (이름은 마우스를 올리거나 읽어 줄 때 나온다)
+const ICONS = {
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>',
+  keep: '<path d="M7 3h10v18l-5-3.5L7 21z"/>', keepOn: '<path d="M7 3h10v18l-5-3.5L7 21z"/>',
+  resolve: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 13v6h14v-6"/>',
+  unshare: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/><path d="M4 4l16 16"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+};
+const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy' };
+const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
 const btn = (label, fn, cls = '', extra = {}) => {
   const tg = /^(.+: )(on|off)$/.exec(String(label));
-  return h('button', { type: 'button', class: ['btn', cls, btnKind(label), tg ? 'k-tg' : ''].filter(Boolean).join(' '), on: { click: fn }, ...extra }, tg ? [tg[1], h('span', { class: 'k-state ' + tg[2], text: tg[2] })] : label);
+  const ic = ICON_OF[label] && /\bsmall\b/.test(cls) && !/\bprimary\b/.test(cls) ? ICON_OF[label] : null;
+  return h('button', { type: 'button', class: ['btn', cls, btnKind(label), tg ? 'k-tg' : '', ic ? 'ic' : ''].filter(Boolean).join(' '), on: { click: fn }, ...(ic ? { title: label, 'aria-label': label } : {}), ...extra }, ic ? icon(ic) : tg ? [tg[1], h('span', { class: 'k-state ' + tg[2], text: tg[2] })] : label);
 };
 // Enter로 보내기 (한글 입력 중 Enter는 글자 확정과 겹치므로, 확정이 끝난 뒤 한 번에 보낸다)
 function onEnter(el, fn, { shift = false } = {}) {
@@ -791,15 +802,21 @@ function keepBtn(text, from) {
 }
 // 공유 로그의 리뷰 댓글 아래 답글: 작성자·리스너가 서로 답글을 달고 ♡ 를 누른다
 const reviewReplies = (rid) => rows('review_replies').filter((c) => c.reviewId === rid).sort((a, b) => a.ts - b.ts);
+// 댓글 한 줄(공용): 윗줄 = 시각·작성자·표시 + 오른쪽 고정 칸(하트 | Edit | Delete), 아랫줄 = 내용 전체 폭. 좁은 화면에서도 칸 위치가 줄마다 같다.
+function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, onEdit, onDel }) {
+  return h('div', { class: 'cm' + (cls ? ' ' + cls : '') },
+    h('div', { class: 'cm-meta' }, h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || null),
+    h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), h('span', { class: 'cm-slot edit' }, onEdit ? btn('Edit', onEdit, 'small quiet') : null), h('span', { class: 'cm-slot del' }, onDel ? btn('Delete', act(onDel), 'small quiet del') : null)),
+    h('div', { class: 'cm-text', text }));
+}
 function reviewThread(ln, r) {
   const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
   const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'rr-' + r.id });
   const send = act(async () => { await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() })); });
   onEnter(box, send);
   return h('div', { class: 'sl-thread rv-thread' },
-    reviewReplies(r.id).map((c) => h('div', { class: 'sl-c' + (fresh(c, c.by) ? ' fresh' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch' + (c.by === me ? '' : ' them'), text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'sl-cm', text: c.text }), c.editedAt ? h('span', { class: 'b-ed', text: 'edited' }) : null, newTag(fresh(c, c.by)),
-      likeBtn(c, { lineId: ln.id }, me), c.by === me ? btn('Edit', () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
-      c.by === me ? btn('Delete', act(() => S.store.del('review_replies', c.id)), 'small quiet del') : null)),
+    reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), like: likeBtn(c, { lineId: ln.id }, me),
+      onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
     h('div', { class: 'row' }, box, btn('Reply', send, 'small')));
 }
 function viewInbox() {
@@ -959,10 +976,9 @@ function agendaCard() {
     const send = act(async () => { await sendField(box, (t) => addAgComment(a, t)); });
     onEnter(box, send);
     return h('div', { class: 'ag-thread' },
-      list.length ? list.map((c) => h('div', { class: 'ag-c' + (c.by === me ? ' mine' : '') }, h('div', { class: 'ag-cb' }, h('span', { class: 'ag-cw', text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'ag-ct', text: c.text }), c.editedAt ? h('span', { class: 'b-ed', text: 'edited' }) : null, h('span', { class: 'sub', text: mdhm(c.ts) }), newTag(c.by !== me && c.ts > (S.planSince ?? Infinity))),
-        likeBtn(c, { agendaId: a.id }, me),
-        c.by === me ? btn('Edit', () => editText({ title: 'Edit comment', text: c.text, max: 200, onSave: (t) => S.store.patch('agenda_comments', c.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
-        c.by === me ? btn('Delete', act(() => S.store.del('agenda_comments', c.id)), 'small quiet del') : null)) : h('p', { class: 'empty', text: 'No comments yet' }),
+      list.length ? list.map((c) => cmtRow({ time: mdhm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(c.by !== me && c.ts > (S.planSince ?? Infinity)), like: likeBtn(c, { agendaId: a.id }, me),
+        onEdit: c.by === me ? () => editText({ title: 'Edit comment', text: c.text, max: 200, onSave: (t) => S.store.patch('agenda_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('agenda_comments', c.id) : null }))
+        : h('p', { class: 'empty', text: 'No comments yet' }),
       canAdd ? h('div', { class: 'row' }, box, btn('Add', send, 'small primary')) : null);
   };
   const item = (a, kind) => {
@@ -1040,7 +1056,7 @@ const RT_VERDICT = { PASS: 'Calm', WARN: 'Warn', ERROR: 'Error', FATAL: 'Fatal',
 function reportCard() {
   const s = L.weekSummary(weekRows());
   const map = new Map(s.days.map((d) => [d.day, d]));
-  const cell = (v, lv, max) => h('td', { class: v > 0 ? `hv hv-${lv}` : 'z', style: v > 0 ? `--i:${Math.round(14 + 40 * v / Math.max(max, 1))}` : '', text: v == null ? '–' : v });
+  const cell = (v, lv, max) => h('td', { class: v > 0 ? `hv hv-${lv}` : 'z', style: v > 0 ? `--i:${Math.round(14 + 20 * v / Math.max(max, 1))}` : '', text: v == null ? '–' : v });
   const max = Math.max(1, ...s.days.flatMap((d) => L.LEVELS.map((lv) => d[lv] | 0)));
   const tbl = h('table', { class: 'tbl rt' }, h('tr', {}, ['Date', 'Day', ...L.LEVELS].map((t) => h('th', { class: L.LEVELS.includes(t) ? 'th-' + t : 'rt-l', text: t }))),
       weekDays().map((d, i) => { const r = map.get(d), dow = (i + 1) % 7; const worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) || 'none' : 'none';   // 그날의 가장 나쁜 단계 = 그날의 한 줄 평가
@@ -1289,10 +1305,8 @@ function sysThread(id, canAdd) {
   const send = act(async () => { await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() })); });
   onEnter(box, send);
   return h('div', { class: 'sl-thread' },
-    list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') + (c.by !== me && c.ts > (S.sysSince ?? Infinity) ? ' fresh' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch' + (c.by === me ? '' : ' them'), text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }), c.editedAt ? h('span', { class: 'b-ed', text: 'edited' }) : null, newTag(c.by !== me && c.ts > (S.sysSince ?? Infinity)),
-      c.ack ? null : likeBtn(c, { postId: id }, me),
-      c.by === me && !c.ack ? btn('Edit', () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
-      c.by === me ? btn('Delete', act(() => S.store.del('post_comments', c.id)), 'small quiet del') : null)),
+    list.map((c) => { const fr = c.by !== me && c.ts > (S.sysSince ?? Infinity); return cmtRow({ cls: (c.ack ? 'ack' : '') + (fr ? ' fresh' : ''), time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.ack ? 'ack: I hear you' : c.text, edited: c.editedAt, isNew: newTag(fr), like: c.ack ? null : likeBtn(c, { postId: id }, me),
+      onEdit: c.by === me && !c.ack ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('post_comments', c.id) : null }); }),
     canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small')) : null);
 }
 function sysReactRow(p) {

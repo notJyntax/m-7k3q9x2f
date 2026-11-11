@@ -2,6 +2,12 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-11-f', date: '11/11', title: 'Readability · Icons · Themes', items: [
+    ['change', 'Edit · Delete · Keep · Resolve · Share · Copy: 아이콘 버튼'],
+    ['change', '댓글 줄: 윗줄 정보 + 오른쪽 고정 버튼 칸, 내용은 전체 폭'],
+    ['fix', '모든 테마 글자 대비 보정 · 11px 미만 글자 제거'],
+    ['change', 'Special 테마: Terminal · Excel만 유지'],
+  ] },
   { id: '2026-11-11-e', date: '11/11', title: 'Update notice · Report', items: [
     ['new', '앱 업데이트 안내: 상단 배너 + ↻ 빨간 점 (자동 새로고침 없음)'],
     ['change', 'Report: 오늘 요일 강조, 날짜별 상태는 색 표시'],

@@ -266,40 +266,10 @@ textarea { resize: none; width: 100%; }
    기본 테마(라이트·다크·웜 그레이)는 회사에서 쓰기 좋은 차분한 톤, 아래는 기분 전환용이에요.
    각 테마가 배경뿐 아니라 강조색(--accent), 버튼 글자색(--on-accent), 안내/하이라이트 색까지 같이 바꿔요.
    상태 색(초록·노랑·빨강)은 의미가 헷갈리지 않게 모든 테마에서 비슷하게 유지해요. */
-html[data-theme="midnight"], html[data-theme="terminal"], html[data-theme="plum"] {
+html[data-theme="terminal"] {
   --ok: #6fcf9f; --okbg: #123023; --warn: #e6b455; --warnbg: #33280d; --crit: #ee8a90; --bp-irr: #e49a78; --bp-ok: #7cc0a2; --bp-warn: #e3b563; --bp-crit: #e07780; --bp-disk: #aaa2dc; --critbg: #3a1d21; --notebg: #2f270f;
   --okline: #25614a; --warnline: #6b5416; --critline: #6a2f35; --warnfg: #fcd34d; --notefg: #fcd34d; --notekw: #4a3b10;
   --fatalbg: #c8505a; --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
-}
-html[data-theme="sakura"] {
-  --bg: #fdf3f6; --panel: #fffafc; --line: #f1d7e0; --text: #3a2430; --sub: #876876; --accent: #c9376d; --on-accent: #fff;
-  --soft: #fbe8ef; --hover: #fdeef3; --track: #f6dde6; --codebg: #fff7fa; --gloss: #fceef3;
-  --infobg: #fde6ee; --infofg: #9d2a55; --kwbg: #fbe0ea; --kwfg: #a82b5b; --ts: #b595a3; --svc: #7a5565; --codecol: #a88494;
-}
-html[data-theme="ocean"] {
-  --bg: #eef6fb; --panel: #fff; --line: #d3e5f0; --text: #112a3a; --sub: #5a788c; --accent: #0b7fa0; --on-accent: #fff;
-  --soft: #e3f0f7; --hover: #f1f8fc; --track: #dbe9f2; --codebg: #f7fbfe; --gloss: #edf6fb;
-  --infobg: #e0f2fa; --infofg: #075a75; --kwbg: #d8eef7; --kwfg: #086a87; --ts: #8fa9ba; --svc: #4b6a7e; --codecol: #7d98aa;
-}
-html[data-theme="forest"] {
-  --bg: #f1f5ee; --panel: #fbfdf9; --line: #dbe6d3; --text: #1e2b1f; --sub: #607560; --accent: #2b7a4b; --on-accent: #fff;
-  --soft: #e6efe0; --hover: #f4f8f1; --track: #dfe9d8; --codebg: #f8fbf5; --gloss: #eef4ea;
-  --infobg: #e3f1e5; --infofg: #1f5c3a; --kwbg: #dcefe0; --kwfg: #226141; --ts: #93a893; --svc: #4c614c; --codecol: #7f947f;
-}
-html[data-theme="sunset"] {
-  --bg: #fff4ea; --panel: #fffaf4; --line: #f3dcc4; --text: #3b2418; --sub: #86654f; --accent: #c24d1c; --on-accent: #fff;
-  --soft: #fbe9d8; --hover: #fff0e2; --track: #f5e0cc; --codebg: #fffaf5; --gloss: #fdeee0;
-  --infobg: #fde8d6; --infofg: #a8411a; --kwbg: #fbe0cb; --kwfg: #b04618; --ts: #bb9a84; --svc: #765643; --codecol: #a98b77;
-}
-html[data-theme="lavender"] {
-  --bg: #f4f1fb; --panel: #fdfcff; --line: #e2dcf2; --text: #261f3a; --sub: #716590; --accent: #7352d0; --on-accent: #fff;
-  --soft: #ece7f8; --hover: #f6f3fc; --track: #e6e0f4; --codebg: #faf8fe; --gloss: #f1eef9;
-  --infobg: #ebe5fa; --infofg: #4f33a0; --kwbg: #e4dcf8; --kwfg: #5f3ebb; --ts: #a89fc2; --svc: #5d5278; --codecol: #9489b2;
-}
-html[data-theme="midnight"] {
-  --bg: #0b1020; --panel: #121a30; --line: #25305a; --text: #e6ebff; --sub: #8e9acb; --accent: #4cc9f0; --on-accent: #05263a;
-  --soft: #1a2442; --hover: #172040; --track: #1e2848; --codebg: #0e1528; --gloss: #141d36;
-  --infobg: #10294a; --infofg: #8fd8f5; --kwbg: #12304f; --kwfg: #8be0fa; --ts: #66739e; --svc: #aab6e0; --codecol: #7683b0;
 }
 html[data-theme="terminal"] {
   /* 눈이 편하도록 순수 검정/형광 초록 대신, 살짝 푸른 어두운 회색 + 차분한 민트를 쓴다 */
@@ -308,11 +278,6 @@ html[data-theme="terminal"] {
   --infobg: #1f3430; --infofg: #a6dcc2; --kwbg: #23403a; --kwfg: #a6dcc2; --ts: #6c8179; --svc: #b3c4bc; --codecol: #7c9188;
 }
 html[data-theme="terminal"] body { font-family: var(--mono); }
-html[data-theme="plum"] {
-  --bg: #1e1b2b; --panel: #272437; --line: #3f3a5a; --text: #f1eefc; --sub: #a9a3c8; --accent: #b794f6; --on-accent: #1e1b2b;
-  --soft: #302c45; --hover: #2c2940; --track: #352f4d; --codebg: #211e30; --gloss: #2a2640;
-  --infobg: #2e2650; --infofg: #d3bfff; --kwbg: #342b5a; --kwfg: #d6c2ff; --ts: #7b75a0; --svc: #c4bee0; --codecol: #8c86b0;
-}
 html[data-theme="excel"] {
   /* 스프레드시트처럼: 흰 칸 + 옅은 격자선 + 엑셀 초록 */
   --bg: #f3f3f3; --panel: #ffffff; --line: #d4d4d4; --text: #262626; --sub: #6b6b6b; --accent: #217346; --on-accent: #fff;
@@ -711,8 +676,8 @@ html[data-ui="v2"] .bar { height: 5px; }
 /* 버튼: 테두리 없는 글자 버튼. 주 버튼만 강조색을 옅게 깐다 */
 html[data-ui="v2"] .btn { background: transparent; border-color: transparent; border-radius: var(--r); color: var(--sub); }
 html[data-ui="v2"] .btn:hover { background: var(--hover); color: var(--hi); }
-html[data-ui="v2"] .btn.primary { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); border-color: transparent; }
-html[data-ui="v2"] .btn.primary:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+html[data-ui="v2"] .btn.primary { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border-color: transparent; }
+html[data-ui="v2"] .btn.primary:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 html[data-ui="v2"] .btn.primary.k-del { background: color-mix(in srgb, var(--crit) 20%, transparent); color: var(--crit); }
 html[data-ui="v2"] .btn.k-ok, html[data-ui="v2"] .btn.k-keep, html[data-ui="v2"] .btn.k-go:not(.primary), html[data-ui="v2"] .btn.k-del:not(.primary) { background: transparent; }
 html[data-ui="v2"] .btn.on, html[data-ui="v2"] .btn.quiet.on { background: var(--soft); color: var(--hi); }
@@ -787,7 +752,7 @@ html[data-theme="n-frost"] .ln .code { color: #8250df; }
 html[data-theme="n-frost"] .ln .svc { color: #1a7f37; }
 html[data-theme="n-frost"] .sl-f { color: #8250df; }
 html[data-theme="n-frost"] .sev-info .sl-f { color: #0a7080; }
-html[data-theme="n-frost"] .ps { color: #1a7f37; }
+html[data-theme="n-frost"] .ps { color: #146a2d; }
 html[data-theme="n-frost"] .tabs { border-top-style: dashed; border-bottom-style: dashed; }
 html[data-theme="n-frost"] .cnt-box b { color: var(--accent); }
 html[data-theme="n-frost"] .rp-k, html[data-theme="n-frost"] .kv > span:first-child { color: #8250df; }
@@ -869,3 +834,66 @@ html[data-ui="v2"] .cl-tag, html[data-ui="v2"] .help .hl { font-family: var(--ui
 
 /* 새 버전 안내 배너: 맨 위에 눈에 띄게 */
 .banner.upd { position: sticky; top: 0; z-index: 5; }
+
+/* 댓글 한 줄(.cm): 윗줄 = 시각·작성자·표시 | 하트·Edit·Delete 고정 칸, 아랫줄 = 내용 전체 폭 */
+.cm { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center; padding: 6px 0; font-size: 12px; }
+.cm.fresh { box-shadow: inset 3px 0 0 var(--accent); padding-left: 8px; }
+.cm-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.cm-t { color: var(--ts); font: 11px var(--mono); font-variant-numeric: tabular-nums; }
+.cm-by { color: var(--sub); font: 12px var(--mono); } .cm-by.them { color: var(--accent); }
+.cm-act { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.cm-slot { display: flex; align-items: center; justify-content: center; min-height: 28px; }
+.cm-slot.like { min-width: 60px; justify-content: flex-end; } .cm-slot.edit { min-width: 46px; } .cm-slot.del { min-width: 58px; }
+.cm-text { grid-column: 1 / -1; font: 13px/1.55 var(--guide-font); color: var(--text); overflow-wrap: anywhere; }
+.cm.ack .cm-text { color: var(--ok); }
+/* 버튼 높이 통일: 한 줄에 놓인 버튼들(하트·Edit·Delete·Reply·Keep…)의 높이와 세로 가운데를 맞춘다 */
+.btn.small, .btn.quiet, .sl-like { min-height: 28px; display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; }
+.btn.quiet { padding-left: 10px; padding-right: 10px; }
+
+/* 아이콘 버튼 (Edit · Delete · Keep · Resolve · Share · Copy) */
+.btn.ic { min-width: 32px; padding: 0 6px; }
+.ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ico.on { fill: currentColor; }
+.cm-slot.edit, .cm-slot.del { min-width: 34px; }
+
+/* 글자 대비 보정: 모든 테마에서 보조 글자(시간·코드·상태색 등)가 배경 대비 5:1 이상이 되도록 테마별로 살짝 진하게/밝게 (자동 계산) */
+html[data-theme="dark"] { --sub: #8f9aa9; --ts: #838e9c; --codecol: #818d9b; }
+html[data-theme="excel"] { --sub: #656565; --ts: #686868; --codecol: #686868; --ok: #2e7250; --warn: #915a13; --crit: #ad414a; }
+html[data-theme="light"] { --sub: #5c6775; --ts: #5e6975; --codecol: #5f6b77; --accent: #2560e0; --ok: #2d7252; --warn: #8f5b15; --crit: #ad414b; }
+html[data-theme="n-dusk"] { --sub: #989cb8; --ts: #9195b2; --codecol: #9094b2; }
+html[data-theme="n-frost"] { --codecol: #626b74; --accent: #0a66d3; --ok: #1b7636; --crit: #c5222e; }
+html[data-theme="n-ink"] { --sub: #959595; --ts: #8f8f8f; --codecol: #909090; }
+html[data-theme="n-moss"] { --ts: #859a8e; }
+html[data-theme="terminal"] { --ts: #83958e; --codecol: #81968d; }
+html[data-theme="warm"] { --sub: #635f59; --ts: #60656a; --codecol: #5e666d; --accent: #3863b2; --ok: #2f7250; --warn: #925b13; --crit: #ae414b; }
+/* 너무 작은 글자(10~10.5px)는 11px로, 값 칸 글자는 배경색 위에서도 잘 보이게 */
+.mk, .ln .lv, .ln.pos .lv, .lv-PASS .lv, .ln .tag, .cl-tag, .badge, .tag { font-size: 11px; }
+.rt td.hv { color: var(--text); }
+.rt td.z { opacity: 1; color: var(--ts); }
+.sl-like { color: color-mix(in srgb, var(--crit) 88%, var(--panel)); }
+
+/* 새 디자인(v2)에서도 기능별 버튼 색이 유지되게 (v2 의 .btn 글자색보다 우선) */
+html[data-ui="v2"] .btn.k-go:not(.primary) { color: var(--accent); }
+html[data-ui="v2"] .btn.k-ok { color: var(--ok); }
+html[data-ui="v2"] .btn.k-keep { color: var(--warn); }
+html[data-ui="v2"] .btn.k-del:not(.primary) { color: color-mix(in srgb, var(--crit) 82%, var(--text)); }
+html[data-ui="v2"] .btn.k-del:not(.primary):hover { color: var(--crit); }
+html[data-ui="v2"] .btn.k-tg { color: var(--sub); }
+.banner .btn { color: var(--infofg); }
+.banner.warn .btn { color: var(--warnfg); }
+.mbody .mk { font-size: 11px; }
+.ln.idle, .ln.pend { opacity: .75; }
+.schip i { opacity: 1; color: var(--sub); }
+/* FATAL 라벨(흰 글자)의 배경을 어두운 테마에서 조금 더 진하게: 대비 5:1 이상 */
+html[data-theme="dark"], html[data-theme="terminal"], html[data-theme="n-ink"], html[data-theme="n-moss"], html[data-theme="n-dusk"] { --fatalbg: #b5424d; }
+/* 대비 보정 2: 강조색 위 글자·프롬프트·하트 */
+html[data-theme="dark"] { --on-accent: #06142e; }
+html[data-ui="v2"] .btn.primary { color: color-mix(in srgb, var(--accent) 80%, var(--text)); }
+.ps { opacity: 1; }
+.sl-like { color: color-mix(in srgb, var(--crit) 94%, var(--panel)); }
+/* 대기 줄(가짜 heartbeat 로그)은 투명도로 흐리게 하지 않고 보조 글자색으로 조용하게 */
+.ln.idle, .ln.pend { opacity: 1; }
+.ln.idle .msg, .ln.idle .ts, .ln.idle .svc, .ln.idle .code, .ln.pend .msg { color: var(--sub); }
+.ln.idle .lv { color: var(--sub); }
+.btn.k-tg { gap: .4ch; }
+.schip.on i { color: inherit; opacity: .85; }
