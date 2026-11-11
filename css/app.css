@@ -837,3 +837,32 @@ html[data-ui="v2"] .cl-tag, html[data-ui="v2"] .help .hl { font-family: var(--ui
 .cl.acked .cl-toggle, .cl.acked .cl-t, .cl.acked .sha, .cl.acked .cl-row { color: var(--sub); }
 .cl.acked .cl-row span:last-child { opacity: .8; }
 .cl.acked .cl-tag { filter: grayscale(1); opacity: .7; }
+
+/* 주간 표 정렬: 날짜와 요일을 따로 칸으로 나누고, 모든 줄의 높이·칸 너비·글자색을 같게 */
+.rt { table-layout: fixed; }
+.rt th, .rt td { height: 32px; padding-top: 0; padding-bottom: 0; vertical-align: middle; }
+.rt th.rt-l, .rt td.rt-d, .rt td.rt-w { text-align: left; }
+.rt th:nth-child(1), .rt td.rt-d { width: 22%; } .rt th:nth-child(2), .rt td.rt-w { width: 14%; }
+.rt td.rt-d { font-variant-numeric: tabular-nums; color: var(--text); }
+.rt td.rt-w { color: var(--sub); }
+.rt tr.none td:first-child, .rt tr.inc td:first-child, .rt td.wk { color: var(--text); }
+.rt tr.none td.rt-w { color: var(--sub); }
+.rt tr.tot td { height: 36px; }
+/* Syslog 줄: 종류 칸을 가장 긴 'user.notice' 에 맞춰 작성자 칸의 시작 위치를 줄마다 같게 */
+.sl-f { min-width: 11ch; }
+/* 로그 줄(Console·Archive): 서비스 이름 칸을 가장 긴 이름에 맞춰 코드 칸의 시작 위치를 같게 */
+.ln .svc { display: inline-block; min-width: 17ch; }
+
+/* 요일 칩: 그날의 가장 나쁜 단계 색으로 한눈에 (Calm · Warn · Error · Fatal · No data), 줄 배경도 옅게 같은 색 */
+.wd { display: inline-block; min-width: 28px; text-align: center; border-radius: var(--r, 4px); padding: 1px 6px; font-size: 12px; line-height: 1.5; font-style: normal; }
+.wd-PASS { background: var(--okbg); color: var(--ok); } .wd-WARN { background: var(--warnbg); color: var(--warn); }
+.wd-ERROR { background: var(--critbg); color: var(--crit); } .wd-FATAL { background: var(--fatalbg); color: #fff; }
+.wd-none { color: var(--sub); border: 1px dashed var(--line); padding: 0 5px; }
+.rt tr.d-PASS td:not(.hv) { background: color-mix(in srgb, var(--ok) 6%, transparent); }
+.rt tr.d-WARN td:not(.hv) { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.rt tr.d-ERROR td:not(.hv), .rt tr.d-FATAL td:not(.hv) { background: color-mix(in srgb, var(--crit) 9%, transparent); }
+.rt tr.tot td { background: transparent !important; }
+.rt-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font: 11.5px var(--guide-font, inherit); color: var(--sub); }
+.rt-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rt-legend .wd { min-width: 12px; height: 12px; padding: 0; border-radius: 3px; vertical-align: middle; }
+.rt-legend .wd-PASS { background: var(--ok); } .rt-legend .wd-WARN { background: var(--warn); } .rt-legend .wd-ERROR { background: var(--crit); } .rt-legend .wd-FATAL { background: var(--fatalbg); } .rt-legend .wd-none { background: transparent; }

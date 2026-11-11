@@ -1035,15 +1035,17 @@ async function ensureReport(force) {
   const lines = L.templateReport(s);
   S.rep = { sig, lines, busy: false }; schedule();
 }
+const RT_VERDICT = { PASS: 'Calm', WARN: 'Warn', ERROR: 'Error', FATAL: 'Fatal', none: 'No data' };
 function reportCard() {
   const s = L.weekSummary(weekRows());
   const map = new Map(s.days.map((d) => [d.day, d]));
   const cell = (v, lv, max) => h('td', { class: v > 0 ? `hv hv-${lv}` : 'z', style: v > 0 ? `--i:${Math.round(14 + 40 * v / Math.max(max, 1))}` : '', text: v == null ? '–' : v });
   const max = Math.max(1, ...s.days.flatMap((d) => L.LEVELS.map((lv) => d[lv] | 0)));
-  const tbl = h('table', { class: 'tbl rt' }, h('tr', {}, ['Day', ...L.LEVELS].map((t) => h('th', { class: t === 'Day' ? '' : 'th-' + t, text: t }))),
-      weekDays().map((d, i) => { const r = map.get(d), dow = (i + 1) % 7; return h('tr', { class: r && ((r.ERROR | 0) + (r.FATAL | 0)) ? 'inc' : r ? '' : 'none' }, h('td', { class: dow === 0 || dow === 6 ? 'wk' : '', text: `${d.slice(5)} (${DOW[dow]})` }), L.LEVELS.map((lv) => cell(r ? r[lv] | 0 : null, lv, max))); }),
-      h('tr', { class: 'tot' }, h('td', { text: 'Total' }), L.LEVELS.map((lv) => h('td', { class: s.tot[lv] > 0 ? `tv tv-${lv}` : 'z', text: s.tot[lv] }))));
-  const c = card('Weekly incident report · ' + weekKey(), h('div', { class: 'rpt' }, h('div', {}, tbl), h('div', {}, h('h4', { class: 'rpt-h', text: 'Summary' }), reportFactsView(L.reportFacts(s)))));
+  const tbl = h('table', { class: 'tbl rt' }, h('tr', {}, ['Date', 'Day', ...L.LEVELS].map((t) => h('th', { class: L.LEVELS.includes(t) ? 'th-' + t : 'rt-l', text: t }))),
+      weekDays().map((d, i) => { const r = map.get(d), dow = (i + 1) % 7; const worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) || 'none' : 'none';   // 그날의 가장 나쁜 단계 = 그날의 한 줄 평가
+        return h('tr', { class: `d-${worst}` + (r && ((r.ERROR | 0) + (r.FATAL | 0)) ? ' inc' : r ? '' : ' none') }, h('td', { class: 'rt-d', text: d.slice(5) }), h('td', { class: 'rt-w' }, h('span', { class: 'wd wd-' + worst, title: RT_VERDICT[worst], text: DOW[dow] })), L.LEVELS.map((lv) => cell(r ? r[lv] | 0 : null, lv, max))); }),
+      h('tr', { class: 'tot' }, h('td', { colspan: 2, text: 'Total' }), L.LEVELS.map((lv) => h('td', { class: s.tot[lv] > 0 ? `tv tv-${lv}` : 'z', text: s.tot[lv] }))));
+  const c = card('Weekly incident report · ' + weekKey(), h('div', { class: 'rpt' }, h('div', {}, tbl, h('div', { class: 'rt-legend' }, ['PASS', 'WARN', 'ERROR', 'FATAL', 'none'].map((k) => h('span', {}, h('i', { class: 'wd wd-' + k }), RT_VERDICT[k])))), h('div', {}, h('h4', { class: 'rpt-h', text: 'Summary' }), reportFactsView(L.reportFacts(s)))));
   c.classList.add('rpt-card');
   return c;
 }
