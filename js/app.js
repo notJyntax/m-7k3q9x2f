@@ -1186,7 +1186,7 @@ function likeBtn(c, scope, me) {
   const n = sysLikes(c.id).length, mine = sysLikes(c.id).some((l) => l.by === me);
   if (c.by === me) { const since = scope.postId ? S.sysSince : scope.agendaId ? S.planSince : S.revSince; return n ? h('span', { class: 'sl-like own', title: 'Likes' }, `♥ ${n}`, newTag(sysLikes(c.id).some((l) => l.by !== me && l.ts > (since ?? Infinity)))) : null; }
   return h('button', { type: 'button', class: 'sl-like' + (mine ? ' on' : ''), title: mine ? 'Unlike' : 'Like', 'aria-label': 'Like', 'aria-pressed': String(mine),
-    on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, mine ? '♥' : '♡', n ? ` ${n}` : '');
+    on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, '♥', n ? ` ${n}` : '');
 }
 function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);
