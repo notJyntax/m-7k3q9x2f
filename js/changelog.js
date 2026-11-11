@@ -2,9 +2,13 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-11-e', date: '11/11', title: 'Update notice · Report', items: [
+    ['new', '앱 업데이트 안내: 상단 배너 + ↻ 빨간 점 (자동 새로고침 없음)'],
+    ['change', 'Report: 오늘 요일 강조, 날짜별 상태는 색 표시'],
+  ] },
   { id: '2026-11-11-d', date: '11/11', title: 'Report · Alignment', items: [
     ['change', 'Report: 날짜·요일 칸 분리, 줄 높이·열 정렬 통일'],
-    ['new', 'Report: 요일 칩 색 (Calm · Warn · Error · Fatal) + 범례'],
+    ['new', 'Report: 오늘 요일 강조 · 날짜별 상태 색 · 범례'],
     ['fix', 'Syslog·Console·Archive: 종류·서비스 칸 너비 고정 (열 위치 정렬)'],
   ] },
   { id: '2026-11-11-c', date: '11/11', title: 'Updates · Syslog', items: [

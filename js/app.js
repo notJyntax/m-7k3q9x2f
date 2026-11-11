@@ -543,6 +543,7 @@ function renderView() {
   else if (!S.ready) node = card('Connecting…', note(S.slow ? '연결이 늦어지고 있어요. 잠시 뒤에도 안 되면 새로고침해 주세요.' : 'prod-api-02 에 연결하는 중…'));
   else {
     const banners = [];
+    if (S.updateReady) banners.push(h('div', { class: 'banner warn upd' }, h('span', { text: '앱이 업데이트됐어요. 새로고침해 주세요.' }), btn('Refresh', doRefresh, 'small primary')));   // 열려 있던 앱에 새 버전을 알린다
     if (isWriter() && S.tab !== 'inbox' && pendingCheckin()) banners.push(h('div', { class: 'banner warn' }, h('span', { text: '상대가 무슨 일 있는지 물어봤어요.' }), btn('Reply', () => openCheckinReply(pendingCheckin()), 'small primary')));
     if (!S.canWrite) banners.push(h('div', { class: 'banner warn', text: '읽기 전용이에요. 쓰려면 소유자가 "편집 가능(Contributor)"으로 초대해야 해요.' }));
     if (clUnread().length) banners.push(h('div', { class: 'banner' }, h('span', { text: `What's new · ${clUnread().length} updates` }), h('span', { class: 'row' }, btn('See', () => go(isWriter() ? 'inbox' : 'overview'), 'small'), btn('Confirm all', () => clConfirm(CHANGELOG.map((e) => e.id)), 'small quiet'))));
@@ -1043,9 +1044,9 @@ function reportCard() {
   const max = Math.max(1, ...s.days.flatMap((d) => L.LEVELS.map((lv) => d[lv] | 0)));
   const tbl = h('table', { class: 'tbl rt' }, h('tr', {}, ['Date', 'Day', ...L.LEVELS].map((t) => h('th', { class: L.LEVELS.includes(t) ? 'th-' + t : 'rt-l', text: t }))),
       weekDays().map((d, i) => { const r = map.get(d), dow = (i + 1) % 7; const worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) || 'none' : 'none';   // 그날의 가장 나쁜 단계 = 그날의 한 줄 평가
-        return h('tr', { class: `d-${worst}` + (r && ((r.ERROR | 0) + (r.FATAL | 0)) ? ' inc' : r ? '' : ' none') }, h('td', { class: 'rt-d', text: d.slice(5) }), h('td', { class: 'rt-w' }, h('span', { class: 'wd wd-' + worst, title: RT_VERDICT[worst], text: DOW[dow] })), L.LEVELS.map((lv) => cell(r ? r[lv] | 0 : null, lv, max))); }),
+        return h('tr', { class: `d-${worst}` + (r && ((r.ERROR | 0) + (r.FATAL | 0)) ? ' inc' : r ? '' : ' none') }, h('td', { class: 'rt-d' }, h('i', { class: 'rt-dot d-' + worst, title: RT_VERDICT[worst] }), d.slice(5)), h('td', { class: 'rt-w' }, h('span', { class: 'wd' + (d === dayKey() ? ' wd-today' : ''), title: d === dayKey() ? 'Today' : '', text: DOW[dow] })), L.LEVELS.map((lv) => cell(r ? r[lv] | 0 : null, lv, max))); }),
       h('tr', { class: 'tot' }, h('td', { colspan: 2, text: 'Total' }), L.LEVELS.map((lv) => h('td', { class: s.tot[lv] > 0 ? `tv tv-${lv}` : 'z', text: s.tot[lv] }))));
-  const c = card('Weekly incident report · ' + weekKey(), h('div', { class: 'rpt' }, h('div', {}, tbl, h('div', { class: 'rt-legend' }, ['PASS', 'WARN', 'ERROR', 'FATAL', 'none'].map((k) => h('span', {}, h('i', { class: 'wd wd-' + k }), RT_VERDICT[k])))), h('div', {}, h('h4', { class: 'rpt-h', text: 'Summary' }), reportFactsView(L.reportFacts(s)))));
+  const c = card('Weekly incident report · ' + weekKey(), h('div', { class: 'rpt' }, h('div', {}, tbl, h('div', { class: 'rt-legend' }, [...['PASS', 'WARN', 'ERROR', 'FATAL', 'none'].map((k) => h('span', {}, h('i', { class: 'rt-dot d-' + k }), RT_VERDICT[k])), h('span', {}, h('i', { class: 'wd wd-today wd-key', text: ' ' }), 'Today')])), h('div', {}, h('h4', { class: 'rpt-h', text: 'Summary' }), reportFactsView(L.reportFacts(s)))));
   c.classList.add('rpt-card');
   return c;
 }
@@ -1586,13 +1587,13 @@ buildShell();
 boot();
 // 자동 적용이 입력 중이거나 반복 실패로 보류된 새 버전이 있으면, 새로고침 버튼에 점을 띄워서 알린다
 startUpdateCheck({ build: BUILD, busy: () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || ''),
-  delayMs: 6000, maxTries: 3, minGapMs: 120000,
+  notifyOnly: true,   // 새 버전은 스스로 새로고침하지 않고, 배너·↻ 점·알림으로 알린다 (누르면 적용)
   onStatus: (st) => {
     if (st === 'running' || st === 'hidden' || st === 'offline') return;
     const need = st === 'found' || st === 'busy' || st === 'gave-up' || st === 'waiting';
     if (st === 'current') S.updToast = false;
-    if (need !== !!S.updateReady) { S.updateReady = need; renderChrome(); }
-    if (st === 'found' && !S.updToast) { S.updToast = true; toast('새 버전이 있어요. 잠시 뒤 새로고침해요 (↻ 로 바로 적용)'); }
+    if (need !== !!S.updateReady) { S.updateReady = need; renderChrome(); const a = document.activeElement; if (!(a && $('#view')?.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) renderView(); }   // 배너도 바로 보이게 (입력 중이면 방해하지 않는다)
+    if (st === 'found' && !S.updToast) { S.updToast = true; toast('앱이 업데이트됐어요. 새로고침해 주세요'); }
   } });
 // 테스트/디버깅용 훅 (화면에는 노출되지 않음)
 window.__svcmon = { S, gc: () => gcOnce(), boot };

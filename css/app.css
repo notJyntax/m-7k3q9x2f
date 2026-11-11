@@ -853,16 +853,19 @@ html[data-ui="v2"] .cl-tag, html[data-ui="v2"] .help .hl { font-family: var(--ui
 /* 로그 줄(Console·Archive): 서비스 이름 칸을 가장 긴 이름에 맞춰 코드 칸의 시작 위치를 같게 */
 .ln .svc { display: inline-block; min-width: 17ch; }
 
-/* 요일 칩: 그날의 가장 나쁜 단계 색으로 한눈에 (Calm · Warn · Error · Fatal · No data), 줄 배경도 옅게 같은 색 */
-.wd { display: inline-block; min-width: 28px; text-align: center; border-radius: var(--r, 4px); padding: 1px 6px; font-size: 12px; line-height: 1.5; font-style: normal; }
-.wd-PASS { background: var(--okbg); color: var(--ok); } .wd-WARN { background: var(--warnbg); color: var(--warn); }
-.wd-ERROR { background: var(--critbg); color: var(--crit); } .wd-FATAL { background: var(--fatalbg); color: #fff; }
-.wd-none { color: var(--sub); border: 1px dashed var(--line); padding: 0 5px; }
+/* 요일: 오늘만 강조색 칩. 그날의 상태(Calm · Warn · Error · Fatal)는 날짜 앞 작은 사각 표시와 줄 배경 색으로 */
+.wd { display: inline-block; min-width: 28px; text-align: center; border-radius: var(--r, 4px); padding: 1px 6px; font-size: 12px; line-height: 1.5; font-style: normal; color: var(--sub); }
+.wd-today { background: var(--accent); color: var(--on-accent, #fff); }
+.rt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: middle; background: var(--line); font-style: normal; }
+.rt-dot.d-PASS { background: var(--ok); } .rt-dot.d-WARN { background: var(--warn); } .rt-dot.d-ERROR { background: var(--crit); } .rt-dot.d-FATAL { background: var(--fatalbg); }
+.rt-dot.d-none { background: transparent; border: 1px dashed var(--sub); }
 .rt tr.d-PASS td:not(.hv) { background: color-mix(in srgb, var(--ok) 6%, transparent); }
 .rt tr.d-WARN td:not(.hv) { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .rt tr.d-ERROR td:not(.hv), .rt tr.d-FATAL td:not(.hv) { background: color-mix(in srgb, var(--crit) 9%, transparent); }
 .rt tr.tot td { background: transparent !important; }
 .rt-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font: 11.5px var(--guide-font, inherit); color: var(--sub); }
 .rt-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.rt-legend .wd { min-width: 12px; height: 12px; padding: 0; border-radius: 3px; vertical-align: middle; }
-.rt-legend .wd-PASS { background: var(--ok); } .rt-legend .wd-WARN { background: var(--warn); } .rt-legend .wd-ERROR { background: var(--crit); } .rt-legend .wd-FATAL { background: var(--fatalbg); } .rt-legend .wd-none { background: transparent; }
+.rt-legend .wd-key { min-width: 18px; height: 12px; padding: 0; border-radius: 3px; vertical-align: middle; }
+
+/* 새 버전 안내 배너: 맨 위에 눈에 띄게 */
+.banner.upd { position: sticky; top: 0; z-index: 5; }
