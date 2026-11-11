@@ -173,6 +173,19 @@ export function templateReport(s) {
   return out;
 }
 
+// 주간 보고서를 줄글 대신 항목별로 보여주기 위한 값 (집계 숫자만 사용)
+export function reportFacts(s) {
+  if (!s.days.length) return null;
+  const t = s.tot, total = t.PASS + t.WARN + t.ERROR + t.FATAL;
+  let peak = null;
+  if (s.peakDay) { const [y, m, d] = s.peakDay.split('-').map(Number); peak = `${m}/${d} (${['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()]})`; }
+  const advice = t.FATAL >= 3 ? { tone: 'crit', text: '치명 오류가 반복되었습니다. 이번 주 안에 부하를 줄이고 충분한 회복 시간을 확보하세요.' }
+    : t.FATAL > 0 ? { tone: 'crit', text: '치명 오류가 있었던 날 이후 최소 하루는 부하를 낮추세요.' }
+    : s.incidents > 0 ? { tone: 'warn', text: '장애가 일부 있었으나 치명 수준은 아니었습니다. 주 후반 부하 관리에 유의하세요.' }
+    : { tone: 'ok', text: '현재 수준의 경고는 모니터링을 유지하면 충분합니다.' };
+  return { total, tot: t, incidents: s.incidents, peak, advice };
+}
+
 // ── 화면용 가짜 대기 로그 (저장되지 않음) ──
 const IDLE = [
   ['INFO', 'health-check', 'GET /healthz 200 OK (3ms)'], ['INFO', 'cache-sync', 'refreshed 128 keys in 41ms'],

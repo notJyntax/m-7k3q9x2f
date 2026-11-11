@@ -655,6 +655,16 @@ html[data-theme="n-dusk"] {  /* 푸른 보랏빛 밤 · 고딕(산세리프) · 
   --infobg: #2b2750; --infofg: #cdbff8; --kwbg: #322c5e; --kwfg: #d2c6fa; --ts: #868aa9; --svc: #c0c4de; --codecol: #8a8eae;
   --ui-font: var(--stack-sans); --ui-ls: .015em; --ui-fs: 14px;
 }
+html[data-theme="n-frost"] {  /* 순백 · 고정폭 · 파랑 — 코드 에디터의 밝은 터미널 느낌 */
+  --bg: #ffffff; --panel: #f6f8fa; --line: #d0d7de; --text: #24292f; --hi: #1f2328; --sub: #57606a; --accent: #0969da; --on-accent: #fff;
+  --soft: #eaeef2; --hover: #f3f5f7; --track: #e6eaee; --codebg: #f6f8fa; --gloss: #f6f8fa;
+  --infobg: #ddf4ff; --infofg: #0550ae; --kwbg: #ddf4ff; --kwfg: #0550ae; --ts: #636c76; --svc: #424a53; --codecol: #6e7781;
+  --ok: #1a7f37; --okbg: #dafbe1; --warn: #8a5c00; --warnbg: #fff1c2; --crit: #cf222e; --critbg: #ffebe9;
+  --okline: #aceebb; --warnline: #eac54f; --critline: #ffcecb; --warnfg: #633c01; --notefg: #633c01; --notebg: #fff8c5; --notekw: #fff1c2;
+  --fatalbg: #cf222e; --scrim: rgba(31, 35, 40, .4); color-scheme: light;
+  --c1: #1a7f37; --c2: #0969da; --c3: #8a5c00; --c4: #7a47d6; --c5: #cf222e; --c6: #0a7080;
+  --ui-font: var(--stack-mono); --ui-ls: .01em; --ui-fs: 13px;
+}
 html[data-ui="v2"] { --r: 3px; }
 html[data-ui="v2"] body { font-family: var(--ui-font); font-size: var(--ui-fs); letter-spacing: var(--ui-ls); font-stretch: var(--ui-stretch); color: var(--text); }
 html[data-ui="v2"] .brand b, html[data-ui="v2"] .tab, html[data-ui="v2"] .btn, html[data-ui="v2"] .card h3, html[data-ui="v2"] .card h4, html[data-ui="v2"] .badge, html[data-ui="v2"] .env { font-family: var(--ui-font); }
@@ -718,3 +728,70 @@ html[data-ui="v2"] .dock { background: transparent; border-top: 1px solid var(--
 html[data-ui="v2"] .modal, html[data-ui="v2"] .sheet, html[data-ui="v2"] .notif, html[data-ui="v2"] .toast { border-radius: 4px; }
 html[data-ui="v2"] .chip.lv-WARN { color: var(--warn); } html[data-ui="v2"] .chip.lv-ERROR, html[data-ui="v2"] .chip.lv-FATAL { color: var(--crit); }
 html[data-ui="v2"] .mood > * { border-radius: var(--r); }
+
+/* 주간 보고서 Summary: 줄글 대신 항목(왼쪽 이름·오른쪽 값)과 비율 막대, 색으로 구분한 한 줄 조언 */
+.rp { display: flex; flex-direction: column; }
+.rp-bar { display: flex; gap: 2px; height: 6px; margin: 2px 0 10px; }
+.rp-bar i { display: block; height: 100%; }
+.rp-bar .rp-p { background: var(--bar-ok); } .rp-bar .rp-w { background: var(--bar-warn); } .rp-bar .rp-e { background: var(--bar-crit); } .rp-bar .rp-f { background: var(--fatalbg); }
+.rp-row { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.rp-k { flex: none; width: 84px; color: var(--sub); font-size: 12px; }
+.rp-v { color: var(--text); font-variant-numeric: tabular-nums; }
+.rp-v.crit { color: var(--crit); } .rp-v.warn { color: var(--warn); }
+.rp-sub { color: var(--sub); font-size: 12px; }
+.rp-adv { display: flex; align-items: baseline; gap: 12px; margin-top: 10px; padding: 8px 10px; border-radius: var(--r, 4px); font-size: 13px; line-height: 1.5; }
+.rp-adv .rp-k { padding-top: 0; }
+.rp-adv.ok { background: var(--okbg); } .rp-adv.ok .rp-k { color: var(--ok); }
+.rp-adv.warn { background: var(--warnbg); } .rp-adv.warn .rp-k { color: var(--warn); }
+.rp-adv.crit { background: var(--critbg); } .rp-adv.crit .rp-k { color: var(--crit); }
+
+/* Syslog (PC): 왼쪽 목록 + 오른쪽 상세. 글을 누르면 아래로 펼치지 않고 오른쪽 칸에 열린다 */
+.sl-split { align-items: start; }
+.sl-split .sl-detail { position: sticky; top: 0; }
+.sl-dmeta { display: flex; flex-wrap: wrap; gap: 10px; font: 11.5px var(--mono); color: var(--sub); }
+.sl-dmeta .them { color: var(--accent); }
+.sl-dtext { font-size: 14px; line-height: 1.6; margin: 4px 0 2px; }
+.sl-detail .sl-body { padding: 0; border: 0; background: transparent; }
+
+/* 주간 표: 단계마다 색, 값이 있는 칸은 많을수록 진한 배경, 0/– 는 흐리게, 장애가 있던 날은 한눈에 */
+.rt th { font-size: 11px; letter-spacing: .06em; }
+.rt .th-PASS { color: var(--ok); } .rt .th-WARN { color: var(--warn); } .rt .th-ERROR, .rt .th-FATAL { color: var(--crit); }
+.rt td.z { color: var(--ts); opacity: .6; }
+.rt td.hv { font-variant-numeric: tabular-nums; color: var(--hc); background: color-mix(in srgb, var(--hc) calc(var(--i) * 1%), transparent); }
+.rt .hv-PASS, .rt .tv-PASS { --hc: var(--ok); } .rt .hv-WARN, .rt .tv-WARN { --hc: var(--warn); } .rt .hv-ERROR, .rt .tv-ERROR, .rt .hv-FATAL, .rt .tv-FATAL { --hc: var(--crit); }
+.rt td.tv { color: var(--hc); }
+.rt tr.none td:first-child { color: var(--sub); }
+.rt td.wk { color: var(--sub); }
+.rt tr.inc td:first-child { color: var(--text); }
+.rt tr.tot td { border-top: 1px solid var(--sub); border-bottom: 0; padding-top: 8px; }
+.rt tr.tot td:first-child { color: var(--sub); }
+
+.rt tr.tot td { font-weight: 400; }
+/* 리포트 (PC): 표와 Summary를 나란히 */
+.rpt { display: grid; grid-template-columns: 1fr; gap: 24px; }
+.rpt-h { margin: 0 0 8px; }
+@media (min-width: 900px) { .grid > .card.rpt-card { grid-column: 1 / -1; } .rpt { grid-template-columns: 1.1fr 1fr; gap: 44px; } .rpt-h { display: none; } }
+
+/* Frost: 밝은 터미널 — 소문자 제목에 프롬프트($), 점선 구분, 로그 창은 터미널 화면처럼, 신택스 하이라이트처럼 색을 다양하게 */
+html[data-theme="n-frost"] { --bg: #fbfcfd; --c4: #8250df; --c5: #bf3989; --termbg: #f3f6f9; }
+html[data-theme="n-frost"] .card h3, html[data-theme="n-frost"] .tab, html[data-theme="n-frost"] .brand b { text-transform: lowercase; }
+html[data-theme="n-frost"] .card h3 { font-size: 13.5px; }
+html[data-theme="n-frost"] .card h3::before { content: '$'; font-size: 13px; margin-right: 8px; opacity: .9; }
+html[data-theme="n-frost"] .card { border-top: 1px dashed var(--line); padding-top: 14px; }
+html[data-theme="n-frost"] .grid > .card:nth-child(-n+2) { border-top: 0; padding-top: 0; }
+html[data-theme="n-frost"] .loglist, html[data-theme="n-frost"] .sl-list { background: var(--termbg); border: 1px solid var(--line); border-radius: 3px; padding: 6px 0; }
+html[data-theme="n-frost"] .loglist { padding: 8px 0; }
+html[data-theme="n-frost"] .sl { padding-left: 12px; padding-right: 12px; }
+html[data-theme="n-frost"] .ln .ts, html[data-theme="n-frost"] .sl-t { color: #0a7080; }
+html[data-theme="n-frost"] .ln .code { color: #8250df; }
+html[data-theme="n-frost"] .ln .svc { color: #1a7f37; }
+html[data-theme="n-frost"] .sl-f { color: #8250df; }
+html[data-theme="n-frost"] .sev-info .sl-f { color: #0a7080; }
+html[data-theme="n-frost"] .ps { color: #1a7f37; }
+html[data-theme="n-frost"] .tabs { border-top-style: dashed; border-bottom-style: dashed; }
+html[data-theme="n-frost"] .cnt-box b { color: var(--accent); }
+html[data-theme="n-frost"] .rp-k, html[data-theme="n-frost"] .kv > span:first-child { color: #8250df; }
+
+/* 고친 글 표시 */
+.b-ed { color: var(--ts); font-size: 11px; font-style: normal; margin-left: 6px; }
+.sl-b .b-ed { margin-left: 0; }
