@@ -166,7 +166,7 @@ function editText({ title, text, max, onSave }) {
 
 // ───────── 셸 / 부팅 ─────────
 function buildShell() {
-  const ta = h('textarea', { id: 'cmd', rows: 1, placeholder: 'Enter incident note…   (Enter = run · /help)', 'aria-label': 'incident note', on: {
+  const ta = h('textarea', { id: 'cmd', rows: 1, placeholder: matchMedia?.('(pointer: coarse)').matches ? 'Enter incident note…' : 'Enter incident note…   (Enter = run · /help)', 'aria-label': 'incident note', on: {
     input: (e) => autoGrow(e.target),
   } });
   onEnter(ta, onSubmit, { shift: true });
@@ -352,7 +352,7 @@ function activityFeed() {
   if (!S.store || !S.ready) return [];
   const me = roleName(), now = Date.now(), out = [], other = (x) => x.by && x.by !== me;
   const add = (ts, tab, tag, text, extra = {}) => { if (ts) out.push({ id: `${tab}|${ts}|${text}|${extra.post || extra.agenda || extra.mood || extra.line || ''}`, ts, tab, tag, text, ...extra }); };
-  posts().filter(other).forEach((p) => add(p.ts, 'syslog', 'Syslog', p.urgent ? '긴급 항목이 등록됐어요' : '새 항목이 등록됐어요', { post: p.id, urgent: !!p.urgent }));
+  posts().filter(other).forEach((p) => add(p.ts, 'syslog', 'Syslog', '새 항목이 등록됐어요', { post: p.id }));
   rows('post_comments').filter(other).forEach((c) => add(c.ts, 'syslog', 'Syslog', c.ack ? '항목을 확인했어요' : '새 응답이 등록됐어요', { post: c.postId }));
   rows('comment_likes').filter((l) => l.on && l.by !== me).forEach((l) => (l.postId ? add(l.ts, 'syslog', 'Syslog', '내 응답에 반응이 기록됐어요', { post: l.postId }) : add(l.ts, 'plan', 'Agenda', '내 응답에 반응이 기록됐어요', { agenda: l.agendaId })));
   rows('agendas').filter(other).forEach((a) => { add(a.ts, 'plan', 'Agenda', '새 Weekly Agenda가 등록됐어요', { agenda: a.id }); if (a.resolvedAt) add(a.resolvedAt, 'plan', 'Agenda', 'Weekly Agenda가 해결됐어요', { agenda: a.id }); });
@@ -811,7 +811,7 @@ function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, onEdit, o
 }
 function reviewThread(ln, r) {
   const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'rr-' + r.id });
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'rr-' + r.id, enterkeyhint: 'send', autocomplete: 'off' });
   const send = act(async () => { await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() })); });
   onEnter(box, send);
   return h('div', { class: 'sl-thread rv-thread' },
@@ -965,14 +965,14 @@ function agendaCard() {
     if (!el.value.trim()) return toast('아젠다를 한 줄 적어주세요');
     await sendField(el, addAgenda);
   });
-  const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)' });
+  const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)', enterkeyhint: 'send', autocomplete: 'off' });
   onEnter(input, add);
   const confirmDelete = (a) => modal({ title: '이 아젠다를 삭제할까요?', body: note(`"${a.text}" 은(는) 댓글과 함께 기록 없이 사라져요. 해결된 것으로 남기려면 "Resolve"를 눌러 주세요.`),
     actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => removeAgenda(a)) }] });
   // 댓글: 작성자·리스너 둘 다 달 수 있다. 내 댓글만 지울 수 있다.
   const thread = (a, canAdd) => {
     const list = agComments(a.id);
-    const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id });
+    const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id, enterkeyhint: 'send', autocomplete: 'off' });
     const send = act(async () => { await sendField(box, (t) => addAgComment(a, t)); });
     onEnter(box, send);
     return h('div', { class: 'ag-thread' },
@@ -1233,7 +1233,7 @@ function viewQueue() {
         ln.note ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Note' }), h('span', { text: ln.note })) : null,
         ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Raw (shared)' }), h('span', { text: ln.raw })) : null,
         rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts).map((r) => h('div', { class: 'rv' }, h('span', { class: 'sub', text: hm(r.ts) }), h('p', { class: 'msgtext', text: r.text }), likeBtn({ ...r, by: 'listener' }, { lineId: ln.id }, 'listener'), reviewThread(ln, r))),
-        h('div', { class: 'row' }, h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment' }),
+        h('div', { class: 'row' }, h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment', enterkeyhint: 'send', autocomplete: 'off' }),
           btn('Comment', act(async () => { await sendField($('#rv-' + ln.id), (t) => S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t })); }), 'small primary')))) : empty('공유된 로그 없음')));
 }
 function whenTs(v) {
@@ -1270,7 +1270,7 @@ function viewSettingsL() {
 // ───────── Syslog: 둘이 쓰는 게시판 ─────────
 // 회사 화면에서 이상해 보이지 않게 시스템 로그 뷰어처럼 만든다: 한 줄 로그, 고정폭 글씨, 차분한 색.
 // 글 종류(태그)는 없고, 글을 쓸 때 "긴급(Urgent)"만 표시할 수 있다. 질문(Question)은 투표를 붙일 수 있다.
-const posts = () => rows('posts');
+const posts = () => rows('posts').map(({ urgent, question, poll, status, resolvedAt, ...p }) => p);   // 긴급·질문(투표) 기능은 없앴다: 예전에 쓴 글도 평범한 글로 보인다
 const sysComments = (id) => rows('post_comments').filter((c) => c.postId === id).sort((a, b) => a.ts - b.ts);
 const sysReacts = (id) => rows('post_reactions').filter((r) => r.postId === id && r.emoji);
 const newTag = (on) => (on ? h('span', { class: 'new-tag', text: 'new' }) : null);
@@ -1289,8 +1289,7 @@ function maskText(id) {
 // 앱을 벗어나면(다른 탭, 화면 꺼짐) 바로 가린다. 안 보이는 탭에서는 다음 프레임 갱신이 멈추므로 곧바로 그린다.
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.sys?.mask && S.sys.open.size) { clearTimeout(S.sys.hideT); S.sys.open.clear(); if (S.tab === 'syslog') renderView(); } });
 const syslogMuted = () => !!sd('syslog_mute_' + roleName()).muted;
-const isUrgent = (p) => !!p.urgent && p.status !== 'resolved';   // 해결된 긴급 글은 다시 평범한 글로
-const sysSev = (p) => (isUrgent(p) ? 'crit' : p.question || p.poll ? 'notice' : 'info');
+const sysSev = () => 'info';
 
 // 댓글 좋아요: 상대의 댓글에만 누를 수 있고(다시 누르면 취소), 내 댓글에는 받은 개수만 보인다
 function likeBtn(c, scope, me) {
@@ -1301,7 +1300,7 @@ function likeBtn(c, scope, me) {
 }
 function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id });
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
   const send = act(async () => { await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() })); });
   onEnter(box, send);
   return h('div', { class: 'sl-thread' },
@@ -1314,90 +1313,88 @@ function sysReactRow(p) {
   return h('div', { class: 'sl-react' }, REACTIONS.map((e) => { const n = rs.filter((r) => r.emoji === e).length;
     return h('button', { type: 'button', class: 'sl-r' + (mine === e ? ' on' : ''), title: e, on: { click: act(() => S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: mine === e ? '' : e, ts: Date.now() })) } }, e, n ? h('i', { text: n }) : null); }));
 }
-function sysPoll(p) {
-  if (!p.poll?.options?.length) return null;
-  const me = roleName(), vs = sysVotes(p.id), mine = vs.find((v) => v.by === me)?.option, total = vs.length;
-  return h('div', { class: 'sl-poll' }, p.poll.options.map((o, i) => { const n = vs.filter((v) => v.option === i).length, pct = total ? Math.round((n / total) * 100) : 0;
-    return h('button', { type: 'button', class: 'sl-opt' + (mine === i ? ' on' : ''), on: { click: act(() => S.store.set('post_votes', `pv_${p.id}_${me}`, { postId: p.id, by: me, option: mine === i ? null : i, ts: Date.now() })) } },
-      h('i', { class: 'fill', style: `width:${pct}%` }), h('span', { class: 'ot', text: o }), h('span', { class: 'on', text: `${n}` })); }));
-}
 function sysRow(p, kept) {
-  const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me, urgent = isUrgent(p);
-  const nC = sysComments(p.id).filter((c) => !c.ack).length, nR = sysReacts(p.id).length, acked = sysComments(p.id).some((c) => c.ack);
+  const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me;
+  const nC = sysComments(p.id).filter((c) => !c.ack).length, nR = sysReacts(p.id).length;
   const title = (p.text || '').split('\n')[0].slice(0, 90);
   const since = S.sysSince ?? Infinity, unread = !st.read.has(p.id);
   const newPost = !mine && p.ts > since && unread, newReply = !newPost && unread && sysComments(p.id).some((c) => c.by !== me && c.ts > since);
   const newLike = !newPost && !newReply && unread && sysComments(p.id).some((c) => sysLikes(c.id).some((l) => l.by !== me && l.ts > since));
-  const line = h('div', { 'data-pid': p.id, class: `sl sev-${sev}${urgent ? ' urgent' : ''}${newPost || newReply || newLike ? ' fresh' : ''}${open ? ' open' : ''}${p.status === 'resolved' ? ' done' : ''}`, on: { click: () => { if (open) st.open.delete(p.id); else { if (st.mask || sysWide()) st.open.clear(); st.open.add(p.id); st.read.add(p.id); } renderView(); } } },
+  const line = h('div', { 'data-pid': p.id, class: `sl sev-${sev}${newPost || newReply || newLike ? ' fresh' : ''}${open ? ' open' : ''}`, on: { click: () => { if (open) st.open.delete(p.id); else { if (st.mask || sysWide()) st.open.clear(); st.open.add(p.id); st.read.add(p.id); } renderView(); } } },
     h('span', { class: 'sl-t', text: hm(p.ts) }), h('span', { class: 'sl-f', text: `user.${sev}` }), h('span', { class: 'sl-h' + (mine ? '' : ' them'), text: `by ${mine ? '0' : '1'}` }),
     h('span', { class: 'sl-m' + ((!open || sysWide()) && st.mask ? ' mask' : ''), text: open && !sysWide() ? p.text : st.mask ? maskText(p.id) : title }),   // PC 는 내용이 오른쪽 칸에 뜨므로 목록 줄은 한 줄 제목만
 
     h('span', { class: 'sl-b' },
-      ...[[newPost ? '[new]' : newReply ? '[new reply]' : newLike ? '[new like]' : '', 'b-new'], [urgent ? '[urgent]' : '', 'b-urgent'], [p.poll ? '[poll]' : p.question ? '[question]' : '', 'b-q'], [p.status === 'resolved' ? '[resolved]' : acked ? '[ack]' : '', 'b-ok'], [p.editedAt ? '[edited]' : '', 'b-ed']].filter(([t]) => t).map(([t, c]) => h('span', { class: c, text: t })),
+      ...[[newPost ? '[new]' : newReply ? '[new reply]' : newLike ? '[new like]' : '', 'b-new'], [p.editedAt ? '[edited]' : '', 'b-ed']].filter(([t]) => t).map(([t, c]) => h('span', { class: c, text: t })),
       h('span', { class: 'b-c', text: nC ? `(${nC})` : '' }), h('span', { class: 'b-r', text: nR ? `+${nR}` : '' }), h('span', { class: 'b-k', text: kept ? '*' : '' })));
   if (!open || sysWide()) return line;   // 넓은 화면(PC)에서는 아래로 펼치지 않고 오른쪽 칸에 보여준다
-  return h('div', { class: 'sl-wrap open' + (urgent ? ' urgent' : '') }, line, sysBody(p, kept));
+  return h('div', { class: 'sl-wrap open' }, line, sysBody(p, kept));
 }
 function sysDetail(p, kept) {
   const mine = p.by === roleName(), sev = sysSev(p);
   return [h('h3', { text: 'Entry' }),
-    h('div', { class: 'sl-dmeta' }, h('span', { text: mdhm(p.ts) }), h('span', { text: `user.${sev}` }), h('span', { class: mine ? '' : 'them', text: `by ${mine ? '0' : '1'}` }),
-      p.urgent ? h('span', { class: 'b-urgent', text: '[urgent]' }) : null, p.poll ? h('span', { class: 'b-q', text: '[poll]' }) : p.question ? h('span', { class: 'b-q', text: '[question]' }) : null, p.status === 'resolved' ? h('span', { class: 'b-ok', text: '[resolved]' }) : null, p.editedAt ? h('span', { class: 'b-ed', text: '[edited]' }) : null),
+    h('div', { class: 'sl-dmeta' }, h('span', { text: mdhm(p.ts) }), h('span', { text: `user.${sev}` }), h('span', { class: mine ? '' : 'them', text: `by ${mine ? '0' : '1'}` }), p.editedAt ? h('span', { class: 'b-ed', text: '[edited]' }) : null),
     h('p', { class: 'sl-text sl-dtext', text: p.text }),
     sysBody(p, kept)];
 }
 const sysWide = () => !!window.matchMedia?.('(min-width: 900px)').matches;
 function sysBody(p, kept) {
-  const me = roleName(), mine = p.by === me, acked = sysComments(p.id).some((c) => c.ack);
+  const mine = p.by === roleName();
   const title = (p.text || '').split('\n')[0].slice(0, 90);
   const keepBtn2 = btn(kept ? 'Unkeep' : 'Keep', act(async () => { if (kept) { for (const x of keeps().filter((x) => x.kind === 'syslog' && x.from === p.id)) await S.store.del('@', x.id); } else await S.store.set('@', 'keep_' + uid(), { type: 'keep', kind: 'syslog', ts: Date.now(), text: title, from: p.id }); }), 'small quiet');
   return h('div', { class: 'sl-body' },
-    sysPoll(p),
     sysReactRow(p),
-    sysThread(p.id, p.status !== 'resolved'),
+    sysThread(p.id, true),
     h('div', { class: 'sl-act' }, keepBtn2,
-      p.urgent && !mine && !acked && p.status !== 'resolved' ? btn('I hear you', act(() => S.store.set('post_comments', 'pc_' + uid(), { postId: p.id, by: me, text: 'I hear you', ack: true, ts: Date.now() })), 'small primary') : null,
-      p.urgent && mine && p.status !== 'resolved' ? btn('Resolve', act(() => S.store.patch('posts', p.id, { status: 'resolved', resolvedAt: Date.now() })), 'small quiet') : null,
       mine ? btn('Edit', () => editText({ title: 'Edit entry', text: p.text, max: 500, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
       mine ? btn('Delete', () => modal({ title: '이 글을 삭제할까요?', body: note('댓글, 반응, 좋아요도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('posts', p.id)) }] }), 'small quiet del') : null));
 }
-// 새 글은 팝업 없이 목록 위의 작은 입력줄에 쓴다 (평소엔 흐릿하고, 누르면 옵션이 펼쳐진다)
-function composeBar() {
-  const me = roleName(), c = (S.cmp ??= { urgent: false, question: false });
-  const text = h('textarea', { id: 'sl-compose', rows: 1, maxLength: 500, placeholder: 'new entry…', 'aria-label': 'new entry', autocomplete: 'off', spellcheck: 'false' });
-  const count = h('span', { class: 'tc-count', text: '0/500' });
-  const opts = [0, 1].map((n) => h('input', { id: 'sl-opt-' + n, type: 'text', maxLength: 40, placeholder: 'option ' + 'AB'[n] }));
-  const pollBox = h('div', { class: 'sl-pollform', hidden: !c.question }, opts);
-  const wrap = h('div', { class: 'sl-compose' + (c.urgent || c.question ? ' open' : '') });
-  const flag = (label, key) => h('button', { type: 'button', class: 'tc-flag' + (c[key] ? ' on' : ''), 'aria-pressed': String(c[key]), on: { click: (e) => { c[key] = !c[key]; e.currentTarget.classList.toggle('on', c[key]); e.currentTarget.setAttribute('aria-pressed', String(c[key])); pollBox.hidden = !c.question; wrap.classList.toggle('open', c.urgent || c.question); } } }, label);
+// 새 글 쓰기: PC 는 목록 위 입력줄(여러 줄 가능, Enter 는 줄바꿈, 올리기는 Post 버튼 또는 Ctrl/⌘+Enter), 폰은 칸이 좁아서 입력줄을 누르면 팝업이 열린다.
+function composeForm(onPosted, prefill = S.cmpDraft || '') {
+  const me = roleName();
+  const text = h('textarea', { id: 'sl-compose', rows: onPosted ? 6 : 1, maxLength: 500, placeholder: 'new entry…', 'aria-label': 'new entry', autocomplete: 'off', spellcheck: 'false' });
+  const count = h('span', { class: 'tc-count', text: `${prefill.length}/500` });
+  const wrap = h('div', { class: 'sl-compose' + (onPosted ? ' in-modal' : '') });
+  text.value = prefill;
   const post = act(async () => {
     const t = text.value.trim(); if (!t) return;
-    const options = opts.map((o) => o.value.trim()).filter(Boolean), { urgent, question } = c;
-    text.value = ''; opts.forEach((o) => { o.value = ''; }); c.urgent = c.question = false;
-    try { await S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), ...(urgent ? { urgent: true } : {}), ...(question ? { question: true } : {}), ...(question && options.length >= 2 ? { poll: { options } } : {}) }); }
-    catch (e) { text.value = t; throw e; }
-    toast(urgent ? '긴급으로 올렸어요' : '올렸어요');
-    S.dirty = false; renderView(); renderChrome(); $('#sl-compose')?.focus();   // 입력줄에 커서가 있으면 목록 갱신이 미뤄지므로 직접 다시 그린다
+    text.value = ''; count.textContent = '0/500'; S.cmpDraft = '';
+    const saving = S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now() });   // 화면에는 저장이 끝나기 전에 바로 올라가 보인다
+    if (onPosted) onPosted();
+    S.dirty = false; renderView(); renderChrome(); if (!onPosted) $('#sl-compose')?.focus();   // 입력줄에 커서가 있으면 목록 갱신이 미뤄지므로 직접 다시 그린다
+    toast('올렸어요');
+    try { await saving; } catch (e) { toast(errText(e)); if (onPosted) openComposeModal(t); else { const el = $('#sl-compose'); if (el && !el.value) el.value = t; } }   // 저장에 실패하면 쓴 글을 다시 돌려 놓는다
   });
-  text.addEventListener('input', () => { autoGrow(text); count.textContent = `${text.value.length}/500`; });
-  onEnter(text, post, { shift: true }); text.addEventListener('keydown', (e) => { if (e.key === 'Escape') text.blur(); });
-  wrap.append(h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }, ), text),
-    h('div', { class: 'tc-foot' }, flag('--urgent', 'urgent'), flag('--question', 'question'), h('span', { class: 'sp' }), count, btn('Post', post, 'small primary')), pollBox);
-  return wrap;
+  text.addEventListener('input', () => { if (!onPosted) autoGrow(text); count.textContent = `${text.value.length}/500`; if (onPosted) S.cmpDraft = text.value; });   // 팝업을 실수로 닫아도 쓰던 글이 남는다
+  // Enter 는 줄바꿈. Ctrl/⌘+Enter 로 올린다 (한글 입력 확정 중에는 무시)
+  text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) { e.preventDefault(); post(); } else if (e.key === 'Escape' && !onPosted) text.blur(); });
+  wrap.append(h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }), text),
+    h('div', { class: 'tc-foot' }, h('span', { class: 'sp' }), h('span', { class: 'tc-hint', text: 'Enter = new line · Ctrl/⌘+Enter = post' }), count, btn('Post', post, 'small primary')));
+  return { el: wrap, text };
+}
+function openComposeModal(prefill) {
+  let close = () => {};
+  const f = composeForm(() => close(), prefill);
+  close = modal({ title: 'New entry', body: f.el, actions: [{ label: 'Cancel', cls: 'small' }] });
+  setTimeout(() => f.text.focus(), 30);
+}
+function composeBar() {
+  if (sysWide()) return composeForm().el;
+  return h('div', { class: 'sl-compose' }, h('button', { type: 'button', class: 'tc-box tc-open', on: { click: () => openComposeModal() } }, h('span', { class: 'tc-gut', text: '>' }), h('span', { class: 'tc-ph', text: 'new entry…' })));
 }
 function viewSyslog() {
   const st = sysState(), me = roleName();
   const kept = new Set(keeps().filter((k) => k.kind === 'syslog').map((k) => k.from));
   const all = posts();
-  const FILTERS = [['all', 'All', () => all.length], ['urgent', 'Urgent', () => all.filter(isUrgent).length], ['question', 'Question', () => all.filter((p) => p.question || p.poll).length], ['kept', 'Kept', () => all.filter((p) => kept.has(p.id)).length]];
+  const FILTERS = [['all', 'All', () => all.length], ['kept', 'Kept', () => all.filter((p) => kept.has(p.id)).length]];
   const listRows = () => {
-    let list = all.slice().sort((a, b) => (isUrgent(b) - isUrgent(a)) || b.ts - a.ts);       // 긴급(해결 전)은 맨 위에 모은다
-    if (st.filter === 'urgent') list = list.filter(isUrgent); else if (st.filter === 'question') list = list.filter((p) => p.question || p.poll); else if (st.filter === 'kept') list = list.filter((p) => kept.has(p.id));
+    let list = all.slice().sort((a, b) => b.ts - a.ts);
+    if (st.filter === 'kept') list = list.filter((p) => kept.has(p.id));
     const q = st.q.trim().toLowerCase(); if (q) list = list.filter((p) => (p.text || '').toLowerCase().includes(q));
     return list.length ? list.map((p) => sysRow(p, kept.has(p.id))) : [h('p', { class: 'empty', text: q || st.filter !== 'all' ? 'no match' : 'No entries yet.' })];
   };
   const listBox = h('div', { class: 'sl-list' }, listRows());
-  const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : '') + (f === 'urgent' && n() ? ' hot' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
+  const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
   const wide = sysWide(), sel = wide ? all.find((p) => st.open.has(p.id)) : null;
   const detail = !wide ? null : h('section', { class: 'card sl-detail' }, sel ? sysDetail(sel, kept.has(sel.id)) : [h('h3', { text: 'Entry' }), empty('목록에서 글을 누르면 여기에 열려요')]);
   return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, h('section', { class: 'card syslog' },
@@ -1546,8 +1543,8 @@ const HELP_W = [
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
   { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
-    how: ['**Syslog** 탭 맨 위 **new entry** 입력줄에 바로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
-    tip: ['긴급 글에는 상대가 **I hear you**로 답하고, 쓴 사람이 **Resolve**로 마무리해요', '**Notify**로 이 게시판 알림을 끄고 켤 수 있어요 (끄면 긴급 글 알림도 오지 않아요)', '**Esc**로 엑셀 화면 위장'] },
+    how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, 반응, **Keep**'],
+    tip: ['**Notify**로 이 게시판 알림을 끄고 켤 수 있어요', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 commit이 도착했어요" 같은 안내만)', '방해금지를 켜면 commit 알림은 오지 않아요'] },
 ];
@@ -1578,8 +1575,8 @@ const HELP_L = [
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
   { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
-    how: ['**Syslog** 탭 맨 위 **new entry** 입력줄에 바로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
-    tip: ['긴급 글에는 상대가 **I hear you**로 답하고, 쓴 사람이 **Resolve**로 마무리해요', '**Notify**로 이 게시판 알림을 끄고 켤 수 있어요 (끄면 긴급 글 알림도 오지 않아요)', '**Esc**로 엑셀 화면 위장'] },
+    how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, 반응, **Keep**'],
+    tip: ['**Notify**로 이 게시판 알림을 끄고 켤 수 있어요', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 공유 로그가 있어요" 같은 안내만)'] },
 ];

@@ -2,6 +2,13 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-11-g', date: '11/11', title: 'Syslog', items: [
+    ['change', 'Syslog 새 글: 폰은 팝업 입력, PC는 여러 줄(Enter 줄바꿈, Ctrl/⌘+Enter 등록)'],
+    ['change', 'Syslog: Urgent·Question 기능 제거'],
+    ['fix', '폰에서 글이 늦게 올라가 보이던 문제 (바로 반영, 실패 시 되돌림)'],
+    ['fix', '폰 입력칸 16px(확대 방지)·버튼 크게, 쓰던 글 임시저장'],
+    ['change', '폰 화면: 글자 크기·간격 확대, 12px 미만 글자 제거'],
+  ] },
   { id: '2026-11-11-f', date: '11/11', title: 'Readability · Icons · Themes', items: [
     ['change', 'Edit · Delete · Keep · Resolve · Share · Copy: 아이콘 버튼'],
     ['change', '댓글 줄: 윗줄 정보 + 오른쪽 고정 버튼 칸, 내용은 전체 폭'],

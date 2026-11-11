@@ -84,8 +84,20 @@ export function createStore({ sb, uid, localKey = 'svcmon.v1' }) {
   const emit = (c) => (subs[c] || new Set()).forEach((f) => f(cache[c] || []));
   let q = Promise.resolve();
   const run = (fn) => { const p = q.then(fn); q = p.catch(() => {}); return p; }; // 쓰기는 한 번에 하나씩
-  // 클라우드에서는 쓰기가 성공하면 화면에 바로 반영한다(서버 알림을 기다리지 않고).
-  const mine = (c, fn, apply) => run(async () => { await fn(); if (remote) { apply(cache[c] ||= []); emit(c); } });
+  // 클라우드에서는 쓰는 순간 화면에 먼저 반영하고(느린 폰 네트워크에서도 바로 올라가 보이게), 서버 저장이 실패하면 되돌린다.
+  // 저장이 끝나기 전에 서버에서 목록을 다시 읽어 와도 아직 저장 중인 변경은 사라지지 않게 pend 에 들고 있다가 다시 얹는다.
+  const pend = {};
+  const mine = (c, fn, apply) => {
+    if (!remote) return run(fn);
+    const list = (cache[c] ||= []), before = list.slice();
+    apply(list); emit(c);
+    const set = (pend[c] ||= new Set()); set.add(apply);
+    return run(async () => {
+      try { await fn(); }
+      catch (e) { set.delete(apply); cache[c] = before; emit(c); throw e; }
+      finally { set.delete(apply); }
+    });
+  };
 
   const api = {
     mode: remote ? 'cloud' : 'local',
@@ -94,7 +106,7 @@ export function createStore({ sb, uid, localKey = 'svcmon.v1' }) {
     get: (c, id) => (cache[c] || []).find((r) => r.id === id) || null,
     watch(c, cb, onErr) {
       (subs[c] ||= new Set()).add(cb);
-      const un = route(c).watch(path(c), (rows) => { cache[c] = rows; cb(rows); }, onErr);
+      const un = route(c).watch(path(c), (rows) => { cache[c] = rows; (pend[c] || []).forEach((ap) => ap(cache[c])); cb(cache[c]); }, onErr);
       return () => { subs[c]?.delete(cb); un(); };
     },
     set: (c, id, v) => mine(c, () => route(c).set(path(c), id, v), (list) => { const i = list.findIndex((r) => r.id === id); const row = { id, ...clone(v) }; i < 0 ? list.push(row) : (list[i] = row); }),

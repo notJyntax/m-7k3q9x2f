@@ -897,3 +897,75 @@ html[data-ui="v2"] .btn.primary { color: color-mix(in srgb, var(--accent) 80%, v
 .ln.idle .lv { color: var(--sub); }
 .btn.k-tg { gap: .4ch; }
 .schip.on i { color: inherit; opacity: .85; }
+
+/* Syslog 새 글: 폰 = 입력줄 모양 버튼(누르면 팝업), PC = 여러 줄 입력(포커스하면 커짐), 팝업 안에서는 큰 입력칸 */
+.sl-compose .tc-open { width: 100%; text-align: left; cursor: text; display: flex; align-items: baseline; gap: 8px; font: inherit; color: var(--sub); }
+.sl-compose .tc-ph { color: color-mix(in srgb, var(--accent) 55%, var(--sub)); }
+.sl-compose .tc-hint { color: var(--sub); font-size: 11px; }
+.sl-compose:focus-within .tc-box textarea { min-height: 4.8em; max-height: 260px; }
+.sl-compose.in-modal .tc-foot { display: flex; flex-wrap: wrap; }
+.sl-compose.in-modal .tc-box textarea { min-height: 8em; max-height: 50dvh; height: 8em; font-size: 14px; }
+.sl-compose.in-modal .tc-hint { display: none; }
+@media (max-width: 899px) { .sl-compose .tc-hint { display: none; } }
+
+/* 폰(터치) 편의: 입력칸 글자를 16px 이상으로(작으면 iOS 가 포커스 때 화면을 확대해 버린다), 누르는 버튼은 더 크게 */
+@media (pointer: coarse) {
+  input, textarea, select { font-size: 16px !important; }
+  .btn.small, .btn.quiet, .btn.ic, .sl-like { min-height: 38px; }
+  .btn.ic { min-width: 38px; }
+  .cm-slot { min-height: 38px; }
+  .tab { padding-top: 11px; padding-bottom: 11px; }
+}
+
+/* ═════════ 폰 화면(≤640px) 다듬기 — iOS 기준(본문 17pt·보조 15pt·설명 12pt, 여백 16, 누르는 곳 44) 에 맞춰 글자는 키우고 간격은 넉넉하게 ═════════ */
+@media (max-width: 640px) {
+  html[data-theme] body { font-size: 16px; line-height: 1.55; }
+  html[data-theme] .top { padding: 12px 16px 6px; }
+  html[data-theme] .brand b { font-size: 15px; }
+  html[data-theme] .mood { padding: 6px 16px 10px; gap: 10px; }
+  html[data-theme] .mood > * { padding: 8px 12px; }
+  html[data-theme] .tabs { padding-top: 4px; padding-bottom: 4px; }
+  html[data-theme] .tab { font-size: 14px; padding: 12px 13px; letter-spacing: 0; }
+  html[data-theme] .view { padding: 16px 16px 32px; }
+  html[data-theme] .grid { gap: 16px; }
+  html[data-theme] .card { padding: 16px; gap: 12px; }
+  html[data-theme] .card h3 { font-size: 15px; margin-bottom: 4px; }
+  html[data-theme] .card h4 { font-size: 13px; }
+  html[data-theme] .note, html[data-theme] .empty, html[data-theme] .banner, html[data-theme] .cl-row, html[data-theme] .rp-adv, html[data-theme] .switch small { font-size: 14px; line-height: 1.55; }
+  html[data-theme] .banner { padding: 12px 14px; flex-wrap: wrap; row-gap: 8px; }
+  html[data-theme] .banner > :first-child { flex: 1 1 200px; }
+  html[data-theme] .banner .row { margin-left: auto; flex-wrap: nowrap; }
+  html[data-theme] .sub, html[data-theme] .mlab, html[data-theme] .cu-l { font-size: 12.5px; }
+  html[data-theme] .badge, html[data-theme] .tag, html[data-theme] .cl-tag, html[data-theme] .schip, html[data-theme] .chip { font-size: 12px; }
+  html[data-theme] .schip { padding: 8px 12px; }
+  html[data-theme] .btn { font-size: 14px; }
+  html[data-theme] .btn.small, html[data-theme] .btn.quiet { padding-left: 12px; padding-right: 12px; }
+  /* 로그 줄(Console·Archive) */
+  html[data-theme] .ln { font-size: 13.5px; line-height: 1.5; padding: 6px 14px; gap: 2px 8px; }
+  html[data-theme] .ln .lv { font-size: 12px; min-width: 44px; }
+  html[data-theme] .loglist { padding: 8px 0; }
+  /* Syslog 줄: 윗줄(시각·작성자·표시) 12px 보조, 아랫줄 제목 16px */
+  html[data-theme] .sl { padding: 12px 14px; row-gap: 4px; align-items: center; }
+  html[data-theme] .sl-t, html[data-theme] .sl-f, html[data-theme] .sl-h, html[data-theme] .sl-b { font-size: 12px; }
+  html[data-theme] .sl-m { font-size: 15.5px; line-height: 1.45; }
+  /* 댓글·답글 */
+  html[data-theme] .cm { padding: 10px 0; row-gap: 4px; }
+  html[data-theme] .cm-text { font-size: 15px; line-height: 1.55; }
+  html[data-theme] .cm-t, html[data-theme] .cm-by { font-size: 12px; }
+  html[data-theme] .sl-text, html[data-theme] .sl-dtext { font-size: 15.5px; line-height: 1.6; }
+  /* 표·막대·숫자 */
+  html[data-theme] .tbl th, html[data-theme] .tbl td { font-size: 13.5px; padding-top: 8px; padding-bottom: 8px; }
+  html[data-theme] .rt th { font-size: 12px; }
+  html[data-theme] .rp-row { padding: 9px 0; }
+  html[data-theme] .rp-k { font-size: 12.5px; width: 96px; }
+  html[data-theme] .cnt-box { padding: 10px 12px; }
+  html[data-theme] .cnt-box b { font-size: 24px; }
+  html[data-theme] .bar { height: 8px; }
+  html[data-theme] .kv { padding: 8px 0; }
+  /* 입력·하단 입력줄 */
+  html[data-theme] input[type="text"], html[data-theme] input[type="search"], html[data-theme] input[type="email"], html[data-theme] input[type="password"], html[data-theme] textarea, html[data-theme] select { padding: 11px 13px; }
+  html[data-theme] .dock { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+  html[data-theme] .dialog { padding: 18px; width: min(460px, calc(100vw - 24px)); }
+  html[data-theme] .notif { right: 8px; left: 8px; width: auto; }
+  html[data-theme] .lg, html[data-theme] .col .n, html[data-theme] .col .d, html[data-theme] .b-ed, html[data-theme] .ch, html[data-theme] .ch b, html[data-theme] .cl-caret, html[data-theme] .rt-legend, html[data-theme] .pct { font-size: 12px; }
+}
