@@ -115,6 +115,16 @@ export function mockTranslate(raw) {
   return { level, service, code, msg: pickMsg(level, code), cpu, mem, disk: clamp(w - 1 + rnd(0, 2), 0, 10), via: 'rules' };
 }
 
+// ── 자동 분류 고치기: 작성자가 레벨(PASS/WARN/ERROR/FATAL)만 직접 바꾼다. 서비스는 그대로 두고 코드·문구·점수를 새 레벨에 맞게 다시 만든다 ──
+const CODE_OF = Object.fromEntries([...SERVICES.map(([, s, c]) => [s, c]), ['workload-svc', 'E_LOAD_SPIKE']]);
+export function reclassify(l, { level }) {
+  if (!LEVELS.includes(level) || level === l.level) return null;
+  const errCode = CODE_OF[l.service] || (String(l.code).startsWith('OK_') ? 'E_LOAD_SPIKE' : l.code);
+  if (level === 'PASS') { const code = OK_CODE[errCode] || 'OK_NOMINAL'; return { level, code, msg: fill(pick([...MOCK_POS, ...(THEMED_POS[code] || [])])), cpu: 0, mem: 0, disk: 0, pos: 4 }; }
+  const w = { WARN: 3, ERROR: 6, FATAL: 9 }[level];
+  return { level, code: errCode, msg: pickMsg(level, errCode), cpu: clamp(w + rnd(-1, 1), 0, 10), mem: clamp(w + rnd(-1, 1), 0, 10), disk: clamp(w - 1 + rnd(0, 1), 0, 10), pos: 0 };
+}
+
 const CANNED = {
   WARN: ['Approaching threshold (load=0.82)', 'Fatigue building up, cause unknown, tracing'],
   ERROR: ['Repeated request rejections (status=409, retry=4)', 'Handler exception: emotion processing limit exceeded'],

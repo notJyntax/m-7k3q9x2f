@@ -552,9 +552,11 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .lv-FATAL .lv { padding: 0 4px; border-radius: 3px; }
 
 /* Syslog 댓글 좋아요 */
-.sl-like { font: 12px var(--mono); border: 0; background: transparent; color: var(--sub); padding: 0 4px; cursor: pointer; border-radius: 4px; white-space: nowrap; }
-.sl-like:hover { background: var(--hover); }
-.sl-like.on, .sl-like.own { color: var(--bar-crit); }
+.sl-like { font: 600 13px var(--mono); border: 1px solid var(--line); background: var(--panel); color: var(--sub); padding: 2px 9px; cursor: pointer; border-radius: 999px; white-space: nowrap; line-height: 1.4; transition: transform .12s, background .12s; }
+.sl-like:hover { background: var(--hover); border-color: var(--crit); color: var(--crit); }
+.sl-like:active { transform: scale(.92); }
+.sl-like.on, .sl-like.own { color: var(--crit); border-color: var(--crit); background: var(--critbg); }
+.sl-like.on { font-size: 14px; }
 .sl-like.own { cursor: default; }
 
 .new-tag { font: 600 10px var(--mono); letter-spacing: .04em; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 3px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
