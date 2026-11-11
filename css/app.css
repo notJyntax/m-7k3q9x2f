@@ -934,7 +934,7 @@ html[data-ui="v2"] .btn.primary { color: color-mix(in srgb, var(--accent) 80%, v
   html[data-theme] .note, html[data-theme] .empty, html[data-theme] .banner, html[data-theme] .cl-row, html[data-theme] .rp-adv, html[data-theme] .switch small { font-size: 14px; line-height: 1.55; }
   html[data-theme] .banner { padding: 12px 14px; flex-wrap: wrap; row-gap: 8px; }
   html[data-theme] .banner > :first-child { flex: 1 1 200px; }
-  html[data-theme] .banner .row { margin-left: auto; flex-wrap: nowrap; }
+  html[data-theme] .banner .row, html[data-theme] .banner > .btn { margin-left: auto; flex-wrap: nowrap; }
   html[data-theme] .sub, html[data-theme] .mlab, html[data-theme] .cu-l { font-size: 12.5px; }
   html[data-theme] .badge, html[data-theme] .tag, html[data-theme] .cl-tag, html[data-theme] .schip, html[data-theme] .chip { font-size: 12px; }
   html[data-theme] .schip { padding: 8px 12px; }
@@ -969,3 +969,21 @@ html[data-ui="v2"] .btn.primary { color: color-mix(in srgb, var(--accent) 80%, v
   html[data-theme] .notif { right: 8px; left: 8px; width: auto; }
   html[data-theme] .lg, html[data-theme] .col .n, html[data-theme] .col .d, html[data-theme] .b-ed, html[data-theme] .ch, html[data-theme] .ch b, html[data-theme] .cl-caret, html[data-theme] .rt-legend, html[data-theme] .pct { font-size: 12px; }
 }
+
+/* Syslog 헤더: 제목 | 오른쪽 버튼 묶음 (좁으면 묶음째 다음 줄로, 오른쪽 정렬) */
+.sl-head { flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.sl-hact { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-left: auto; }
+.cm-slot.xtra { min-width: 34px; }
+/* 터치 화면: 손가락을 뗀 뒤에도 눌린 모양(hover)이 남지 않게 */
+@media (hover: none) {
+  html[data-theme] .btn:not(.primary):hover, html[data-theme] .btn.quiet:hover, html[data-theme] .btn.ghost:hover, html[data-theme] .btn.ic:hover, html[data-theme] .tab:not(.on):hover, html[data-theme] .schip:not(.on):hover { background: transparent; box-shadow: none; }
+  html[data-theme] .btn.primary:hover { filter: none; }
+}
+
+/* 하트(좋아요): 상자 없이 작은 아이콘형. Edit·Delete 같은 아이콘 버튼과 같은 가볍기 */
+html[data-theme] .sl-like { border: 0; background: transparent; padding: 0 6px; min-width: 30px; min-height: 28px; font-size: 14px; line-height: 1; border-radius: 999px; gap: 3px; }
+html[data-theme] .sl-like:hover { background: var(--hover); }
+html[data-theme] .sl-like.own { padding: 0 6px; min-height: 28px; }
+html[data-theme] .sl-like .new-tag, html[data-theme] .sl-like .cl-tag { font-size: 10.5px; padding: 0 4px; margin-left: 2px; }
+.cm-slot.like { min-width: 36px; }
+@media (pointer: coarse) { html[data-theme] .sl-like { min-height: 36px; min-width: 36px; } .cm-slot.like { min-width: 40px; } }

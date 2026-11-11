@@ -5,7 +5,7 @@ import { CONFIG } from './config.js';
 import * as Push from './push.js';
 import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
-import { CHANGELOG, changelogText } from './changelog.js';
+import { CHANGELOG } from './changelog.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies'];
 
@@ -803,11 +803,17 @@ function keepBtn(text, from) {
 // 공유 로그의 리뷰 댓글 아래 답글: 작성자·리스너가 서로 답글을 달고 ♡ 를 누른다
 const reviewReplies = (rid) => rows('review_replies').filter((c) => c.reviewId === rid).sort((a, b) => a.ts - b.ts);
 // 댓글 한 줄(공용): 윗줄 = 시각·작성자·표시 + 오른쪽 고정 칸(하트 | Edit | Delete), 아랫줄 = 내용 전체 폭. 좁은 화면에서도 칸 위치가 줄마다 같다.
-function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, onEdit, onDel }) {
+function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, onEdit, onDel }) {
   return h('div', { class: 'cm' + (cls ? ' ' + cls : '') },
     h('div', { class: 'cm-meta' }, h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || null),
-    h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), h('span', { class: 'cm-slot edit' }, onEdit ? btn('Edit', onEdit, 'small quiet') : null), h('span', { class: 'cm-slot del' }, onDel ? btn('Delete', act(onDel), 'small quiet del') : null)),
+    h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), extra ? h('span', { class: 'cm-slot xtra' }, extra) : null, h('span', { class: 'cm-slot edit' }, onEdit ? btn('Edit', onEdit, 'small quiet') : null), h('span', { class: 'cm-slot del' }, onDel ? btn('Delete', act(onDel), 'small quiet del') : null)),
     h('div', { class: 'cm-text', text }));
+}
+// 공유 로그의 리뷰 코멘트 한 줄(리스너가 쓰고 작성자가 읽는다): 답글 줄과 같은 모양(시각·작성자·내용, 오른쪽 고정 버튼 칸)
+function reviewRow(ln, r, role) {
+  const mine = role === 'listener';
+  return h('div', { class: 'rv' }, cmtRow({ time: hm(r.ts), by: `by ${mine ? '0' : '1'}`, them: !mine, text: r.text, edited: r.editedAt, like: likeBtn({ ...r, by: 'listener' }, { lineId: ln.id }, role), extra: !mine ? keepBtn(r.text, r.id) : null,
+    onEdit: mine ? () => editText({ title: 'Edit comment', text: r.text, max: 140, onSave: (t) => S.store.patch('reviews', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: mine ? () => S.store.del('reviews', r.id) : null }), reviewThread(ln, r));
 }
 function reviewThread(ln, r) {
   const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
@@ -817,7 +823,7 @@ function reviewThread(ln, r) {
   return h('div', { class: 'sl-thread rv-thread' },
     reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), like: likeBtn(c, { lineId: ln.id }, me),
       onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
-    h('div', { class: 'row' }, box, btn('Reply', send, 'small')));
+    h('div', { class: 'row' }, box, btn('Reply', send, 'small primary')));
 }
 function viewInbox() {
   const now = Date.now(), dnd = sd('status').dnd;
@@ -829,7 +835,7 @@ function viewInbox() {
       : cm.length ? cm.map((c) => h('div', { class: 'item' }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'commit ' + c.sha }), h('span', { class: 'sub', text: hm(c.deliverAt) })), h('p', { class: 'msgtext', text: c.text }),
         h('div', { class: 'row' }, c.ack ? badge('deployed ✓ ' + hm(c.ackAt), 'ok') : btn('Deployed ✓', act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), keepBtn(c.text, c.id))))
         : empty('새 커밋 없음')),
-    card('Code review', lines.length ? lines.map(([ln, rv]) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono', text: ln.text }), rv.map((r) => h('div', { class: 'rv' }, h('span', { class: 'sub', text: hm(r.ts) }), h('p', { class: 'msgtext', text: r.text }), h('div', { class: 'row' }, likeBtn({ ...r, by: 'listener' }, { lineId: ln.id }, 'writer'), keepBtn(r.text, r.id)), reviewThread(ln, r))))) : empty('리뷰 댓글 없음')),
+    card('Code review', lines.length ? lines.map(([ln, rv]) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono', text: ln.text }), rv.map((r) => reviewRow(ln, r, 'writer')))) : empty('리뷰 댓글 없음')),
     card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), btn('Delete', act(() => S.store.del('@', k.id)), 'small danger')))) : empty('아직 없음'),
       kp.some((k) => k.kind === 'learned') ? h('div', { class: 'learned' }, h('b', { text: 'Learned today' }), kp.filter((k) => k.kind === 'learned').slice(0, 7).map((k) => h('p', { class: 'msgtext', text: `${k.day} · ${k.text}` }))) : null),
     updateHistoryCard());
@@ -1083,18 +1089,7 @@ const viewReport = () => h('div', { class: 'grid' }, reportCard());
 const clAcked = () => { const a = lsGet('svcmon.cl.ack', null), old = lsGet('svcmon.seen.cl', ''); return new Set([...(Array.isArray(a) ? a : []), ...CHANGELOG.filter((e) => old && e.id <= old).map((e) => e.id)]); };   // 확인한 소식 id (예전 '읽음 시점' 기록도 이어받는다)
 const clUnread = () => { const a = clAcked(); return CHANGELOG.filter((e) => !a.has(e.id)); };
 const clConfirm = (ids) => { lsSet('svcmon.cl.ack', [...new Set([...clAcked(), ...ids])]); renderView(); renderChrome(); };
-async function copyText(t) {
-  try { await navigator.clipboard.writeText(t); toast('복사했어요. 붙여넣어 보내세요.'); }
-  catch { const ta = h('textarea', {}); ta.value = t; document.body.append(ta); ta.select(); try { document.execCommand('copy'); toast('복사했어요. 붙여넣어 보내세요.'); } catch { toast('복사하지 못했어요'); } ta.remove(); }
-}
-async function shareText(text) {   // 폰·맥의 공유 시트(메신저 등)를 바로 연다. 지원하지 않으면 복사한다
-  const url = location.origin + location.pathname.replace(/[^/]*$/, '');
-  if (navigator.share) { try { await navigator.share({ title: 'Service Monitor updates', text, url }); } catch (e) { if (e?.name !== 'AbortError') await copyText(`${text}\n${url}`); } return; }
-  await copyText(`${text}\n${url}`);
-}
 const clItems = (e) => h('div', { class: 'cl-list' }, e.items.map(([k, t]) => h('div', { class: 'cl-row' }, h('span', { class: 'cl-tag cl-' + k, text: k }), h('span', { text: t }))));
-// 보내는 쪽(Settings)용: 펼쳐진 항목 + Share/Copy
-const clEntry = (e) => h('div', { class: 'item cl' }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: e.date }), h('span', { class: 'cl-t', text: e.title }), h('span', { class: 'sp', style: 'flex:1' }), btn('Share', act(() => shareText(changelogText([e]))), 'small quiet'), btn('Copy', act(() => copyText(changelogText([e]))), 'small quiet')), clItems(e));
 // 받는 쪽(Inbox·Overview)용: 접었다 펼 수 있는 항목. 오른쪽 read 표시를 누르면 확인 처리(칸이 회색으로 흐려짐), 한 번 더 누르면 되돌린다.
 const clSetAck = (id, on) => { const a = clAcked(); on ? a.add(id) : a.delete(id); lsSet('svcmon.cl.ack', [...a]); lsSet('svcmon.seen.cl', ''); renderView(); renderChrome(); };
 const clFold = (e, history) => {
@@ -1110,7 +1105,6 @@ const clFold = (e, history) => {
 const updatesCard = () => { const un = clUnread(); const list = un.length ? un.slice(0, 3) : CHANGELOG.slice(0, 1);
   return card('Updates', ...list.map((e) => clFold(e, false)), un.length > 1 ? h('div', { class: 'row' }, btn('Confirm all', act(() => clConfirm(un.map((e) => e.id))), 'small')) : null); };
 const updateHistoryCard = () => card('Update history', ...CHANGELOG.map((e) => clFold(e, true)));
-const changelogCard = () => card("What's new", ...CHANGELOG.slice(0, 6).map(clEntry), h('div', { class: 'row' }, btn('Share all', act(() => shareText(changelogText(CHANGELOG.slice(0, 6)))), 'small'), btn('Copy all', act(() => copyText(changelogText(CHANGELOG.slice(0, 6)))), 'small')));
 function viewSettingsW() {
   const st = sd('status'), m = meta();
   const sw = (label, checked, fn, sub) => h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked, on: { change: act((e) => fn(e.target.checked)) } }), h('span', {}, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
@@ -1119,7 +1113,7 @@ function viewSettingsW() {
       sw('Do not disturb', !!st.dnd, (v) => S.store.patch('shared', 'status', { kind: 'status', dnd: v, ts: Date.now() }), ''),
       sw('Safety alert', m.alertOn !== false, (v) => setMeta({ alertOn: v }), '"죽고 싶다" 같은 표현이 입력되면 상대에게 안부 확인 신호만 가요(내용은 가지 않아요). 끄면 상대에게 아무것도 가지 않아요.')),
     card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
-    pushCard(), themeCard(), changelogCard(), modeCard());
+    pushCard(), themeCard(), modeCard());
 }
 function pushCard() {
   const st = S.push, kids = [];
@@ -1232,7 +1226,7 @@ function viewQueue() {
       lines.length ? lines.map((ln) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono lv-' + ln.level, text: ln.text }),
         ln.note ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Note' }), h('span', { text: ln.note })) : null,
         ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Raw (shared)' }), h('span', { text: ln.raw })) : null,
-        rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts).map((r) => h('div', { class: 'rv' }, h('span', { class: 'sub', text: hm(r.ts) }), h('p', { class: 'msgtext', text: r.text }), likeBtn({ ...r, by: 'listener' }, { lineId: ln.id }, 'listener'), reviewThread(ln, r))),
+        rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts).map((r) => reviewRow(ln, r, 'listener')),
         h('div', { class: 'row' }, h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment', enterkeyhint: 'send', autocomplete: 'off' }),
           btn('Comment', act(async () => { await sendField($('#rv-' + ln.id), (t) => S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t })); }), 'small primary')))) : empty('공유된 로그 없음')));
 }
@@ -1264,7 +1258,7 @@ function viewPlan() {
 }
 
 function viewSettingsL() {
-  return h('div', { class: 'grid' }, pushCard(), themeCard(), changelogCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
+  return h('div', { class: 'grid' }, pushCard(), themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
 // ───────── Syslog: 둘이 쓰는 게시판 ─────────
@@ -1306,7 +1300,7 @@ function sysThread(id, canAdd) {
   return h('div', { class: 'sl-thread' },
     list.map((c) => { const fr = c.by !== me && c.ts > (S.sysSince ?? Infinity); return cmtRow({ cls: (c.ack ? 'ack' : '') + (fr ? ' fresh' : ''), time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.ack ? 'ack: I hear you' : c.text, edited: c.editedAt, isNew: newTag(fr), like: c.ack ? null : likeBtn(c, { postId: id }, me),
       onEdit: c.by === me && !c.ack ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('post_comments', c.id) : null }); }),
-    canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small')) : null);
+    canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small primary')) : null);
 }
 function sysReactRow(p) {
   const me = roleName(), rs = sysReacts(p.id), mine = rs.find((r) => r.by === me)?.emoji;
@@ -1398,10 +1392,10 @@ function viewSyslog() {
   const wide = sysWide(), sel = wide ? all.find((p) => st.open.has(p.id)) : null;
   const detail = !wide ? null : h('section', { class: 'card sl-detail' }, sel ? sysDetail(sel, kept.has(sel.id)) : [h('h3', { text: 'Entry' }), empty('목록에서 글을 누르면 여기에 열려요')]);
   return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, h('section', { class: 'card syslog' },
-    h('div', { class: 'row' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sp' }),
+    h('div', { class: 'row sl-head' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sl-hact' },
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
       btn(`Mask: ${st.mask ? 'on' : 'off'}`, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); renderView(); }, 'small quiet'),
-      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet')),
+      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'))),
     h('div', { class: 'sl-chips' }, chips),
     h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; listBox.replaceChildren(...listRows()); } } }),
     composeBar(),

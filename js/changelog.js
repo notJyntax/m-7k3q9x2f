@@ -8,6 +8,8 @@ export const CHANGELOG = [
     ['fix', '폰에서 글이 늦게 올라가 보이던 문제 (바로 반영, 실패 시 되돌림)'],
     ['fix', '폰 입력칸 16px(확대 방지)·버튼 크게, 쓰던 글 임시저장'],
     ['change', '폰 화면: 글자 크기·간격 확대, 12px 미만 글자 제거'],
+    ['change', '리뷰 코멘트: 답글과 같은 줄 모양, 본인 코멘트 Edit·Delete'],
+    ['change', '하트 버튼 작은 아이콘형, Reply·Comment 버튼 같은 모양'],
   ] },
   { id: '2026-11-11-f', date: '11/11', title: 'Readability · Icons · Themes', items: [
     ['change', 'Edit · Delete · Keep · Resolve · Share · Copy: 아이콘 버튼'],
