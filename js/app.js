@@ -9,22 +9,25 @@ import { BUILD } from './version.js';
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies'];
 
 // 기본 테마(회사에서 보기 좋은 차분한 톤)와 스페셜 테마(기분 전환용). 스페셜은 강조색·버튼색까지 테마마다 달라요.
+const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk']];
+const DEFAULT_THEME = 'n-ink';
 const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['warm', 'Warm Gray'], ['auto', 'Auto']];
 const THEMES_FUN = [['sakura', 'Sakura'], ['ocean', 'Ocean'], ['forest', 'Forest'], ['sunset', 'Sunset'], ['lavender', 'Lavender'], ['midnight', 'Midnight'], ['terminal', 'Terminal'], ['plum', 'Plum'], ['excel', 'Excel']];
-const SWATCH = { light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
+const SWATCH = { 'n-ink': 'linear-gradient(135deg, #191919 50%, #6aaaf0 50%)', 'n-moss': 'linear-gradient(135deg, #1a1f1c 50%, #7fc4a2 50%)', 'n-dusk': 'linear-gradient(135deg, #1b1d2b 50%, #b4a0f0 50%)', light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
   sakura: 'linear-gradient(135deg, #fdf3f6 50%, #c9376d 50%)', ocean: 'linear-gradient(135deg, #eef6fb 50%, #0b7fa0 50%)', forest: 'linear-gradient(135deg, #f1f5ee 50%, #2b7a4b 50%)',
   sunset: 'linear-gradient(135deg, #fff4ea 50%, #c24d1c 50%)', lavender: 'linear-gradient(135deg, #f4f1fb 50%, #7352d0 50%)', midnight: 'linear-gradient(135deg, #0b1020 50%, #4cc9f0 50%)',
   terminal: 'linear-gradient(135deg, #161b1d 50%, #7fc4a2 50%)', plum: 'linear-gradient(135deg, #1e1b2b 50%, #b794f6 50%)', excel: 'linear-gradient(135deg, #ffffff 50%, #217346 50%)' };
-const ALL_THEMES = [...THEMES, ...THEMES_FUN];
+const ALL_THEMES = [...THEMES_V2, ...THEMES, ...THEMES_FUN];
 const darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-function applyTheme(t = lsGet('svcmon.theme', 'light')) {
-  const id = t === 'auto' ? (darkMQ?.matches ? 'dark' : 'light') : ALL_THEMES.some(([x]) => x === t) ? t : 'light';
+function applyTheme(t = lsGet('svcmon.theme', DEFAULT_THEME)) {
+  const id = t === 'auto' ? (darkMQ?.matches ? 'dark' : 'light') : ALL_THEMES.some(([x]) => x === t) ? t : DEFAULT_THEME;
   document.documentElement.dataset.theme = id;
+  if (id.startsWith('n-')) document.documentElement.dataset.ui = 'v2'; else delete document.documentElement.dataset.ui;   // n- 테마만 새 디자인, 나머지는 예전 디자인 그대로
   // 폰 상단 상태줄 색도 테마 배경에 맞춘다
   const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
 }
-darkMQ?.addEventListener?.('change', () => { if (lsGet('svcmon.theme', 'light') === 'auto') applyTheme(); });
+darkMQ?.addEventListener?.('change', () => { if (lsGet('svcmon.theme', DEFAULT_THEME) === 'auto') applyTheme(); });
 
 const S = {
   store: null, role: 'writer', sandbox: false, cloud: false, tab: 'console', uid: null, email: '', sb: null, gate: null, canWrite: true, push: 'loading',
@@ -73,7 +76,25 @@ function weekDays() {
 // ───────── UI 부품 ─────────
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? h('h3', { text: title }) : null, ...kids);
 const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
-const btn = (label, fn, cls = '', extra = {}) => h('button', { type: 'button', class: 'btn ' + cls, on: { click: fn }, ...extra }, label);
+// 버튼은 기능별로 색을 달리한다 (굵기 X): 보내기·추가=파랑, 해결·확인=초록, 삭제·중단=빨강, 보관=노랑, 설정 켜고 끄기=상태만 색, 나머지(취소·닫기·이동)=회색
+const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Shutdown|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/]];
+const btnKind = (label) => (BTN_KIND.find(([, re]) => re.test(String(label))) || [''])[0];
+const btn = (label, fn, cls = '', extra = {}) => {
+  const tg = /^(.+: )(on|off)$/.exec(String(label));
+  return h('button', { type: 'button', class: ['btn', cls, btnKind(label), tg ? 'k-tg' : ''].filter(Boolean).join(' '), on: { click: fn }, ...extra }, tg ? [tg[1], h('span', { class: 'k-state ' + tg[2], text: tg[2] })] : label);
+};
+// Enter로 보내기 (한글 입력 중 Enter는 글자 확정과 겹치므로, 확정이 끝난 뒤 한 번에 보낸다)
+function onEnter(el, fn, { shift = false } = {}) {
+  let pend = false, endedAt = 0;
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || (shift && e.shiftKey)) return;
+    e.preventDefault();
+    if (e.isComposing) { pend = true; return; }
+    if (e.keyCode === 229 && performance.now() - endedAt < 60) return;   // 확정 직후 따라오는 Enter (이미 compositionend에서 처리)
+    fn();
+  });
+  el.addEventListener('compositionend', () => { endedAt = performance.now(); if (pend) { pend = false; setTimeout(fn, 0); } });
+}
 const empty = (t) => h('p', { class: 'empty', text: t });
 const note = (t) => h('p', { class: 'note', text: t });
 const meter = (name, v, fixed) => h('div', { class: 'meter' },
@@ -120,8 +141,8 @@ function modal({ title, body, actions, sticky = false }) {
 function buildShell() {
   const ta = h('textarea', { id: 'cmd', rows: 1, placeholder: 'Enter incident note…   (Enter = run · /help)', 'aria-label': 'incident note', on: {
     input: (e) => autoGrow(e.target),
-    keydown: (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); onSubmit(); } },
   } });
+  onEnter(ta, onSubmit, { shift: true });
   const dock = h('footer', { id: 'dock', class: 'dock', hidden: true },
     h('div', { class: 'chips' }, h('span', { class: 'k', text: 'quick' }), ['WARN', 'ERROR', 'FATAL'].map((lv) => btn('+' + lv, act(() => saveLog(L.quickLine(lv), '')), 'chip lv-' + lv))),
     h('div', { class: 'prompt' }, h('span', { class: 'ps', text: '~$' }), ta, btn('Run', act(onSubmit), 'primary')));
@@ -409,7 +430,7 @@ function renderChrome() {
       S.store ? h('span', { class: 'live ' + (off ? 'off' : lvl), title: L.STATUS_TEXT[lvl], text: off ? 'offline' : { green: 'healthy', yellow: 'degraded', red: 'outage' }[lvl] }) : null,
       S.store ? h('span', { class: 'mode', text: S.sandbox ? 'sandbox' : S.cloud ? 'shared' : 'local' }) : null,
       S.store && wr ? btn('Shutdown ⏻', () => openShutdown(), 'ghost small') : null));
-  tabs.replaceChildren(...(S.store ? tabsFor(counts) : []).map(([id, label, n]) => h('button', { type: 'button', class: 'tab' + (S.tab === id ? ' on' : ''), on: { click: () => go(id) } }, label, n ? h('span', { class: 'cnt', text: n }) : null)));
+  tabs.replaceChildren(...(S.store ? tabsFor(counts) : []).map(([id, label, n]) => h('button', { type: 'button', class: 'tab t-' + id + (S.tab === id ? ' on' : ''), on: { click: () => go(id) } }, label, n ? h('span', { class: 'cnt', text: n }) : null)));
   dock.hidden = !(S.ready && wr && S.tab === 'console' && S.canWrite);
   renderMood();
   if (S.notifOpen) { if (isPC()) renderNotif(); else closeNotif(); }
@@ -494,7 +515,7 @@ function restoreDrafts(root, m) {
 async function sendField(el, send) {
   const t = el.value.trim(); if (!t) return false;
   const id = el.id; el.value = '';
-  try { await send(t); return true; } catch (e) { const cur = (id && document.getElementById(id)) || el; if (!cur.value) cur.value = t; throw e; }
+  try { await send(t); if (id && document.activeElement?.id === id) { S.dirty = false; renderView(); renderChrome(); document.getElementById(id)?.focus(); } return true; } catch (e) { const cur = (id && document.getElementById(id)) || el; if (!cur.value) cur.value = t; throw e; }
 }
 function renderView() {
   const view = $('#view'); if (!view) return;
@@ -741,9 +762,9 @@ function reviewThread(ln, r) {
   const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
   const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'rr-' + r.id });
   const send = act(async () => { await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() })); });
-  box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
+  onEnter(box, send);
   return h('div', { class: 'sl-thread rv-thread' },
-    reviewReplies(r.id).map((c) => h('div', { class: 'sl-c' + (fresh(c, c.by) ? ' fresh' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch', text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'sl-cm', text: c.text }), newTag(fresh(c, c.by)),
+    reviewReplies(r.id).map((c) => h('div', { class: 'sl-c' + (fresh(c, c.by) ? ' fresh' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch' + (c.by === me ? '' : ' them'), text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'sl-cm', text: c.text }), newTag(fresh(c, c.by)),
       likeBtn(c, { lineId: ln.id }, me), c.by === me ? btn('Delete', act(() => S.store.del('review_replies', c.id)), 'small quiet del') : null)),
     h('div', { class: 'row' }, box, btn('Reply', send, 'small')));
 }
@@ -892,7 +913,8 @@ function agendaCard() {
     if (!el.value.trim()) return toast('아젠다를 한 줄 적어주세요');
     await sendField(el, addAgenda);
   });
-  const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)', on: { keydown: (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add(); } } } });
+  const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)' });
+  onEnter(input, add);
   const confirmDelete = (a) => modal({ title: '이 아젠다를 삭제할까요?', body: note(`"${a.text}" 은(는) 댓글과 함께 기록 없이 사라져요. 해결된 것으로 남기려면 "Resolve"를 눌러 주세요.`),
     actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => removeAgenda(a)) }] });
   // 댓글: 작성자·리스너 둘 다 달 수 있다. 내 댓글만 지울 수 있다.
@@ -900,7 +922,7 @@ function agendaCard() {
     const list = agComments(a.id);
     const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id });
     const send = act(async () => { await sendField(box, (t) => addAgComment(a, t)); });
-    box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
+    onEnter(box, send);
     return h('div', { class: 'ag-thread' },
       list.length ? list.map((c) => h('div', { class: 'ag-c' + (c.by === me ? ' mine' : '') }, h('div', { class: 'ag-cb' }, h('span', { class: 'ag-cw', text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'ag-ct', text: c.text }), h('span', { class: 'sub', text: mdhm(c.ts) }), newTag(c.by !== me && c.ts > (S.planSince ?? Infinity))),
         likeBtn(c, { agendaId: a.id }, me),
@@ -1031,11 +1053,12 @@ function openInstall() {
     actions: [{ label: 'Close', cls: 'primary' }] });
 }
 function themeCard() {
-  const cur = lsGet('svcmon.theme', 'light');
+  const cur = lsGet('svcmon.theme', DEFAULT_THEME);
   const pick = (id) => () => { lsSet('svcmon.theme', id); applyTheme(id); renderView(); };
   const row = (list) => h('div', { class: 'row theme-row' }, list.map(([id, label]) => btn([h('span', { class: 'sw', style: `background:${SWATCH[id]}` }), label], pick(id), 'small' + (cur === id ? ' primary' : ''))));
   return card('Theme',
-    h('h4', { text: 'Basic' }), row(THEMES),
+    h('h4', { text: 'New design' }), row(THEMES_V2),
+    h('h4', { class: 'theme-sep', text: 'Classic' }), row(THEMES),
     h('h4', { class: 'theme-sep', text: 'Special' }), row(THEMES_FUN));
 }
 function modeCard() {
@@ -1192,9 +1215,9 @@ function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);
   const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id });
   const send = act(async () => { await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() })); });
-  box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send(); } });
+  onEnter(box, send);
   return h('div', { class: 'sl-thread' },
-    list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') + (c.by !== me && c.ts > (S.sysSince ?? Infinity) ? ' fresh' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch', text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }), newTag(c.by !== me && c.ts > (S.sysSince ?? Infinity)),
+    list.map((c) => h('div', { class: 'sl-c' + (c.ack ? ' ack' : '') + (c.by !== me && c.ts > (S.sysSince ?? Infinity) ? ' fresh' : '') }, h('span', { class: 'sl-ct', text: hm(c.ts) }), h('span', { class: 'sl-ch' + (c.by === me ? '' : ' them'), text: `by ${c.by === me ? '0' : '1'}` }), h('span', { class: 'sl-cm', text: c.ack ? 'ack: I hear you' : c.text }), newTag(c.by !== me && c.ts > (S.sysSince ?? Infinity)),
       c.ack ? null : likeBtn(c, { postId: id }, me),
       c.by === me ? btn('Delete', act(() => S.store.del('post_comments', c.id)), 'small quiet del') : null)),
     canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small')) : null);
@@ -1219,9 +1242,11 @@ function sysRow(p, kept) {
   const newPost = !mine && p.ts > since && unread, newReply = !newPost && unread && sysComments(p.id).some((c) => c.by !== me && c.ts > since);
   const newLike = !newPost && !newReply && unread && sysComments(p.id).some((c) => sysLikes(c.id).some((l) => l.by !== me && l.ts > since));
   const line = h('div', { 'data-pid': p.id, class: `sl sev-${sev}${urgent ? ' urgent' : ''}${newPost || newReply || newLike ? ' fresh' : ''}${open ? ' open' : ''}${p.status === 'resolved' ? ' done' : ''}`, on: { click: () => { if (open) st.open.delete(p.id); else { if (st.mask) st.open.clear(); st.open.add(p.id); st.read.add(p.id); } armAutoHide(); renderView(); } } },
-    h('span', { class: 'sl-t', text: hm(p.ts) }), h('span', { class: 'sl-f', text: `user.${sev}` }), h('span', { class: 'sl-h', text: `by ${mine ? '0' : '1'}` }),
+    h('span', { class: 'sl-t', text: hm(p.ts) }), h('span', { class: 'sl-f', text: `user.${sev}` }), h('span', { class: 'sl-h' + (mine ? '' : ' them'), text: `by ${mine ? '0' : '1'}` }),
     h('span', { class: 'sl-m' + (!open && st.mask ? ' mask' : ''), text: open ? p.text : st.mask ? maskText(p.id) : title }),
-    h('span', { class: 'sl-b' }, [newPost ? '[new]' : newReply ? '[new reply]' : newLike ? '[new like]' : '', urgent ? '[urgent]' : '', p.poll ? '[poll]' : p.question ? '[question]' : '', p.status === 'resolved' ? '[resolved]' : acked ? '[ack]' : '', nC ? `(${nC})` : '', nR ? `+${nR}` : '', kept ? '*' : ''].filter(Boolean).join(' ')));
+    h('span', { class: 'sl-b' },
+      ...[[newPost ? '[new]' : newReply ? '[new reply]' : newLike ? '[new like]' : '', 'b-new'], [urgent ? '[urgent]' : '', 'b-urgent'], [p.poll ? '[poll]' : p.question ? '[question]' : '', 'b-q'], [p.status === 'resolved' ? '[resolved]' : acked ? '[ack]' : '', 'b-ok']].filter(([t]) => t).map(([t, c]) => h('span', { class: c, text: t })),
+      h('span', { class: 'b-c', text: nC ? `(${nC})` : '' }), h('span', { class: 'b-r', text: nR ? `+${nR}` : '' }), h('span', { class: 'b-k', text: kept ? '*' : '' })));
   if (!open) return line;
   const keepBtn2 = btn(kept ? 'Unkeep' : 'Keep', act(async () => { if (kept) { for (const x of keeps().filter((x) => x.kind === 'syslog' && x.from === p.id)) await S.store.del('@', x.id); } else await S.store.set('@', 'keep_' + uid(), { type: 'keep', kind: 'syslog', ts: Date.now(), text: title, from: p.id }); }), 'small quiet');
   return h('div', { class: 'sl-wrap open' + (urgent ? ' urgent' : '') }, line, h('div', { class: 'sl-body' },
@@ -1252,12 +1277,11 @@ function composeBar() {
     S.dirty = false; renderView(); renderChrome(); $('#sl-compose')?.focus();   // 입력줄에 커서가 있으면 목록 갱신이 미뤄지므로 직접 다시 그린다
   });
   text.addEventListener('input', () => { autoGrow(text); count.textContent = `${text.value.length}/500`; });
-  text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); post(); } else if (e.key === 'Escape') text.blur(); });
+  onEnter(text, post, { shift: true }); text.addEventListener('keydown', (e) => { if (e.key === 'Escape') text.blur(); });
   wrap.append(h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }, ), text),
     h('div', { class: 'tc-foot' }, flag('--urgent', 'urgent'), flag('--question', 'question'), h('span', { class: 'sp' }), count, btn('Post', post, 'small primary')), pollBox);
   return wrap;
 }
-const focusCompose = () => { const t = $('#sl-compose'); if (t) { t.scrollIntoView({ block: 'center' }); t.focus(); } };
 function viewSyslog() {
   const st = sysState(), me = roleName();
   const kept = new Set(keeps().filter((k) => k.kind === 'syslog').map((k) => k.from));
@@ -1275,7 +1299,7 @@ function viewSyslog() {
     h('div', { class: 'row' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sp' }),
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
       btn(`Mask: ${st.mask ? 'on' : 'off'}`, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); armAutoHide(); renderView(); }, 'small quiet'),
-      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'), btn('New entry', focusCompose, 'primary small')),
+      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet')),
     h('div', { class: 'sl-chips' }, chips),
     h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; listBox.replaceChildren(...listRows()); } } }),
     composeBar(),
@@ -1417,7 +1441,7 @@ const HELP_W = [
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
   { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
-    how: ['**Syslog** 탭에서 **New entry**로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
+    how: ['**Syslog** 탭 맨 위 **new entry** 입력줄에 바로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
     tip: ['긴급 글에는 상대가 **I hear you**로 답하고, 쓴 사람이 **Resolve**로 마무리해요', '**Notify**로 이 게시판 알림을 끄고 켤 수 있어요 (끄면 긴급 글 알림도 오지 않아요)', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 commit이 도착했어요" 같은 안내만)', '방해금지를 켜면 commit 알림은 오지 않아요'] },
@@ -1449,7 +1473,7 @@ const HELP_L = [
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
   { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
-    how: ['**Syslog** 탭에서 **New entry**로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
+    how: ['**Syslog** 탭 맨 위 **new entry** 입력줄에 바로 글 쓰기', '꼭 봐야 하는 글은 **Urgent**로 표시 (해결 전까지 맨 위에 강조돼요)', '투표가 필요하면 **Question**을 켜고 선택지 입력', '글을 누르면 그 자리에서 펼쳐져요. 댓글, 반응, **Keep**'],
     tip: ['긴급 글에는 상대가 **I hear you**로 답하고, 쓴 사람이 **Resolve**로 마무리해요', '**Notify**로 이 게시판 알림을 끄고 켤 수 있어요 (끄면 긴급 글 알림도 오지 않아요)', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 공유 로그가 있어요" 같은 안내만)'] },
