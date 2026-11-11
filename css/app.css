@@ -795,3 +795,45 @@ html[data-theme="n-frost"] .rp-k, html[data-theme="n-frost"] .kv > span:first-ch
 /* 고친 글 표시 */
 .b-ed { color: var(--ts); font-size: 11px; font-style: normal; margin-left: 6px; }
 .sl-b .b-ed { margin-left: 0; }
+
+/* 업데이트 소식: 종류 태그 + 한 줄 요점 */
+.cl .ih { align-items: baseline; }
+.cl-t { color: var(--text); }
+.cl-list { display: flex; flex-direction: column; margin-top: 4px; }
+.cl-row { display: flex; align-items: baseline; gap: 10px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); font-size: 13px; }
+.cl-row:last-child { border-bottom: 0; }
+.cl-tag { flex: none; width: 54px; text-align: center; font-size: 10.5px; letter-spacing: .04em; padding: 0 6px; border-radius: var(--r, 4px); text-transform: uppercase; }
+.cl-new { background: var(--okbg); color: var(--ok); } .cl-change { background: var(--infobg); color: var(--infofg); } .cl-fix { background: var(--warnbg); color: var(--warn); }
+
+/* 안내 문구(업데이트 소식·가이드·안내 문장·배너·빈 화면)는 고정폭 대신 깔끔한 고딕으로 */
+:root { --guide-font: "Pretendard", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif; }
+.note, .empty, .banner, .help, .cl-row, .cl-t, .rp-adv, .toast, .dialog .share, .dialog .note, .sheet-foot, .nt-f { font-family: var(--guide-font); letter-spacing: .01em; font-stretch: 100%; }
+.help { line-height: 1.65; }
+.cl-tag, .help .hl, .cl .sha { font-family: var(--mono); }
+.cl-row { font-size: 13.5px; line-height: 1.55; }
+html[data-ui="v2"] .note, html[data-ui="v2"] .empty, html[data-ui="v2"] .banner, html[data-ui="v2"] .help, html[data-ui="v2"] .cl-row, html[data-ui="v2"] .cl-t { font-family: var(--guide-font); letter-spacing: .01em; font-stretch: 100%; }
+html[data-ui="v2"] .cl-tag, html[data-ui="v2"] .help .hl { font-family: var(--ui-font); }
+
+/* 업데이트 소식: 접었다 펼 수 있는 머리줄 */
+.cl-head { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--text); font: inherit; }
+.cl-head:hover .cl-t { color: var(--hi, var(--text)); }
+.cl-caret { flex: none; width: 10px; color: var(--sub); font-size: 11px; }
+.cl-head .cl-tag { width: auto; }
+
+.cl-done { background: transparent; color: var(--ok); border: 1px solid var(--okline); }
+.cl.acked .cl-t, .cl.acked .sha { color: var(--sub); }
+/* PC 두 칸: 열린 글도 목록 줄은 한 줄(내용은 오른쪽 칸) */
+.sl-split .sl.open .sl-m { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline; }
+
+/* 업데이트 항목: 머리줄 = 펼침 버튼 + 오른쪽 read 표시(원 아이콘). 확인하면 칸 전체가 회색빛으로 흐려진다 */
+.cl-head { gap: 8px; padding: 0; cursor: default; align-items: center; }
+.cl-toggle { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; text-align: left; background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--text); font: inherit; }
+.cl-status { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid var(--line); border-radius: var(--r, 4px); background: transparent; color: var(--sub); font: 11.5px var(--mono); cursor: pointer; }
+.cl-status:hover { border-color: var(--ok); color: var(--ok); }
+.cl-ico { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; }
+.cl-status.on { color: var(--ok); border-color: var(--okline); background: var(--okbg); }
+.cl-status.on .cl-ico { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.cl.acked { background: color-mix(in srgb, var(--sub) 11%, transparent); border-radius: var(--r, 4px); padding: 6px 10px; }
+.cl.acked .cl-toggle, .cl.acked .cl-t, .cl.acked .sha, .cl.acked .cl-row { color: var(--sub); }
+.cl.acked .cl-row span:last-child { opacity: .8; }
+.cl.acked .cl-tag { filter: grayscale(1); opacity: .7; }
