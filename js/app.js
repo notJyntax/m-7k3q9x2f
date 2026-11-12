@@ -508,11 +508,12 @@ function renderMood() {
   else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`New reaction ${onMe}`); }
   box.hidden = false;
   // 접어 두면 이 기기 화면에서만 가려진다(상대에게는 그대로 보이고, 새 상태가 오면 점으로만 알려 준다)
-  const folded = lsGet('svcmon.mood.fold', false), fold = (v) => () => { lsSet('svcmon.mood.fold', v); renderMood(); };
+  const folded = lsGet('svcmon.mood.fold', false), foldAt = lsGet('svcmon.mood.foldAt', 0);
+  const fold = (v) => () => { lsSet('svcmon.mood.fold', v); if (v) lsSet('svcmon.mood.foldAt', seenNow()); renderMood(); };   // 점은 "접은 뒤에" 상대가 상태를 바꾸거나 반응했을 때만
   box.classList.toggle('folded', folded);
   // 접고 펴는 줄은 항상 맨 위 가운데(좌우 대칭): 접어도 펴도 같은 자리
   const handle = h('button', { type: 'button', class: 'mfold', title: folded ? 'Show status bar' : 'Hide status bar', 'aria-label': folded ? 'Show status bar' : 'Hide status bar', 'aria-expanded': String(!folded), on: { click: fold(!folded) } },
-    folded ? '▾' : '▴', h('span', { class: 'ml', text: 'Status' }), folded && (isNew || onMe) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
+    folded ? '▾' : '▴', h('span', { class: 'ml', text: 'Status' }), folded && ((they.ts || 0) > foldAt || ((theirR.ts || 0) > foldAt && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
   if (folded) { box.replaceChildren(handle); return; }
   box.replaceChildren(handle,
     moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),

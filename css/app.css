@@ -678,7 +678,7 @@ html[data-ui="v2"] .btn { background: transparent; border-color: transparent; bo
 html[data-ui="v2"] .btn:hover { background: var(--hover); color: var(--hi); }
 html[data-ui="v2"] .btn.primary { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border-color: transparent; }
 html[data-ui="v2"] .btn.primary:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-html[data-ui="v2"] .btn.primary.k-del { background: color-mix(in srgb, var(--crit) 20%, transparent); color: var(--crit); }
+html[data-ui="v2"] .btn.primary.k-del { background: color-mix(in srgb, var(--crit) 20%, transparent); color: color-mix(in srgb, var(--crit) 80%, var(--text)); }
 html[data-ui="v2"] .btn.k-ok:not(.primary), html[data-ui="v2"] .btn.k-keep:not(.primary), html[data-ui="v2"] .btn.k-go:not(.primary), html[data-ui="v2"] .btn.k-del:not(.primary) { background: transparent; }
 html[data-ui="v2"] .btn.on, html[data-ui="v2"] .btn.quiet.on { background: var(--soft); color: var(--hi); }
 html[data-ui="v2"] .btn.ghost { background: transparent; }
@@ -879,8 +879,8 @@ html[data-ui="v2"] .btn.k-keep:not(.primary) { color: var(--warn); }
 html[data-ui="v2"] .btn.k-del:not(.primary) { color: color-mix(in srgb, var(--crit) 82%, var(--text)); }
 html[data-ui="v2"] .btn.k-del:not(.primary):hover { color: var(--crit); }
 html[data-ui="v2"] .btn.k-tg { color: var(--sub); }
-.banner .btn { color: var(--infofg); }
-.banner.warn .btn { color: var(--warnfg); }
+.banner .btn:not(.primary) { color: var(--infofg); }
+.banner.warn .btn:not(.primary) { color: var(--warnfg); }
 .mbody .mk { font-size: 11px; }
 .ln.idle, .ln.pend { opacity: .75; }
 .schip i { opacity: 1; color: var(--sub); }

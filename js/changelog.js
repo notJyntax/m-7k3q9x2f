@@ -2,6 +2,11 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-12-b', date: '11/12', title: '버튼·상태 바 점검', items: [
+    ['fix', '업데이트 배너의 Refresh 버튼 글자가 안 보이던 문제'],
+    ['fix', '접은 상태 바의 점은 접은 뒤에 상대가 바꿨을 때만 표시'],
+    ['fix', '새 디자인 테마의 빨간 Delete 버튼 글자 대비'],
+  ] },
   { id: '2026-11-12-a', date: '11/12', title: 'Commit·알림·정리', items: [
     ['new', 'Commit: 받은 쪽도 답글·하트 가능'],
     ['new', '작성자도 리스너에게 commit 보내기'],
