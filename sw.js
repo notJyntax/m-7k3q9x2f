@@ -37,7 +37,7 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data?.text() }; }
   e.waitUntil(self.registration.showNotification(String(d.title || 'Service Monitor').slice(0, 60), {
-    body: String(d.body || '새 알림이 있어요').slice(0, 120),
+    body: String(d.body || 'New alert').slice(0, 120),
     tag: d.tag || 'svcmon', renotify: true,
     icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', data: { url: './' },
   }));

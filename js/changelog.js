@@ -2,6 +2,25 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-12-a', date: '11/12', title: 'Commit·알림·정리', items: [
+    ['new', 'Commit: 받은 쪽도 답글·하트 가능'],
+    ['new', '작성자도 리스너에게 commit 보내기'],
+    ['new', '상단바 Notify 스위치 (언제든 알림 켜기·끄기)'],
+    ['fix', '읽음 처리한 알림이 다시 새 알림으로 뜨던 문제'],
+    ['change', 'Shutdown 버튼 제거, 매일 새벽 4시에 자동 정리·기록'],
+    ['fix', 'Deployed ✓ 같은 초록 버튼 글자가 안 보이던 문제'],
+    ['new', '상태 바 접기: 맨 위 가운데 ▴/▾ 줄 (이 기기 화면에서만, 새 상태는 점으로 표시)'],
+    ['fix', 'Excel 테마: 버튼 뒤 눈금선이 글자를 가리던 문제, restart·clear 같은 너비'],
+    ['change', '알림 문구 전체를 영어로 통일 (푸시·Alerts 목록)'],
+    ['change', '알림에서 쓰지 않는 긴급 문구 삭제'],
+    ['change', 'Commit 답글은 받은 사람만 (보낸 쪽엔 Reply 없음, 재답장 없음)'],
+    ['change', 'Alerts 옆 숫자 흔들림 효과 제거'],
+    ['change', '답글: 원문 아래 세로선으로 이어 붙여 표시'],
+    ['change', '답글 입력칸은 Reply 버튼을 눌러야 열림'],
+    ['change', 'Status: 이모지를 바꾸면 한마디가 자동으로 지워짐'],
+    ['new', 'Status: 한마디 옆 × 버튼으로 한 번에 지우기'],
+    ['change', 'Syslog 글: 최대 20000자 (기존 500자)'],
+  ] },
   { id: '2026-11-11-g', date: '11/11', title: 'Syslog', items: [
     ['change', 'Syslog 새 글: 폰은 팝업 입력, PC는 여러 줄(Enter 줄바꿈, Ctrl/⌘+Enter 등록)'],
     ['change', 'Syslog: Urgent·Question 기능 제거'],

@@ -97,7 +97,7 @@ textarea { resize: none; width: 100%; }
 
 .status { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bar-ok); }
-.status.yellow .dot { background: var(--bar-warn); } .status.red .dot { background: var(--bar-crit); } .status.off .dot { background: #9aa5b1; }
+.status.yellow .dot { background: var(--bar-warn); } .status.red .dot { background: var(--bar-crit); }
 .meter { display: flex; flex-direction: column; gap: 4px; }
 .mh { display: flex; gap: 8px; align-items: baseline; }
 .mh .sub { flex: 1; } .pct { font-family: var(--mono); }
@@ -178,7 +178,7 @@ textarea { resize: none; width: 100%; }
 .share { display: flex; flex-direction: column; gap: 8px; }
 .share input { width: 100%; }
 
-.cnt { background: var(--bar-crit); animation: pop 1.2s ease-out 3; }
+.cnt { background: var(--bar-crit); }
 @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
 
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #8b97a6; margin-right: 6px; vertical-align: -1px; }
@@ -575,8 +575,8 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 
 /* 버튼 기능별 색 (굵기 대신 색으로 구분) */
 .btn.k-go:not(.primary) { color: var(--accent); }
-.btn.k-ok { color: var(--ok); }
-.btn.k-keep { color: var(--warn); }
+.btn.k-ok:not(.primary) { color: var(--ok); }
+.btn.k-keep:not(.primary) { color: var(--warn); }
 .btn.k-del:not(.primary) { color: color-mix(in srgb, var(--crit) 75%, var(--sub)); }
 .btn.k-del:not(.primary):hover { color: var(--crit); }
 .btn.k-tg .k-state.on { color: var(--accent); }
@@ -679,7 +679,7 @@ html[data-ui="v2"] .btn:hover { background: var(--hover); color: var(--hi); }
 html[data-ui="v2"] .btn.primary { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border-color: transparent; }
 html[data-ui="v2"] .btn.primary:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 html[data-ui="v2"] .btn.primary.k-del { background: color-mix(in srgb, var(--crit) 20%, transparent); color: var(--crit); }
-html[data-ui="v2"] .btn.k-ok, html[data-ui="v2"] .btn.k-keep, html[data-ui="v2"] .btn.k-go:not(.primary), html[data-ui="v2"] .btn.k-del:not(.primary) { background: transparent; }
+html[data-ui="v2"] .btn.k-ok:not(.primary), html[data-ui="v2"] .btn.k-keep:not(.primary), html[data-ui="v2"] .btn.k-go:not(.primary), html[data-ui="v2"] .btn.k-del:not(.primary) { background: transparent; }
 html[data-ui="v2"] .btn.on, html[data-ui="v2"] .btn.quiet.on { background: var(--soft); color: var(--hi); }
 html[data-ui="v2"] .btn.ghost { background: transparent; }
 /* 칩·필터·입력줄·뱃지 */
@@ -874,8 +874,8 @@ html[data-theme="warm"] { --sub: #635f59; --ts: #60656a; --codecol: #5e666d; --a
 
 /* 새 디자인(v2)에서도 기능별 버튼 색이 유지되게 (v2 의 .btn 글자색보다 우선) */
 html[data-ui="v2"] .btn.k-go:not(.primary) { color: var(--accent); }
-html[data-ui="v2"] .btn.k-ok { color: var(--ok); }
-html[data-ui="v2"] .btn.k-keep { color: var(--warn); }
+html[data-ui="v2"] .btn.k-ok:not(.primary) { color: var(--ok); }
+html[data-ui="v2"] .btn.k-keep:not(.primary) { color: var(--warn); }
 html[data-ui="v2"] .btn.k-del:not(.primary) { color: color-mix(in srgb, var(--crit) 82%, var(--text)); }
 html[data-ui="v2"] .btn.k-del:not(.primary):hover { color: var(--crit); }
 html[data-ui="v2"] .btn.k-tg { color: var(--sub); }
@@ -987,3 +987,46 @@ html[data-theme] .sl-like.own { padding: 0 6px; min-height: 28px; }
 html[data-theme] .sl-like .new-tag, html[data-theme] .sl-like .cl-tag { font-size: 10.5px; padding: 0 4px; margin-left: 2px; }
 .cm-slot.like { min-width: 36px; }
 @media (pointer: coarse) { html[data-theme] .sl-like { min-height: 36px; min-width: 36px; } .cm-slot.like { min-width: 40px; } }
+
+/* 열린 글(두 칸이 아닐 때): 시각·작성자 줄 아래에 내용을 전체 폭으로 — 긴 글이 좁은 칸에 갇히지 않게 */
+.sl.open { flex-wrap: wrap; row-gap: 4px; }
+.sl.open .sl-m { order: 10; flex: 1 1 100%; }
+.sl-split .sl.open { flex-wrap: nowrap; row-gap: 0; }
+.sl-split .sl.open .sl-m { order: 0; flex: 1; }
+
+/* 상단바 알림 스위치 (기존 .btn.ghost.small 과 같은 모양, 켜짐/꺼짐은 점 색으로만 구별) */
+.btn.notify { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn.notify .nd { width: 7px; height: 7px; border-radius: 50%; background: var(--sub); flex: none; }
+.btn.notify.is-on .nd { background: var(--bar-ok, #2f9e44); }
+@media (max-width: 640px) { .btn.notify { padding-left: 7px; padding-right: 7px; } }
+@media (max-width: 640px) { .brand .env { display: none; } .brand b { white-space: nowrap; } }
+/* Status 한마디 입력칸 + 한 번에 지우기 버튼 */
+.msgrow { display: flex; gap: 6px; align-items: stretch; }
+.msgrow input { flex: 1; min-width: 0; }
+.msgrow .btn { flex: none; padding-left: 12px; padding-right: 12px; }
+
+/* 답글 줄: 원문 아래에 붙어 있는 스레드처럼 (왼쪽 세로선·들여쓰기·촘촘한 간격) */
+.rv-thread { margin: 2px 0 0 4px; padding-left: 12px; border-left: 2px solid color-mix(in srgb, var(--accent) 35%, var(--line)); gap: 0; }
+.rv-thread .cm { padding: 4px 0; row-gap: 0; }
+html[data-theme] .rv-thread .cm { padding: 4px 0; row-gap: 0; }
+.rv-thread .cm + .cm { border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent); }
+.rv-thread .cm-text { font-size: 13px; }
+html[data-theme] .rv-thread .cm-text { font-size: 14px; line-height: 1.5; }
+.rv-thread > .row { margin-top: 6px; }
+@media (max-width: 640px) { .rv-thread { margin-left: 2px; padding-left: 10px; } .rv-thread .cm-slot { min-height: 32px; } }
+@media (max-width: 480px) { .btn.notify .ns { display: none; } }   /* 좁은 폰: 켜짐/꺼짐은 점 색(초록/회색)으로 */
+@media (max-width: 480px) { .right { gap: 2px; } .right .btn.small { padding-left: 6px; padding-right: 6px; } .brand { gap: 6px; } .brand b { letter-spacing: -.6px; } }
+@media (max-width: 480px) { .brand .bw { display: none; } }   /* 좁은 폰: 상단바 이름은 Monitor 만 */
+/* 상태 바 접기: 맨 위 가운데 한 줄(▴/▾ Status). 접어도 펴도 같은 자리, 좌우 대칭 */
+.mood { flex-wrap: wrap; row-gap: 2px; }
+.mood .mfold { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: center; gap: 6px; position: relative; height: 20px; padding: 0; border: 0; background: transparent; color: var(--sub); font: 11px var(--mono); cursor: pointer; border-radius: 4px; }
+.mood .mfold:hover { background: var(--hover); color: var(--text); }
+.mood .mfold .ndot { position: static; width: 8px; height: 8px; border-radius: 50%; background: var(--bar-crit); }
+.mood.folded { row-gap: 0; }
+html[data-theme] .mood > .mfold { padding: 0; }
+@media (pointer: coarse), (max-width: 640px) { .mood .mfold { height: 30px; font-size: 12px; } }
+/* Excel 테마: 투명 버튼 뒤로 눈금선이 글자를 가로지르지 않게 */
+html[data-theme="excel"] .btn.ghost, html[data-theme="excel"] .btn.quiet, html[data-theme="excel"] .grep { background: var(--panel); }
+html[data-theme="excel"] .btn.ghost:hover, html[data-theme="excel"] .btn.quiet:hover { background: var(--hover); }
+/* 콘솔 grep 줄: restart · clear 는 같은 너비 */
+.toolbar > .btn { min-width: 76px; text-align: center; }

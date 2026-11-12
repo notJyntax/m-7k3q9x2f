@@ -7,7 +7,7 @@ import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 import { CHANGELOG } from './changelog.js';
 
-const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies'];
+const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
 // 기본 테마(회사에서 보기 좋은 차분한 톤)와 스페셜 테마(기분 전환용). 스페셜은 강조색·버튼색까지 테마마다 달라요.
 const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk'], ['n-frost', 'Frost']];
@@ -41,7 +41,7 @@ const sd = (id) => (S.store && S.store.get('shared', id)) || {};
 const meta = () => (S.store && S.store.get('@', 'meta')) || {};
 const logsAll = () => rows('@').filter((r) => r.type === 'log').sort((a, b) => a.ts - b.ts);
 const dayLogs = (day) => logsAll().filter((l) => l.day === day);
-const todayLogs = () => { const ls = meta().lastShutdown || 0; return dayLogs(dayKey()).filter((l) => l.ts > ls); };
+const todayLogs = () => dayLogs(dayKey());
 const keeps = () => rows('@').filter((r) => r.type === 'keep').sort((a, b) => b.ts - a.ts);
 const setMeta = (f) => S.store.patch('@', 'meta', { type: 'meta', ...f });
 const dayMs = (day) => new Date(day + 'T12:00:00').getTime();
@@ -77,7 +77,7 @@ function weekDays() {
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? h('h3', { text: title }) : null, ...kids);
 const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
 // 버튼은 기능별로 색을 달리한다 (굵기 X): 보내기·추가=파랑, 해결·확인=초록, 삭제·중단=빨강, 보관=노랑, 설정 켜고 끄기=상태만 색, 나머지(취소·닫기·이동)=회색
-const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Shutdown|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you|Confirm)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/]];
+const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you|Confirm)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/]];
 const btnKind = (label) => (BTN_KIND.find(([, re]) => re.test(String(label))) || [''])[0];
 // Edit·Delete·Keep·Resolve·Share·Copy 같은 짧은 동작 버튼은 글자 대신 아이콘으로 (이름은 마우스를 올리거나 읽어 줄 때 나온다)
 const ICONS = {
@@ -127,7 +127,7 @@ const GOOD_LABEL = 'CACHE';
 const goodMeter = (v) => h('div', { class: 'meter' },
   h('div', { class: 'mh' }, h('b', { text: GOOD_LABEL }), h('span', { class: 'pct', text: clamp(v | 0) + '%' })),
   h('div', { class: 'bar' }, h('i', { class: 'ok', style: `width:${clamp(v | 0)}%` })));
-const statusPill = (level, off) => h('div', { class: 'status ' + (off ? 'off' : level) }, h('span', { class: 'dot' }), h('b', { text: off ? 'Maintenance — offline' : L.STATUS_TEXT[level] }));
+const statusPill = (level) => h('div', { class: 'status ' + level }, h('span', { class: 'dot' }), h('b', { text: L.STATUS_TEXT[level] }));
 
 function errText(e) {
   if (e?.code === '42501') return '이 작업은 지금 계정의 역할로는 할 수 없어요.';
@@ -293,6 +293,7 @@ async function refreshPush() {
     try { await Push.enablePush(S.sb); S.push = await Push.pushState(); } catch (e) { console.warn('push restore', e); }
   }
   schedule();
+  if (S.ready) renderChrome();
   if (S.push === 'on') { lsSet('svcmon.push.want', true); Push.enablePush(S.sb).catch((e) => console.warn('push sync', e)); } // 이 기기의 구독이 현재 계정 것으로 저장되게 맞춘다
 }
 function onReady() {
@@ -322,14 +323,17 @@ function go(tab) { if (S.tab === 'syslog' && tab !== 'syslog') S.sys?.open.clear
 // ── 새 항목 알림: 탭 옆 빨간 숫자 (그 탭을 열면 사라짐, 기기별로 기억) ──
 const seenKey = (tab) => `svcmon.seen.${S.sandbox ? 'sb' : S.cloud ? 'c' : 'l'}.${S.role}.${tab}`;
 const seenAt = (tab) => lsGet(seenKey(tab), 0);
-const markSeen = (tab) => { if (tab) lsSet(seenKey(tab), Date.now()); };
+// 상대 기기의 시계가 이 기기보다 앞서 있으면 상대가 쓴 글의 시각(ts)이 '지금'보다 미래가 되어 읽음 처리해도 계속 새 글로 남는다. 읽음 시각은 상대 글 중 가장 늦은 시각까지 포함한다.
+const latestOtherTs = () => { let m = 0; for (const c of ['posts', 'post_comments', 'comment_likes', 'reviews', 'review_replies', 'lines', 'commits', 'commit_replies', 'agendas', 'agenda_comments', 'plan_log', 'checkins', 'alerts']) for (const r of rows(c)) if ((r.by == null || r.by !== roleName()) && r.ts > m && r.ts < Date.now() + 864e5) m = r.ts; return m; };   // 하루 넘게 앞선 시각은 오류로 보고 무시
+const seenNow = () => Math.max(Date.now(), latestOtherTs());
+const markSeen = (tab) => { if (tab) lsSet(seenKey(tab), seenNow()); };
 const newReviewTalk = (since) => rows('review_replies').filter((c) => c.by !== roleName() && c.ts > since).length + rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== roleName() && l.ts > since).length;
 function newCounts() {
   const now = Date.now();
   if (isWriter()) {
     const sIn = seenAt('inbox');
     return {
-      inbox: (pendingCheckin() ? 1 : 0) + (sd('status').dnd ? 0 : rows('commits').filter((c) => c.deliverAt <= now && c.deliverAt > sIn).length) + rows('reviews').filter((r) => r.ts > sIn).length + newReviewTalk(sIn) + (clUnread().length ? 1 : 0),
+      inbox: (pendingCheckin() ? 1 : 0) + (sd('status').dnd ? 0 : rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now && c.deliverAt > sIn).length) + rows('commits').filter((c) => c.by === 'writer' && c.ackAt > sIn).length + rows('commit_replies').filter((r) => r.by !== 'writer' && r.ts > sIn).length + rows('reviews').filter((r) => r.ts > sIn).length + newReviewTalk(sIn) + (clUnread().length ? 1 : 0),
       syslog: newSyslog(),
       plan: planNeeds() + newAgendas(),
     };
@@ -337,7 +341,7 @@ function newCounts() {
   return {
     overview: rows('alerts').filter((a) => !a.ackAt).length + (checkinToday()?.status === 'answered' && checkinToday().answeredAt > seenAt('overview') ? 1 : 0) + (clUnread().length ? 1 : 0),
     queue: rows('lines').filter((l) => l.ts > seenAt('queue')).length + newReviewTalk(seenAt('queue')),
-    send: rows('commits').filter((c) => c.ackAt && c.ackAt > seenAt('send')).length,
+    send: rows('commits').filter((c) => c.ackAt && (c.by || 'listener') === 'listener' && c.ackAt > seenAt('send')).length + rows('commits').filter((c) => c.by === 'writer' && c.ts > seenAt('send')).length + rows('commit_replies').filter((r) => r.by !== 'listener' && r.ts > seenAt('send')).length,
     syslog: newSyslog(),
     plan: planNeeds() + newAgendas(),
   };
@@ -351,30 +355,33 @@ const notifKey = () => `svcmon.notif.${S.sandbox ? 'sb' : S.cloud ? 'c' : 'l'}.$
 function activityFeed() {
   if (!S.store || !S.ready) return [];
   const me = roleName(), now = Date.now(), out = [], other = (x) => x.by && x.by !== me;
-  const add = (ts, tab, tag, text, extra = {}) => { if (ts) out.push({ id: `${tab}|${ts}|${text}|${extra.post || extra.agenda || extra.mood || extra.line || ''}`, ts, tab, tag, text, ...extra }); };
-  posts().filter(other).forEach((p) => add(p.ts, 'syslog', 'Syslog', '새 항목이 등록됐어요', { post: p.id }));
-  rows('post_comments').filter(other).forEach((c) => add(c.ts, 'syslog', 'Syslog', c.ack ? '항목을 확인했어요' : '새 응답이 등록됐어요', { post: c.postId }));
-  rows('comment_likes').filter((l) => l.on && l.by !== me).forEach((l) => (l.postId ? add(l.ts, 'syslog', 'Syslog', '내 응답에 반응이 기록됐어요', { post: l.postId }) : add(l.ts, 'plan', 'Agenda', '내 응답에 반응이 기록됐어요', { agenda: l.agendaId })));
-  rows('agendas').filter(other).forEach((a) => { add(a.ts, 'plan', 'Agenda', '새 Weekly Agenda가 등록됐어요', { agenda: a.id }); if (a.resolvedAt) add(a.resolvedAt, 'plan', 'Agenda', 'Weekly Agenda가 해결됐어요', { agenda: a.id }); });
-  rows('agenda_comments').filter(other).forEach((c) => add(c.ts, 'plan', 'Agenda', '새 응답이 등록됐어요', { agenda: c.agendaId }));
+  const add = (ts, tab, tag, text, extra = {}) => { if (ts) out.push({ id: `${extra.mood ? 'status' : tab}|${ts}|${text}|${extra.post || extra.agenda || extra.mood || extra.line || extra.commit || ''}`, ts, tab, tag, text, ...extra }); };   // id 는 지금 보는 탭과 상관없이 항상 같아야 '읽음'이 유지된다
+  posts().filter(other).forEach((p) => add(p.ts, 'syslog', 'Syslog', 'New entry', { post: p.id }));
+  rows('post_comments').filter(other).forEach((c) => add(c.ts, 'syslog', 'Syslog', c.ack ? 'Entry acknowledged' : 'New reply', { post: c.postId }));
+  rows('comment_likes').filter((l) => l.on && l.by !== me && !l.lineId).forEach((l) => (l.commitId ? add(l.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'New reaction', { commit: l.commitId }) : l.postId ? add(l.ts, 'syslog', 'Syslog', 'New reaction', { post: l.postId }) : add(l.ts, 'plan', 'Agenda', 'New reaction', { agenda: l.agendaId })));
+  rows('commit_replies').filter(other).forEach((c) => add(c.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'New reply', { commit: c.commitId }));
+  rows('agendas').filter(other).forEach((a) => { add(a.ts, 'plan', 'Agenda', 'New agenda', { agenda: a.id }); if (a.resolvedAt) add(a.resolvedAt, 'plan', 'Agenda', 'Agenda resolved', { agenda: a.id }); });
+  rows('agenda_comments').filter(other).forEach((c) => add(c.ts, 'plan', 'Agenda', 'New reply', { agenda: c.agendaId }));
   rows('plan_log').forEach((l) => {
-    if (l.by !== me && l.status === 'pending') add(l.ts, 'plan', 'Plan', l.action === 'remove' ? '일정 삭제 승인 요청이 있어요' : '새 일정 승인 요청이 있어요');
-    if (l.by === me && l.decidedAt && (l.status === 'approved' || l.status === 'rejected')) add(l.decidedAt, 'plan', 'Plan', `일정${l.action === 'remove' ? ' 삭제' : ''}이 ${l.status === 'approved' ? '승인' : '거절'}됐어요`);
+    if (l.by !== me && l.status === 'pending') add(l.ts, 'plan', 'Plan', l.action === 'remove' ? 'Removal approval request' : 'New approval request');
+    if (l.by === me && l.decidedAt && (l.status === 'approved' || l.status === 'rejected')) add(l.decidedAt, 'plan', 'Plan', `Schedule ${l.action === 'remove' ? 'removal ' : ''}${l.status === 'approved' ? 'approved' : 'rejected'}`);
   });
-  const mood = sd('me_' + otherRole()); if (mood.ts && (mood.emoji || mood.text)) add(mood.ts, S.tab, 'Status', '상대가 상태를 바꿨어요', { mood: 'status' });
-  const rea = sd('react_' + otherRole()); if (rea.ts && rea.emoji) add(rea.ts, S.tab, 'Status', '상대가 내 상태에 반응했어요', { mood: 'react' });
+  const mood = sd('me_' + otherRole()); if (mood.ts && (mood.emoji || mood.text)) add(mood.ts, S.tab, 'Status', 'Status changed', { mood: 'status' });
+  const rea = sd('react_' + otherRole()); if (rea.ts && rea.emoji) add(rea.ts, S.tab, 'Status', 'New reaction', { mood: 'react' });
   const rtab = isWriter() ? 'inbox' : 'queue', rtag = isWriter() ? 'Inbox' : 'Queue';
-  rows('review_replies').filter(other).forEach((c) => add(c.ts, rtab, rtag, '검토 의견에 응답이 등록됐어요', { line: c.lineId }));
-  rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== me).forEach((l) => add(l.ts, rtab, rtag, '내 응답에 반응이 기록됐어요', { line: l.lineId }));
+  rows('review_replies').filter(other).forEach((c) => add(c.ts, rtab, rtag, 'New reply', { line: c.lineId }));
+  rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== me).forEach((l) => add(l.ts, rtab, rtag, 'New reaction', { line: l.lineId }));
   if (isWriter()) {
-    rows('reviews').forEach((r) => add(r.ts, 'inbox', 'Inbox', '새 검토 의견이 도착했어요', { line: r.lineId }));
-    if (!sd('status').dnd) rows('commits').filter((c) => c.deliverAt <= now).forEach((c) => add(c.deliverAt, 'inbox', 'Inbox', '새 commit이 도착했어요'));
-    rows('checkins').filter((c) => c.status === 'asked').forEach((c) => add(c.ts, 'inbox', 'Inbox', '상대가 무슨 일 있는지 물어봤어요'));
+    rows('reviews').forEach((r) => add(r.ts, 'inbox', 'Inbox', 'New review comment', { line: r.lineId }));
+    if (!sd('status').dnd) rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now).forEach((c) => add(c.deliverAt, 'inbox', 'Inbox', 'New commit', { commit: c.id }));
+    rows('commits').filter((c) => c.by === 'writer' && c.ackAt).forEach((c) => add(c.ackAt, 'inbox', 'Inbox', 'Your commit was read', { commit: c.id }));
+    rows('checkins').filter((c) => c.status === 'asked').forEach((c) => add(c.ts, 'inbox', 'Inbox', 'Asked what is going on'));
   } else {
-    rows('lines').forEach((l) => add(l.ts, 'queue', 'Queue', '새 공유 로그가 있어요'));
-    rows('alerts').forEach((x) => add(x.ts, 'overview', 'Overview', '안부 확인 신호가 도착했어요'));
-    rows('commits').filter((c) => c.ackAt).forEach((c) => add(c.ackAt, 'send', 'Send', '배포 성공 신호가 도착했어요'));
-    rows('checkins').filter((c) => c.status === 'answered' && c.answeredAt).forEach((c) => add(c.answeredAt, 'overview', 'Overview', '체크인 답장이 도착했어요'));
+    rows('lines').forEach((l) => add(l.ts, 'queue', 'Queue', 'New shared log'));
+    rows('alerts').forEach((x) => add(x.ts, 'overview', 'Overview', 'Care check received'));
+    rows('commits').filter((c) => c.ackAt && (c.by || 'listener') === 'listener').forEach((c) => add(c.ackAt, 'send', 'Send', 'Your commit was deployed', { commit: c.id }));
+    rows('commits').filter((c) => c.by === 'writer').forEach((c) => add(c.ts, 'send', 'Send', 'New commit', { commit: c.id }));
+    rows('checkins').filter((c) => c.status === 'answered' && c.answeredAt).forEach((c) => add(c.answeredAt, 'overview', 'Overview', 'Reply received'));
   }
   return out.sort((x, y) => y.ts - x.ts).slice(0, 100);
 }
@@ -382,9 +389,14 @@ function activityFeed() {
 const notifReadKey = () => notifKey() + '.read';
 const notifRead = () => new Set(lsGet(notifReadKey(), []));
 const isUnreadItem = (i, base, read) => i.ts > base && !read.has(i.id);
-const notifUnread = () => { const base = lsGet(notifKey(), 0), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
+// 알림 문구가 영어로 바뀌면서 알림 id 가 달라졌다: 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다(옛 id 의 읽음 표시가 사라져 다시 새 알림으로 뜨는 걸 막는다)
+function migrateNotifIds() {
+  if (!S.ready || lsGet(notifKey() + '.en', false)) return;
+  lsSet(notifKey() + '.en', true); markAllRead();
+}
+const notifUnread = () => { migrateNotifIds(); const base = lsGet(notifKey(), 0), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
 function markRead(id) { const r = notifRead(); r.add(id); lsSet(notifReadKey(), [...r].slice(-300)); }
-function markAllRead() { lsSet(notifKey(), Date.now()); lsSet(notifReadKey(), []); }
+function markAllRead() { lsSet(notifKey(), seenNow()); lsSet(notifReadKey(), []); }
 function closeNotif() { S.notifOpen = false; $('#notif')?.remove(); }
 function toggleNotif() { if (S.notifOpen) { closeNotif(); renderChrome(); return; } S.notifOpen = true; renderNotif(); renderChrome(); }
 function renderNotif() {
@@ -400,7 +412,7 @@ function renderNotif() {
   const el = h('section', { id: 'notif', class: 'notif', role: 'dialog', 'aria-label': 'Alerts' },
     h('div', { class: 'nt-h' }, h('b', { text: '# Alerts' }), h('span', { class: 'sub', text: unread ? `${unread} unread` : 'all read' }), h('span', { class: 'sp' }),
       unread ? btn('Mark all read', () => { markAllRead(); redo(); }, 'small quiet') : null, btn('Close', () => { closeNotif(); renderChrome(); }, 'small quiet')),
-    h('div', { class: 'nt-l' }, list), h('p', { class: 'nt-f', text: '내용 없이 종류만 보여요. 누르면 그 자리로 이동하고 읽음 처리돼요.' }));
+    h('div', { class: 'nt-l' }, list), h('p', { class: 'nt-f', text: 'Shows the type only, never the content. Tap one to jump there and mark it read.' }));
   document.body.append(el);
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.notifOpen) { closeNotif(); renderChrome(); } });
@@ -412,7 +424,7 @@ function openActivity(i) {
   go(i.tab);
   if (i.mood) { i.mood === 'status' ? openTheirMood() : openTheirMood(); return; }
   setTimeout(() => {
-    const el = i.post ? document.querySelector(`[data-pid="${i.post}"]`) : i.agenda ? document.querySelector(`[data-aid="${i.agenda}"]`) : i.line ? document.querySelector(`[data-lid="${i.line}"]`) : null;
+    const el = i.commit ? document.querySelector(`[data-cid="${i.commit}"]`) : i.post ? document.querySelector(`[data-pid="${i.post}"]`) : i.agenda ? document.querySelector(`[data-aid="${i.agenda}"]`) : i.line ? document.querySelector(`[data-lid="${i.line}"]`) : null;
     if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('jump'); setTimeout(() => el.classList.remove('jump'), 1600); }
   }, 60);
 }
@@ -448,16 +460,15 @@ function renderChrome() {
   }
   const wr = isWriter();
   const lvl = S.store ? (wr ? metrics().level : (sd('status').level || 'green')) : 'green';
-  const off = S.store && !wr ? !!sd('status').off : false;
   top.replaceChildren(
-    h('div', { class: 'brand' }, h('span', { class: 'logo', text: '◧' }), h('b', { text: 'Service Monitor' }), h('span', { class: 'env', text: 'prod-api-02' })),
+    h('div', { class: 'brand' }, h('span', { class: 'logo', text: '◧' }), h('b', {}, h('span', { class: 'bw', text: 'Service ' }), 'Monitor'), h('span', { class: 'env', text: 'prod-api-02' })),
     h('div', { class: 'right' },
       S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, 'Alerts', notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
+      S.store ? notifyBtn() : null,
       btn('↻', doRefresh, 'ghost small refresh' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
       btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' }),
-      S.store ? h('span', { class: 'live ' + (off ? 'off' : lvl), title: L.STATUS_TEXT[lvl], text: off ? 'offline' : { green: 'healthy', yellow: 'degraded', red: 'outage' }[lvl] }) : null,
-      S.store ? h('span', { class: 'mode', text: S.sandbox ? 'sandbox' : S.cloud ? 'shared' : 'local' }) : null,
-      S.store && wr ? btn('Shutdown ⏻', () => openShutdown(), 'ghost small') : null));
+      S.store ? h('span', { class: 'live ' + lvl, title: L.STATUS_TEXT[lvl], text: { green: 'healthy', yellow: 'degraded', red: 'outage' }[lvl] }) : null,
+      S.store ? h('span', { class: 'mode', text: S.sandbox ? 'sandbox' : S.cloud ? 'shared' : 'local' }) : null));
   tabs.replaceChildren(...(S.store ? tabsFor(counts) : []).map(([id, label, n]) => h('button', { type: 'button', class: 'tab t-' + id + (S.tab === id ? ' on' : ''), on: { click: () => go(id) } }, label, n ? h('span', { class: 'cnt', text: n }) : null)));
   dock.hidden = !(S.ready && wr && S.tab === 'console' && S.canWrite);
   renderMood();
@@ -490,24 +501,31 @@ function renderMood() {
   if (!S.ready || !S.store) { box.hidden = true; return; }
   const me = moodDoc(roleName()), they = moodDoc(otherRole());
   if (S.prevMood == null) S.prevMood = they.ts || 0; // 처음 열 때는 알리지 않고 기준만 잡는다
-  else if ((they.ts || 0) > S.prevMood) { S.prevMood = they.ts; toast(`${otherName()}가 상태를 바꿨어요 ${they.emoji || ''}`.trim()); }
+  else if ((they.ts || 0) > S.prevMood) { S.prevMood = they.ts; toast(`Status changed ${they.emoji || ''}`.trim()); }
   const isNew = (they.ts || 0) > seenAt('mood');
   const theirR = reactDoc(otherRole()), onMe = reactOn(otherRole(), me.ts);
   if (S.prevReact == null) S.prevReact = theirR.ts || 0;
-  else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`${otherName()}가 내 상태에 ${onMe} 반응했어요`); }
+  else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`New reaction ${onMe}`); }
   box.hidden = false;
-  box.replaceChildren(
+  // 접어 두면 이 기기 화면에서만 가려진다(상대에게는 그대로 보이고, 새 상태가 오면 점으로만 알려 준다)
+  const folded = lsGet('svcmon.mood.fold', false), fold = (v) => () => { lsSet('svcmon.mood.fold', v); renderMood(); };
+  box.classList.toggle('folded', folded);
+  // 접고 펴는 줄은 항상 맨 위 가운데(좌우 대칭): 접어도 펴도 같은 자리
+  const handle = h('button', { type: 'button', class: 'mfold', title: folded ? 'Show status bar' : 'Hide status bar', 'aria-label': folded ? 'Show status bar' : 'Hide status bar', 'aria-expanded': String(!folded), on: { click: fold(!folded) } },
+    folded ? '▾' : '▴', h('span', { class: 'ml', text: 'Status' }), folded && (isNew || onMe) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
+  if (folded) { box.replaceChildren(handle); return; }
+  box.replaceChildren(handle,
     moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
     moodChip(they, { name: '1', me: false, isNew, title: 'Status 1', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
 }
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';
   const text = h('input', { type: 'text', maxLength: 20, placeholder: '한마디 (선택) 예: 회의 중, 9시 이후 가능', value: cur.text || '' });
-  const opt = ([e, l]) => h('button', { type: 'button', class: 'mopt' + (e === pick ? ' on' : ''), title: l, on: { click: (ev) => { pick = e; body.querySelectorAll('.mopt').forEach((b) => b.classList.toggle('on', b === ev.currentTarget)); } } }, h('span', { class: 'me-e', text: e }), h('small', { text: l }));
+  const opt = ([e, l]) => h('button', { type: 'button', class: 'mopt' + (e === pick ? ' on' : ''), title: l, on: { click: (ev) => { if (e !== pick) text.value = ''; pick = e; body.querySelectorAll('.mopt').forEach((b) => b.classList.toggle('on', b === ev.currentTarget)); } } }, h('span', { class: 'me-e', text: e }), h('small', { text: l }));
   const body = h('div', { class: 'share' },
     h('div', { class: 'mlab', text: 'Activity' }), h('div', { class: 'mgrid' }, MOODS_ACTIVITY.map(opt)),
     h('div', { class: 'mlab', text: 'Mood' }), h('div', { class: 'mgrid' }, MOODS_FEELING.map(opt)),
-    text);
+    h('div', { class: 'msgrow' }, text, btn('×', () => { text.value = ''; text.focus(); }, 'small', { title: 'Clear message', 'aria-label': 'Clear message' })));
   modal({ title: 'Status 0', body,
     actions: [{ label: 'Clear', cls: 'small danger', fn: () => saveMood('', '') }, { label: 'Cancel', cls: 'small' }, { label: 'Save', cls: 'primary', fn: () => saveMood(pick, text.value.trim()) }] });
 }
@@ -628,8 +646,8 @@ function viewConsole() {
   const wrap = h('div', { class: 'console' });
   if (!m.introSeen) {
     wrap.append(card('Welcome', note(S.cloud
-      ? '여기에 적은 원문은 내 비공개 영역에만 저장돼요. 이 앱 화면에서는 상대가 볼 수 없어요. 내가 "공유"를 누른 줄만 상대에게 가고, 공유하면 원문도 함께 보여요. Shutdown(퇴근) 후에도 내 기록은 Archive 탭에 날짜별로 남아요.'
-      : '여기에 적은 내용은 이 기기에만 저장돼요. Shutdown(퇴근) 후에도 기록은 Archive 탭에 날짜별로 남아요.'),
+      ? '여기에 적은 원문은 내 비공개 영역에만 저장돼요. 이 앱 화면에서는 상대가 볼 수 없어요. 내가 "공유"를 누른 줄만 상대에게 가고, 공유하면 원문도 함께 보여요. 매일 새벽 4시에 그날 것이 자동으로 정리되고, 내 기록은 Archive 탭에 날짜별로 남아요.'
+      : '여기에 적은 내용은 이 기기에만 저장돼요. 매일 새벽 4시에 그날 것이 자동으로 정리되고, 기록은 Archive 탭에 날짜별로 남아요.'),
     btn('OK', act(() => setMeta({ introSeen: true })), 'primary small')));
   }
   if (S.care) {
@@ -667,8 +685,7 @@ function runCmd(t) {
   else if (c === 'restart') openRestart();
   else if (c === 'report') go('report');
   else if (c === 'status') go('dash');
-  else if (c === 'exit' || c === 'shutdown') openShutdown();
-  else if (c === 'help') toast('/grep 검색어 · /clear · /restart · /status · /report · /exit(퇴근)');
+  else if (c === 'help') toast('/grep 검색어 · /clear · /restart · /status · /report');
   else toast('unknown command: ' + c);
 }
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -790,7 +807,7 @@ function weekBars() {
 function viewDash() {
   const m = metrics();
   return h('div', { class: 'grid' },
-    card('Service status', statusPill(m.level, false)),
+    card('Service status', statusPill(m.level)),
     card('Resources', stackMeter('CPU', m.cpu, m.mem), goodMeter(m.pos), meter('DISK', m.disk, 'disk')),
     card('Today', h('div', { class: 'counts' }, L.LEVELS.map((lv) => h('div', { class: 'cnt-box lv-' + lv }, h('b', { text: m[lv] }), h('span', { text: lv }))))),
     card('This week — incidents (ERROR+FATAL)', weekBars()));
@@ -809,6 +826,41 @@ function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, on
     h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), extra ? h('span', { class: 'cm-slot xtra' }, extra) : null, h('span', { class: 'cm-slot edit' }, onEdit ? btn('Edit', onEdit, 'small quiet') : null), h('span', { class: 'cm-slot del' }, onDel ? btn('Delete', act(onDel), 'small quiet del') : null)),
     h('div', { class: 'cm-text', text }));
 }
+// ── commit 주고받기: 리스너·작성자 모두 보낼 수 있고, 받은 commit 에는 답글과 하트를 남길 수 있다 ──
+// 답글 입력칸은 Reply 버튼을 눌러야 열린다 (열린 칸은 화면을 다시 그려도 유지, 보내거나 Cancel/Esc 로 닫힘)
+function replyArea(key, box, send) {
+  S.replyOpen ??= new Set();
+  const close = () => { S.replyOpen.delete(key); renderView(); };
+  if (!S.replyOpen.has(key)) return h('div', { class: 'row' }, btn('Reply', () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, 'small'));
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  return h('div', { class: 'row' }, box, btn('Send', send, 'small primary'), btn('Cancel', close, 'small'));
+}
+const commitReplies = (id) => rows('commit_replies').filter((r) => r.commitId === id).sort((a, b) => a.ts - b.ts);
+// 답글은 commit 을 받은 쪽(view 'in')만 쓴다. 보낸 쪽(view 'out')은 받은 사람의 답글을 읽기만 한다 (재답장 없음)
+function commitThread(c, view) {
+  const me = roleName();
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'cr-' + c.id, enterkeyhint: 'send', autocomplete: 'off' });
+  const send = act(async () => { if (await sendField(box, (t) => S.store.set('commit_replies', 'cr_' + uid(), { commitId: c.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) { S.replyOpen.delete('cr-' + c.id); renderView(); } });
+  onEnter(box, send);
+  const list = commitReplies(c.id);
+  if (view !== 'in' && !list.length) return null;
+  return h('div', { class: 'sl-thread rv-thread' },
+    list.map((r) => cmtRow({ time: hm(r.ts), by: `by ${r.by === me ? '0' : '1'}`, them: r.by !== me, text: r.text, edited: r.editedAt, like: likeBtn(r, { commitId: c.id }, me),
+      onEdit: r.by === me ? () => editText({ title: 'Edit reply', text: r.text, max: 200, onSave: (t) => S.store.patch('commit_replies', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: r.by === me ? () => S.store.del('commit_replies', r.id) : null })),
+    view === 'in' ? replyArea('cr-' + c.id, box, send) : null);
+}
+// view: 'in' = 내가 받은 commit(확인·하트·답글), 'out' = 내가 보낸 commit(상태·예약 취소·삭제·상대의 답글)
+function commitItem(c, view) {
+  const me = roleName(), sender = c.by || 'listener', now = Date.now(), co = { ...c, by: sender };
+  const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: (view === 'out' ? 'sent ' : 'commit ') + c.sha }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }),
+    view === 'out' ? (c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(sender === 'listener' ? 'deployed ✓' : 'read ✓', 'ok') : badge('delivered')) : null);
+  const ackLabel = sender === 'listener' ? 'Deployed ✓' : 'Got it';
+  const actions = view === 'in'
+    ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), likeBtn(co, { commitId: c.id }, me), sender === 'listener' ? keepBtn(c.text, c.id) : null)
+    : h('div', { class: 'row' }, likeBtn(co, { commitId: c.id }, me), c.deliverAt > now ? btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small danger') : btn('Delete', () => modal({ title: '이 메시지를 삭제할까요?', body: note('답글과 하트도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('commits', c.id)) }] }), 'small quiet del'));
+  return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
+}
+const commitComposer = (id, title, extra) => card(title, h('textarea', { id, rows: 2, maxLength: 200, placeholder: 'commit message' }), extra);
 // 공유 로그의 리뷰 코멘트 한 줄(리스너가 쓰고 작성자가 읽는다): 답글 줄과 같은 모양(시각·작성자·내용, 오른쪽 고정 버튼 칸)
 function reviewRow(ln, r, role) {
   const mine = role === 'listener';
@@ -818,23 +870,26 @@ function reviewRow(ln, r, role) {
 function reviewThread(ln, r) {
   const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
   const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'rr-' + r.id, enterkeyhint: 'send', autocomplete: 'off' });
-  const send = act(async () => { await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() })); });
+  const send = act(async () => { if (await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) { S.replyOpen.delete('rr-' + r.id); renderView(); } });
   onEnter(box, send);
   return h('div', { class: 'sl-thread rv-thread' },
     reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), like: likeBtn(c, { lineId: ln.id }, me),
       onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
-    h('div', { class: 'row' }, box, btn('Reply', send, 'small primary')));
+    replyArea('rr-' + r.id, box, send));
 }
 function viewInbox() {
   const now = Date.now(), dnd = sd('status').dnd;
-  const cm = rows('commits').filter((c) => c.deliverAt <= now).sort((a, b) => b.deliverAt - a.deliverAt);
+  const cm = rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now).sort((a, b) => b.deliverAt - a.deliverAt);
   const lines = [...rows('lines')].sort((a, b) => b.ts - a.ts).map((ln) => [ln, rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts)]).filter(([, rv]) => rv.length);
   const kp = keeps();
   return h('div', { class: 'grid' }, checkinCardW(), updatesCard(),
     card('Commits', dnd ? note('Do not disturb 가 켜져 있어요. 도착한 메시지는 끌 때까지 숨겨져요.')
-      : cm.length ? cm.map((c) => h('div', { class: 'item' }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'commit ' + c.sha }), h('span', { class: 'sub', text: hm(c.deliverAt) })), h('p', { class: 'msgtext', text: c.text }),
-        h('div', { class: 'row' }, c.ack ? badge('deployed ✓ ' + hm(c.ackAt), 'ok') : btn('Deployed ✓', act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), keepBtn(c.text, c.id))))
-        : empty('새 커밋 없음')),
+      : cm.length ? cm.map((c) => commitItem(c, 'in')) : empty('새 커밋 없음')),
+    commitComposer('wcm-text', 'Send commit', h('div', { class: 'row' }, btn('Commit', act(async () => {
+      if (!$('#wcm-text').value.trim()) return toast('메시지를 적어주세요');
+      await sendField($('#wcm-text'), (t) => S.store.set('commits', 'cm_' + uid(), { by: 'writer', ts: Date.now(), day: dayKey(), deliverAt: Date.now(), text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
+    }), 'primary'))),
+    rows('commits').some((c) => c.by === 'writer') ? card('Sent', ...rows('commits').filter((c) => c.by === 'writer').sort((a, b) => b.ts - a.ts).map((c) => commitItem(c, 'out'))) : null,
     card('Code review', lines.length ? lines.map(([ln, rv]) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono', text: ln.text }), rv.map((r) => reviewRow(ln, r, 'writer')))) : empty('리뷰 댓글 없음')),
     card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), btn('Delete', act(() => S.store.del('@', k.id)), 'small danger')))) : empty('아직 없음'),
       kp.some((k) => k.kind === 'learned') ? h('div', { class: 'learned' }, h('b', { text: 'Learned today' }), kp.filter((k) => k.kind === 'learned').slice(0, 7).map((k) => h('p', { class: 'msgtext', text: `${k.day} · ${k.text}` }))) : null),
@@ -1115,13 +1170,27 @@ function viewSettingsW() {
     card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
     pushCard(), themeCard(), modeCard());
 }
+const pushOn = act(async () => {
+  try { await Push.enablePush(S.sb); toast('이 기기에서 알림을 켰어요.'); } catch (e) { if (e?.message === 'denied') toast('알림이 허용되지 않았어요. 기기 설정에서 허용해 주세요.'); else throw e; }
+  await refreshPush();
+});
+const pushOff = act(async () => { lsSet('svcmon.push.want', false); await Push.disablePush(S.sb); toast('이 기기의 알림을 껐어요.'); await refreshPush(); });
+/** 상단바 알림 스위치: 켜짐/꺼짐은 바로 전환, 켤 수 없는 상태는 이유를 안내 */
+function notifyBtn() {
+  const st = S.push, on = st === 'on';
+  const click = () => {
+    if (st === 'on') return pushOff();
+    if (st === 'off') return pushOn();
+    if (st === 'local' || !S.cloud) return toast('체험·혼자 쓰는 모드에서는 알림이 없어요. 로그인하면 쓸 수 있어요.');
+    if (st === 'loading' || st == null) return toast('확인 중이에요. 잠시 후 다시 눌러 주세요.');
+    if (st === 'denied') return toast('알림이 차단돼 있어요. 기기 설정에서 허용해 주세요.');
+    return openInstall();
+  };
+  return h('button', { type: 'button', class: 'btn ghost small notify ' + (on ? 'is-on' : 'is-off'), title: on ? 'Notifications on (this device) · tap to turn off' : 'Notifications off (this device) · tap to turn on', 'aria-label': 'Notifications', 'aria-pressed': String(on), on: { click } }, h('span', { class: 'nd' }), 'Notify', h('span', { class: 'ns', text: ': ' + (on ? 'on' : 'off') }));
+}
 function pushCard() {
   const st = S.push, kids = [];
-  const turnOn = act(async () => {
-    try { await Push.enablePush(S.sb); toast('이 기기에서 알림을 켰어요.'); } catch (e) { if (e?.message === 'denied') toast('알림이 허용되지 않았어요. 기기 설정에서 허용해 주세요.'); else throw e; }
-    await refreshPush();
-  });
-  const turnOff = act(async () => { lsSet('svcmon.push.want', false); await Push.disablePush(S.sb); toast('이 기기의 알림을 껐어요.'); await refreshPush(); });
+  const turnOn = pushOn, turnOff = pushOff;
   if (st === 'local') kids.push(note('공유 저장소에 연결되면 쓸 수 있어요 (혼자 쓰는 모드에서는 알림이 없어요).'));
   else if (st === 'loading') kids.push(note('확인 중…'));
   else if (st === 'unconfigured') kids.push(note('이 배포에는 푸시 키가 아직 설정되지 않았어요 (config.js 의 VAPID_PUBLIC_KEY).'));
@@ -1175,7 +1244,7 @@ const pendingCheckin = () => checkinsToday().find((c) => c.status === 'asked') |
 const nextAskAt = () => { const t = checkinsToday(); return t.length ? Math.floor(Math.max(...t.map((c) => c.cpu | 0)) / CHECKIN_STEP) * CHECKIN_STEP + CHECKIN_STEP : CHECKIN_STEP; };
 function checkinCardL(st) {
   const ck = checkinToday(), cpu = clamp((st.cpu | 0) + (st.mem | 0)), waiting = ck?.status === 'asked'; // 좋은 말은 제외한 짜증+피로 합계
-  const can = !st.off && !waiting && cpu >= nextAskAt();
+  const can = !waiting && cpu >= nextAskAt();
   if (!can && !ck) return null;
   const ask = act(async () => { await S.store.set('checkins', 'ck_' + uid(), { ts: Date.now(), day: dayKey(), status: 'asked', by: 'listener', cpu }); toast('물어봤어요. 답장이 오면 알려 드릴게요.'); });
   const kids = [];
@@ -1214,7 +1283,7 @@ function viewOverview() {
   const st = sd('status');
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
-    card('Service status', st.level || st.off ? [statusPill(st.level || 'green', st.off), st.dnd ? badge('Do not disturb', 'warn') : null, h('div', { class: 'sub', text: '갱신 ' + (st.ts ? mdhm(st.ts) : '–') })] : note('아직 신호가 없어요.'),
+    card('Service status', st.level ? [statusPill(st.level), st.dnd ? badge('Do not disturb', 'warn') : null, h('div', { class: 'sub', text: '갱신 ' + (st.ts ? mdhm(st.ts) : '–') })] : note('아직 신호가 없어요.'),
       st.level ? [stackMeter('CPU', st.cpu, st.mem), goodMeter(st.pos), meter('DISK', st.disk | 0, 'disk')] : null),
     checkinCardL(st), updatesCard(),
     alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null, updateHistoryCard());
@@ -1239,8 +1308,8 @@ function whenTs(v) {
   return now;
 }
 function viewSend() {
-  const now = Date.now();
-  const cm = [...rows('commits')].sort((a, b) => b.deliverAt - a.deliverAt);
+  const mine = [...rows('commits')].filter((c) => (c.by || 'listener') === 'listener').sort((a, b) => b.deliverAt - a.deliverAt);
+  const got = rows('commits').filter((c) => c.by === 'writer').sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
     card('Commit',
       h('textarea', { id: 'cm-text', rows: 2, maxLength: 200, placeholder: 'commit message' }),
@@ -1248,10 +1317,10 @@ function viewSend() {
         btn('Commit', act(async () => {
           if (!$('#cm-text').value.trim()) return toast('메시지를 적어주세요');
           const deliverAt = whenTs($('#cm-when').value);
-          await sendField($('#cm-text'), (t) => S.store.set('commits', 'cm_' + uid(), { ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
+          await sendField($('#cm-text'), (t) => S.store.set('commits', 'cm_' + uid(), { by: 'listener', ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
         }), 'primary'))),
-    card('Sent', cm.length ? cm.map((c) => h('div', { class: 'item' }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: c.sha }), c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge('deployed ✓', 'ok') : badge('delivered')), h('p', { class: 'msgtext', text: c.text }),
-      c.deliverAt > now ? btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small danger') : null)) : empty('보낸 메시지 없음')));
+    card('Received', got.length ? got.map((c) => commitItem(c, 'in')) : empty('받은 메시지 없음')),
+    card('Sent', mine.length ? mine.map((c) => commitItem(c, 'out')) : empty('보낸 메시지 없음')));
 }
 function viewPlan() {
   return h('div', { class: 'grid' }, agendaCard(), calendarCard(), dayPanel(), planChangesCard());
@@ -1295,12 +1364,12 @@ function likeBtn(c, scope, me) {
 function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);
   const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
-  const send = act(async () => { await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() })); });
+  const send = act(async () => { if (await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() }))) { S.replyOpen.delete('sc-' + id); renderView(); } });
   onEnter(box, send);
-  return h('div', { class: 'sl-thread' },
+  return h('div', { class: 'sl-thread rv-thread' },
     list.map((c) => { const fr = c.by !== me && c.ts > (S.sysSince ?? Infinity); return cmtRow({ cls: (c.ack ? 'ack' : '') + (fr ? ' fresh' : ''), time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.ack ? 'ack: I hear you' : c.text, edited: c.editedAt, isNew: newTag(fr), like: c.ack ? null : likeBtn(c, { postId: id }, me),
       onEdit: c.by === me && !c.ack ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('post_comments', c.id) : null }); }),
-    canAdd ? h('div', { class: 'row' }, box, btn('Reply', send, 'small primary')) : null);
+    canAdd ? replyArea('sc-' + id, box, send) : null);
 }
 function sysReactRow(p) {
   const me = roleName(), rs = sysReacts(p.id), mine = rs.find((r) => r.by === me)?.emoji;
@@ -1340,26 +1409,27 @@ function sysBody(p, kept) {
     sysReactRow(p),
     sysThread(p.id, true),
     h('div', { class: 'sl-act' }, keepBtn2,
-      mine ? btn('Edit', () => editText({ title: 'Edit entry', text: p.text, max: 500, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
+      mine ? btn('Edit', () => editText({ title: 'Edit entry', text: p.text, max: SYS_MAX, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
       mine ? btn('Delete', () => modal({ title: '이 글을 삭제할까요?', body: note('댓글, 반응, 좋아요도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('posts', p.id)) }] }), 'small quiet del') : null));
 }
 // 새 글 쓰기: PC 는 목록 위 입력줄(여러 줄 가능, Enter 는 줄바꿈, 올리기는 Post 버튼 또는 Ctrl/⌘+Enter), 폰은 칸이 좁아서 입력줄을 누르면 팝업이 열린다.
+const SYS_MAX = 20000;   // Syslog 글 최대 글자 수 (서버 규칙 010 과 같아야 한다)
 function composeForm(onPosted, prefill = S.cmpDraft || '') {
   const me = roleName();
-  const text = h('textarea', { id: 'sl-compose', rows: onPosted ? 6 : 1, maxLength: 500, placeholder: 'new entry…', 'aria-label': 'new entry', autocomplete: 'off', spellcheck: 'false' });
-  const count = h('span', { class: 'tc-count', text: `${prefill.length}/500` });
+  const text = h('textarea', { id: 'sl-compose', rows: onPosted ? 6 : 1, maxLength: SYS_MAX, placeholder: 'new entry…', 'aria-label': 'new entry', autocomplete: 'off', spellcheck: 'false' });
+  const count = h('span', { class: 'tc-count', text: `${prefill.length}/${SYS_MAX}` });
   const wrap = h('div', { class: 'sl-compose' + (onPosted ? ' in-modal' : '') });
   text.value = prefill;
   const post = act(async () => {
     const t = text.value.trim(); if (!t) return;
-    text.value = ''; count.textContent = '0/500'; S.cmpDraft = '';
+    text.value = ''; count.textContent = `0/${SYS_MAX}`; S.cmpDraft = '';
     const saving = S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now() });   // 화면에는 저장이 끝나기 전에 바로 올라가 보인다
     if (onPosted) onPosted();
     S.dirty = false; renderView(); renderChrome(); if (!onPosted) $('#sl-compose')?.focus();   // 입력줄에 커서가 있으면 목록 갱신이 미뤄지므로 직접 다시 그린다
     toast('올렸어요');
     try { await saving; } catch (e) { toast(errText(e)); if (onPosted) openComposeModal(t); else { const el = $('#sl-compose'); if (el && !el.value) el.value = t; } }   // 저장에 실패하면 쓴 글을 다시 돌려 놓는다
   });
-  text.addEventListener('input', () => { if (!onPosted) autoGrow(text); count.textContent = `${text.value.length}/500`; if (onPosted) S.cmpDraft = text.value; });   // 팝업을 실수로 닫아도 쓰던 글이 남는다
+  text.addEventListener('input', () => { if (!onPosted) autoGrow(text); count.textContent = `${text.value.length}/${SYS_MAX}`; if (onPosted) S.cmpDraft = text.value; });   // 팝업을 실수로 닫아도 쓰던 글이 남는다
   // Enter 는 줄바꿈. Ctrl/⌘+Enter 로 올린다 (한글 입력 확정 중에는 무시)
   text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) { e.preventDefault(); post(); } else if (e.key === 'Escape' && !onPosted) text.blur(); });
   wrap.append(h('div', { class: 'tc-box' }, h('span', { class: 'tc-gut', text: '>' }), text),
@@ -1417,13 +1487,12 @@ async function syncNow() {
     const s = L.statFromLogs(logs);
     if (!L.sameStat(st.get('stats', today), s)) await st.set('stats', today, { day: today, week: weekKey(), ...s });
   }
-  const m = metrics(), cur = sd('status'), m5 = (v) => Math.round(v / 5) * 5, mm = meta();
-  const off = !!(mm.lastShutdown && dayKey(mm.lastShutdown) === today && !logs.some((l) => l.ts > mm.lastShutdown));
-  const next = { level: m.level, cpu: m5(m.cpu), mem: m5(m.mem), disk: m5(m.disk), pos: m5(m.pos), off };
+  const m = metrics(), cur = sd('status'), m5 = (v) => Math.round(v / 5) * 5;
+  const next = { level: m.level, cpu: m5(m.cpu), mem: m5(m.mem), disk: m5(m.disk), pos: m5(m.pos), off: false };
   if (!cur.kind || ['level', 'cpu', 'mem', 'disk', 'pos', 'off'].some((k) => (cur[k] ?? 0) !== (next[k] ?? 0) && cur[k] !== next[k])) await st.patch('shared', 'status', { kind: 'status', ...next, dnd: !!cur.dnd, ts: Date.now() });
 }
 
-// ───────── 정리(GC) / 퇴근 ─────────
+// ───────── 정리(GC) — 하루는 새벽 4시에 바뀌고, 지난 하루치는 자동 정리·기록된다 ─────────
 async function gcOnce() {
   if (S.gcBusy || !S.ready || !S.canWrite) return;
   S.gcBusy = true;
@@ -1448,85 +1517,41 @@ async function gc() {
   for (const r of rows('review_replies').filter((r) => r.day < today || !lineIds.has(r.lineId))) await del('review_replies', r);
   for (const r of rows('reviews').filter((r) => r.day < today || !lineIds.has(r.lineId))) await del('reviews', r);
   for (const r of rows('alerts').filter((r) => r.day < today)) await del('alerts', r);
-  for (const r of rows('commits').filter((r) => r.deliverAt <= now && dayKey(r.deliverAt) < today)) await del('commits', r);
+  for (const r of rows('commits').filter((r) => r.deliverAt <= now && dayKey(r.deliverAt) < today)) await del('commits', r);   // 어제까지의 commit (주고받은 답글·하트는 서버가 함께 지운다)
   for (const r of rows('checkins').filter((r) => r.day < today)) await del('checkins', r);
   const cutoff = dayKey(now - 28 * 86400e3);
   for (const r of rows('stats').filter((r) => r.day < cutoff)) await del('stats', r);
-}
-
-function openShutdown() {
-  const now = Date.now(), today = dayKey(now);
-  const logs = dayLogs(today), s = L.statFromLogs(logs);
-  const cand = [
-    ...rows('commits').filter((c) => c.deliverAt <= now).map((c) => ({ id: c.id, text: c.text })),
-    ...rows('reviews').map((r) => ({ id: r.id, text: r.text })),
-  ].filter((c) => !keeps().some((k) => k.from === c.id));
-  const picks = new Set();
-  const learned = h('input', { id: 'learned', type: 'text', maxLength: 120, placeholder: '오늘 배운 것 한 줄 (비워도 돼요)' });
-  const body = h('div', {},
-    h('p', { class: 'note', text: `오늘 기록 ${logs.length}줄 (ERROR ${s.ERROR}, FATAL ${s.FATAL})은 Archive 탭에 날짜별로 보관돼요. 공유한 줄·리뷰·받은 메시지는 지워져요.` }),
-    cand.length ? h('div', {}, h('b', { text: '남기고 싶은 말이 있나요?' }), cand.map((c) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', on: { change: (e) => (e.target.checked ? picks.add(c.id) : picks.delete(c.id)) } }), h('span', { text: c.text })))) : null,
-    h('label', { class: 'field' }, h('b', { text: 'Learned today' }), learned));
-  modal({ title: '오늘 퇴근할까요?', body, actions: [
-    { label: 'Cancel', cls: 'small' },
-    { label: 'Shutdown', cls: 'primary', fn: async () => {
-      await shutdown({ learned: learned.value.trim(), keepIds: [...picks], cand });
-      toast('정리 완료. 수고했어요.');
-    } },
-  ] });
-  void today;
-}
-async function shutdown({ learned, keepIds, weekend, cand }) {
-  const st = S.store, now = Date.now(), today = dayKey(now);
-  const logs = dayLogs(today);
-  if (logs.length) await st.set('stats', today, { day: today, week: weekKey(now), ...L.statFromLogs(logs) });
-  const disk = metrics().disk;
-  for (const id of keepIds) { const it = cand.find((c) => c.id === id); if (it) await st.set('@', 'keep_' + uid(), { type: 'keep', kind: 'good', ts: now, text: it.text, from: id }); }
-  if (learned) await st.set('@', 'keep_' + uid(), { type: 'keep', kind: 'learned', ts: now, day: today, text: learned });
-  for (const l of logs.filter((x) => x.sharedId)) await st.patch('@', l.id, { sharedId: null });
-  for (const r of rows('lines')) await st.del('lines', r.id);
-  for (const r of rows('review_replies')) await st.del('review_replies', r.id);
-  for (const r of rows('reviews')) await st.del('reviews', r.id);
-  for (const r of rows('alerts')) await st.del('alerts', r.id);
-  for (const r of rows('commits').filter((c) => c.deliverAt <= now)) await st.del('commits', r.id);
-  await setMeta({ lastShutdown: now, relief: { day: today, cpu: 0, mem: 0 } });
-  await st.patch('shared', 'status', { kind: 'status', level: 'green', cpu: 0, mem: 0, disk: Math.round(disk / 5) * 5, off: true, ts: now });
-  S.open.clear(); S.idle = []; S.viewFrom = 0; S.care = null;
-  schedule();
 }
 
 
 // ───────── 설명서 ─────────
 const HELP_W = [
   { t: '🏁 **시작하기**', why: '회사에서 쌓인 감정을 한 줄로 털어놓는 공간. 상대에게 부담을 주지 않고, 상태만 전달.',
-    how: ['**Console**에 한 줄 입력', '말하고 싶은 줄만 골라 **공유**', '하루가 끝나면 **Shutdown**'], tip: ['공유하지 않은 원문은 나만 열람', '공유한 줄은 원문과 함께 상대에게 전달', '상태 색·숫자는 자동으로 전달'] },
+    how: ['**Console**에 한 줄 입력', '말하고 싶은 줄만 골라 **공유**', '새벽 4시에 자동 정리 (기록은 **Archive**에 보관)'], tip: ['공유하지 않은 원문은 나만 열람', '공유한 줄은 원문과 함께 상대에게 전달', '상태 색·숫자는 자동으로 전달'] },
   { t: '✍️ **Console**', why: '입력한 한 줄을 서버 에러 로그로 바꿔 감정을 가볍게 표현.',
     how: ['입력창에 한 줄 입력 후 **Enter**', '귀찮을 땐 **+WARN** **+ERROR** **+FATAL** 버튼 클릭', '줄 클릭 시 원문 확인 (나만 열람)'],
     tip: ['로그 문장은 영어로 변환 (이 기기 안의 규칙으로 처리, 원문이 외부 AI로 나가지 않음)', '가만히 있으면 올라오는 파란 줄은 재미 문구·안부·명언 (기록·통계에 미포함)', '위험한 표현을 쓰면 안내 문구 표시'] },
   { t: '📤 **공유**', why: '말하고 싶은 한 줄만 골라 상대에게 알림.',
     how: ['줄 클릭 후 **이 로그 공유 (리뷰 요청)**', '한마디 입력 (선택)', '**공유** 클릭 (원문도 함께 전송)'],
-    tip: ['**공유 취소**로 언제든 회수', '공유한 줄은 퇴근 또는 다음 날 새벽 4시에 자동 정리', '공유 전에 상대에게 보일 원문을 화면에서 확인'] },
+    tip: ['**공유 취소**로 언제든 회수', '공유한 줄은 다음 날 새벽 4시에 자동 정리', '공유 전에 상대에게 보일 원문을 화면에서 확인'] },
   { t: '🫁 **진정하기**', why: '감정이 높아졌을 때 잠깐 식히기.',
     how: ['**restart**: 호흡 타이머 (약 40초), 종료 시 CPU·MEM 소폭 하락', '**clear**: 화면만 비움 (기록은 유지)', '**grep**: 줄 검색'],
     tip: ['명령어도 사용 가능: **/restart** **/clear** **/grep** 단어'] },
   { t: '📊 **Dashboard**', why: '오늘 내 상태를 숫자와 색으로 확인. 상대 화면에도 같은 색이 전달.',
     how: ['보기 전용 (입력 없음)', '**CPU** 인내심: 짜증·화 (터지기 직전의 감정)', '**MEM** 멘탈: 피로·불안 (마음이 무거워지는 상태)', '**DISK** 이번 주 쌓인 짜증 (월요일 새벽 4시 초기화)'],
-    tip: ['상태 색: green (여유) · yellow (50 이상) · red (80 이상 또는 FATAL 3줄 이상)', '**CPU**·**MEM**은 오늘 쓴 줄의 점수 합이며 퇴근하면 초기화'] },
+    tip: ['상태 색: green (여유) · yellow (50 이상) · red (80 이상 또는 FATAL 3줄 이상)', '**CPU**·**MEM**은 오늘 쓴 줄의 점수 합이며 새벽 4시에 초기화'] },
   { t: '📥 **Inbox**', why: '상대가 보낸 응원 메시지와 코드 리뷰 댓글 확인.',
     how: ['**배포 성공 ✓** 클릭 시 "잘 받았다" 신호만 상대에게 전송', '**⭐ 남기기**로 좋은 말 보관 (good-things)'],
-    tip: ['**Settings**의 방해금지를 켜면 응원 메시지 숨김', '보관한 말은 퇴근해도 유지'] },
+    tip: ['**Settings**의 방해금지를 켜면 응원 메시지 숨김', '보관한 말은 새벽 4시 정리 뒤에도 유지'] },
   { t: '📅 **Plan**', why: '야근·회식·출장 같은 일정을 상대와 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타**', '메모·종료일 입력 (선택, **기타**는 일정 이름 필수)', '**상대에게 전송** 클릭', '상대가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
     tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (상대 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 다음 대화의 주제를 승인 없이 바로 등록 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
   { t: '📈 **Report**', why: '한 주를 숫자로 돌아보기.',
     how: ['보기 전용 (요일별 로그 수 표와 3줄 요약)', '**다시 작성**: 요약 문구 재생성'],
     tip: ['집계 숫자만으로 작성 (원문 미사용)', '상대도 같은 보고서 확인'] },
-  { t: '🗂 **Archive**', why: '지난 기록을 날짜별로 되돌아보기. 퇴근해도 기록은 보관.',
+  { t: '🗂 **Archive**', why: '지난 기록을 날짜별로 되돌아보기. 새벽 4시 정리 뒤에도 기록은 보관.',
     how: ['달력에서 날짜 클릭 시 그날의 로그 전체 확인', '줄 클릭 시 원문 확인 (나만 열람)', '**이 날 기록 모두 삭제**로 직접 정리'],
     tip: ['달력 점 색은 그날의 상태 (green / yellow / red)', '지운 기록은 복구 불가'] },
-  { t: '🌙 **Shutdown (퇴근)**', why: '하루를 마무리하고 상대와 공유한 내용을 정리.',
-    how: ['오른쪽 위 **Shutdown** 클릭', '남기고 싶은 말 선택, 오늘 배운 것 한 줄 입력 (선택)', '**퇴근하기** 클릭'],
-    tip: ['공유한 줄·리뷰·받은 메시지는 삭제', '오늘 기록은 **Archive**에 보관', '상대 화면에는 offline 표시', '클릭하지 않아도 다음 날 새벽 4시 이후 앱 실행 때 자동 정리'] },
   { t: '⚙️ **Settings · 기타**', why: '알림과 화면 설정, 알아두면 좋은 기능.',
     how: ['**Do not disturb**: 응원 메시지 숨김', '**위험 신호 알림**: 위험한 표현 입력 시 상대에게 안부 확인 신호만 전송 (내용 미전송, 끌 수 있음)', '**Theme**: Basic(Light · Dark · Warm Gray · Auto)과 기분 전환용 Special 테마 (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '**Esc**: 엑셀 화면으로 위장 (한 번 더 누르면 복귀)', '**/exit**: 엑셀 화면으로 위장'] },
@@ -1601,4 +1626,4 @@ startUpdateCheck({ build: BUILD, busy: () => /INPUT|TEXTAREA|SELECT/.test(docume
     if (st === 'found' && !S.updToast) { S.updToast = true; toast('앱이 업데이트됐어요. 새로고침해 주세요'); }
   } });
 // 테스트/디버깅용 훅 (화면에는 노출되지 않음)
-window.__svcmon = { S, gc: () => gcOnce(), boot };
+window.__svcmon = { S, gc: () => gcOnce(), boot, notif: { activityFeed, notifUnread, markRead, markAllRead, newCounts } };
