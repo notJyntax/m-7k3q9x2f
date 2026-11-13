@@ -535,7 +535,7 @@ function renderChrome() {
     if (S.prev) for (const [t, label] of (isWriter() ? TABS_W : TABS_L)) if (t !== S.tab && (counts[t] || 0) > (S.prev[t] || 0)) toast(`${label}: 새 항목이 있어요`);
     S.prev = counts;
     const total = Object.values(counts).reduce((x, y) => x + y, 0);
-    document.title = (total ? `(${total}) ` : '') + 'Service Monitor — prod-api-02';
+    document.title = (total ? `(${total}) ` : '') + 'Monitor — prod-api-02';
   }
   const wr = isWriter();
   const lvl = S.store ? (wr ? metrics().level : (statusToday().level || 'green')) : 'green';
@@ -1715,7 +1715,7 @@ function openHelp() {
 }
 
 // ───────── 시작 ─────────
-document.title = 'Service Monitor — prod-api-02';
+document.title = 'Monitor — prod-api-02';
 applyTheme();
 buildShell();
 boot();
