@@ -1380,4 +1380,9 @@ html:root:root:root .tabs { border-top: 0; border-bottom: 0; }
 .dm-opts input[type=text] { flex: 1; min-width: 0; }
 .dm-until { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .dm-until input[type=date] { width: 138px; }
+/* 일정 추가 창: 고른 종류는 그 색의 옅은 면으로, 아래 입력 영역은 종류를 고른 뒤에만 보인다 */
+:root:root .catb.on { background: color-mix(in srgb, var(--c) 16%, transparent); }
+.dm-form { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.dm-form[hidden] { display: none; }
+.dm-form .dm-opts { margin-top: 0; }
 

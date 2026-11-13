@@ -1056,24 +1056,30 @@ function openDayModal(key) {
   const me = roleName(), dow = DOW_EN[new Date(key + 'T12:00:00').getDay()];
   const es = rows('events').filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort((a, b) => a.ts - b.ts);
   const stBadge = (e) => (e.state === 'approved' ? badge('approved', 'ok') : e.state === 'removing' ? badge('Delete pending', 'warn') : badge('Pending', 'warn'));
-  const memo = h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '메모 (선택) · 기타는 이름', autocomplete: 'off' });
+  const memo = h('input', { id: 'cal-memo', type: 'text', maxLength: 40, autocomplete: 'off', enterkeyhint: 'done' });
   const until = h('input', { id: 'cal-until', type: 'date', min: key, 'aria-label': 'until' });
-  let close = () => {};
-  const add = (id) => act(async () => {
-    const txt = memo.value.trim(); let label = KINDS[id], m = txt.slice(0, 40);
-    if (id === 'etc') { label = txt.slice(0, 12); m = ''; if (!label) { toast('기타는 이름을 적고 눌러 주세요'); memo.focus(); return; } }
-    const end = until.value && until.value > key ? until.value : null;
-    const eid = await addEvent({ date: key, endDate: end, kind: id, label, memo: m });
+  let close = () => {}, kind = null;
+  // 종류를 먼저 고르면 그 아래에 메모(선택)·끝나는 날짜·Add 가 나타난다 (기타는 이름이 필수)
+  const save = act(async () => {
+    if (!kind) return toast('종류를 먼저 골라 주세요');
+    const txt = memo.value.trim(); let label = KINDS[kind], m = txt.slice(0, 40);
+    if (kind === 'etc') { label = txt.slice(0, 12); m = ''; if (!label) { toast('기타는 이름을 적어 주세요'); memo.focus(); return; } }
+    const end = until.value && until.value > key ? until.value : null, k = kind;
+    const eid = await addEvent({ date: key, endDate: end, kind: k, label, memo: m });
     close(); renderView();
     toastUndo(`Added ${fmtMD(key)}${end ? '~' + fmtMD(end) : ''} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
+  onEnter(memo, save);
+  const form = h('div', { class: 'dm-form', hidden: true }, memo, h('div', { class: 'dm-opts' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'until (optional)' }), until), h('span', { class: 'sp' }), btn('Add', save, 'small primary')));
+  const chips = Object.entries(KINDS).map(([id, t]) => { const b = h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: () => {
+    kind = id; chips.forEach(([k2, el]) => el.classList.toggle('on', k2 === id));
+    memo.placeholder = id === 'etc' ? '이름 (필수)' : '메모 (선택)'; form.hidden = false; memo.focus();
+  } } }, catIcon(id), t); return [id, b]; });
   const list = es.length ? es.map((e) => h('div', { class: 'prow' },
     h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
     stBadge(e),
     (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => { await removeEvent(e); renderView(); close(); openDayModal(key); }), 'small danger') : null)) : [empty('이 날은 비어 있어요')];
-  const body = h('div', { class: 'daymodal' }, list,
-    h('div', { class: 'cat' }, Object.entries(KINDS).map(([id, t]) => h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: add(id) } }, catIcon(id), t))),
-    h('div', { class: 'dm-opts' }, memo, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'until' }), until)));
+  const body = h('div', { class: 'daymodal' }, list, h('div', { class: 'cat' }, chips.map(([, b]) => b)), form);
   close = modal({ title: `${fmtMD(key)} (${dow})`, body, actions: [{ label: 'Close', cls: 'small' }] });
 }
 function planChangesCard() {
