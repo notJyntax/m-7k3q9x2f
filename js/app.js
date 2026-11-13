@@ -10,11 +10,11 @@ import { CHANGELOG } from './changelog.js';
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
 // 기본 테마(회사에서 보기 좋은 차분한 톤)와 스페셜 테마(기분 전환용). 스페셜은 강조색·버튼색까지 테마마다 달라요.
-const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk'], ['n-frost', 'Frost']];
+const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk'], ['n-frost', 'Frost'], ['n-pearl', 'Pearl']];
 const DEFAULT_THEME = 'n-ink';
 const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['warm', 'Warm Gray'], ['auto', 'Auto']];
 const THEMES_FUN = [['terminal', 'Terminal'], ['excel', 'Excel']];
-const SWATCH = { 'n-frost': 'linear-gradient(135deg, #ffffff 50%, #0969da 50%)', 'n-ink': 'linear-gradient(135deg, #191919 50%, #6aaaf0 50%)', 'n-moss': 'linear-gradient(135deg, #1a1f1c 50%, #7fc4a2 50%)', 'n-dusk': 'linear-gradient(135deg, #1b1d2b 50%, #b4a0f0 50%)', light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
+const SWATCH = { 'n-pearl': 'linear-gradient(135deg, #f4f7fd 50%, #3a6ff0 50%)', 'n-frost': 'linear-gradient(135deg, #ffffff 50%, #0969da 50%)', 'n-ink': 'linear-gradient(135deg, #191919 50%, #6aaaf0 50%)', 'n-moss': 'linear-gradient(135deg, #1a1f1c 50%, #7fc4a2 50%)', 'n-dusk': 'linear-gradient(135deg, #1b1d2b 50%, #b4a0f0 50%)', light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
   terminal: 'linear-gradient(135deg, #161b1d 50%, #7fc4a2 50%)', excel: 'linear-gradient(135deg, #ffffff 50%, #217346 50%)' };
 const ALL_THEMES = [...THEMES_V2, ...THEMES, ...THEMES_FUN];
 window.matchMedia?.('(min-width: 900px)').addEventListener?.('change', () => { if (S.tab === 'syslog') renderView(); });   // PC↔폰 폭이 바뀌면 Syslog 배치를 다시 그린다
@@ -519,7 +519,7 @@ async function doRefresh() {
 // 로고: 둥근 네모(위쪽이 옅은 두 톤) 안에 터미널 프롬프트 >_ . 고정 문자열만 사용
 function logoMark() {
   const t = document.createElement('template');
-  t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><rect class="bg" x="2" y="2" width="20" height="20" rx="6"/><path class="hi" d="M2 8a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v1H2z"/><path class="fg" d="M7.5 11l3.2 2.8-3.2 2.8"/><path class="fg" d="M13 17h3.5"/></svg></span>';
+  t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 512 512"><defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcfdff"/><stop offset="1" stop-color="#d3def5"/></linearGradient><linearGradient id="lg-gl" gradientUnits="userSpaceOnUse" x1="126" y1="206" x2="376" y2="372"><stop offset="0" stop-color="#5a97ff"/><stop offset="1" stop-color="#2646cf"/></linearGradient><clipPath id="lg-c"><rect width="512" height="512" rx="115"/></clipPath></defs><rect width="512" height="512" rx="115" fill="url(#lg-bg)"/><g clip-path="url(#lg-c)"><path d="M0 0H512V150C380 205 160 120 0 190Z" fill="#fff" fill-opacity=".55"/></g><rect x="7" y="7" width="498" height="498" rx="108" fill="none" stroke="#9fb2dc" stroke-opacity=".75" stroke-width="14"/><g fill="none" stroke="url(#lg-gl)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"><path d="M126 206 232 286 126 366"/><path d="M268 372H376"/></g><circle cx="392" cy="136" r="62" fill="#22c58a" fill-opacity=".28"/><circle cx="392" cy="136" r="40" fill="#22c58a" stroke="#fff" stroke-opacity=".8" stroke-width="12"/></svg></span>';
   return t.content.firstChild;
 }
 function renderChrome() {
@@ -933,7 +933,7 @@ function commitThread(c, view) {
 // view: 'in' = 내가 받은 commit(확인·하트·답글), 'out' = 내가 보낸 commit(상태·예약 취소·삭제·상대의 답글)
 function commitItem(c, view) {
   const me = roleName(), sender = c.by || 'listener', now = Date.now(), co = { ...c, by: sender };
-  const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: (view === 'out' ? 'sent ' : 'commit ') + c.sha }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }),
+  const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: (view === 'out' ? 'sent ' : 'commit ') + (c.sha || String(c.id || '').slice(-7)) }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }),
     view === 'out' ? (c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(sender === 'listener' ? 'deployed ✓' : 'read ✓', 'ok') : badge('delivered')) : null);
   const ackLabel = sender === 'listener' ? 'Deployed ✓' : 'Got it';
   // commit 메시지 자체에는 좋아요·삭제가 없다 (답글의 좋아요는 그대로). 받은 쪽은 확인 버튼(+보관), 보낸 쪽은 아직 도착 전(예약)일 때만 보내기 취소.

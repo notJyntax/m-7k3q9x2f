@@ -1252,11 +1252,8 @@ html:root:root:root .ag-thread > .row { margin-top: 6px; }
 
 /* 로고 C: 둥근 네모 + Monitor (글자 사이 벌림·깜빡이는 커서 없이 버튼과 같은 글꼴), 환경 이름은 옅게 */
 :root:root .brand { gap: 8px; }
-:root:root .brand .logo { width: 22px; height: 22px; flex: none; display: inline-flex; font-size: 0; }
+:root:root .brand .logo { width: 24px; height: 24px; flex: none; display: inline-flex; font-size: 0; }
 .brand .logo svg { width: 100%; height: 100%; }
-.brand .logo .bg { fill: var(--accent); }
-.brand .logo .hi { fill: var(--on-accent, #fff); opacity: .22; }
-.brand .logo .fg { fill: none; stroke: var(--on-accent, #fff); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 :root:root .brand b { font: 500 16px var(--btn-font); letter-spacing: 0; text-transform: none; color: var(--text); }
 :root:root .brand b::after { content: none; animation: none; }
 :root:root .brand .env { background: transparent; padding: 0; border-radius: 0; font: 11px var(--btn-font); color: var(--sub); }
@@ -1411,3 +1408,176 @@ html:root:root select {
   background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px;
 }
 
+
+
+/* Pearl: 앱 아이콘 E 와 같은 방법 — 밝은 유리 바탕, 파란 그라데이션, 위쪽 반사광, 파란 기운이 도는 부드러운 그림자, 초록 상태 점의 빛 번짐 */
+html[data-theme="n-pearl"] {
+  --bg: #f1f5fc; --panel: #ffffff; --line: #d5deef; --text: #26324a; --hi: #131c33; --sub: #5a6784; --accent: #2f6df0; --on-accent: #fff;
+  --soft: #e8eefb; --hover: #eef3fd; --track: #dfe7f7; --codebg: #f7f9fe; --gloss: #f4f7fd;
+  --infobg: #e3edff; --infofg: #2446b8; --kwbg: #dfe9ff; --kwfg: #2446b8; --ts: #6a7690; --svc: #44506c; --codecol: #626f8b;
+  --ok: #17855a; --okbg: #dcf5ea; --warn: #8a5a08; --warnbg: #fff0c9; --crit: #c23342; --critbg: #fde9ec;
+  --okline: #a8e3c8; --warnline: #ecca70; --critline: #f5b9c0; --warnfg: #633c01; --notefg: #633c01; --notebg: #fff6d8; --notekw: #ffeab0;
+  --fatalbg: #c23342; --scrim: rgba(19, 28, 51, .38); color-scheme: light;
+  --c1: #17855a; --c2: #2f6df0; --c3: #9a6a0a; --c4: #6c4ee0; --c5: #cc3b4b; --c6: #0b8a93;
+  --ui-font: var(--stack-sans); --ui-ls: .005em; --ui-fs: 14px; --r: 12px;
+}
+html[data-theme="n-pearl"] body { background: linear-gradient(165deg, #fcfdff 0%, #e6edfa 55%, #d3def5 100%) fixed; }
+html[data-theme="n-pearl"] .grid { gap: 20px; }
+html[data-theme="n-pearl"] .card { background: linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 255, 255, .62)); border: 1px solid rgba(159, 178, 220, .55); border-radius: 18px; padding: 16px 18px; gap: 10px; box-shadow: 0 14px 30px -18px rgba(28, 58, 168, .42), inset 0 1px 0 #fff; }
+html[data-theme="n-pearl"] .grid > .card:nth-child(-n+2) { padding-top: 16px; }
+html[data-theme="n-pearl"] .card h3::before, html[data-theme="n-pearl"] .tab::before, html[data-theme="n-pearl"] .tab.on::before { content: '●'; font-size: 8px; }
+html[data-theme="n-pearl"] .tab { border-radius: 10px; }
+html[data-theme="n-pearl"] .tab.on { background: linear-gradient(135deg, rgba(90, 151, 255, .22), rgba(38, 70, 207, .1)); box-shadow: inset 0 0 0 1px rgba(90, 151, 255, .4), 0 8px 14px -10px rgba(28, 58, 168, .5); }
+html:root:root[data-theme="n-pearl"] .btn.primary:not(.k-del) { background: linear-gradient(135deg, #5a97ff, #2646cf); color: #fff; border: 0; box-shadow: 0 8px 16px -8px rgba(28, 58, 168, .65), inset 0 1px 0 rgba(255, 255, 255, .38); }
+html:root:root[data-theme="n-pearl"] .btn.primary:not(.k-del):hover { background: linear-gradient(135deg, #6aa3ff, #2f52d9); color: #fff; }
+html[data-theme="n-pearl"] input[type="text"], html[data-theme="n-pearl"] input[type="search"], html[data-theme="n-pearl"] input[type="email"], html[data-theme="n-pearl"] input[type="password"], html[data-theme="n-pearl"] textarea, html[data-theme="n-pearl"] select { background: #fff; border: 1px solid #cfd9ee; border-radius: 10px; box-shadow: inset 0 1px 2px rgba(28, 58, 168, .06); }
+html[data-theme="n-pearl"] input:focus, html[data-theme="n-pearl"] textarea:focus, html[data-theme="n-pearl"] select:focus { outline: 0; border-color: #5a97ff; box-shadow: 0 0 0 3px rgba(47, 109, 240, .18); }
+html[data-theme="n-pearl"] .live { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; }
+html[data-theme="n-pearl"] .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent), 0 0 10px color-mix(in srgb, currentColor 55%, transparent); }
+html[data-theme="n-pearl"] .badge, html[data-theme="n-pearl"] .cnt { border-radius: 99px; }
+html[data-theme="n-pearl"] .bar, html[data-theme="n-pearl"] .bar i { border-radius: 99px; }
+html[data-theme="n-pearl"] .dock { background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid rgba(159, 178, 220, .5); }
+html[data-theme="n-pearl"] .modal, html[data-theme="n-pearl"] .sheet, html[data-theme="n-pearl"] .notif, html[data-theme="n-pearl"] .toast, html[data-theme="n-pearl"] .dialog { border-radius: 20px; box-shadow: 0 24px 50px -20px rgba(28, 58, 168, .45), inset 0 1px 0 #fff; }
+
+/* 선택 상자와 같은 줄의 버튼은 높이를 34px 로 맞춘다 (일정 추가 창의 메모칸·Add 와 같은 높이) */
+html:root:root #cm-when { height: 34px; padding-top: 0; padding-bottom: 0; box-sizing: border-box; }
+html:root:root .row:has(> #cm-when) { align-items: center; }
+html:root:root .row:has(> #cm-when) > .btn { height: 34px; }
+
+
+
+/* Pearl 다듬기: 단색 면은 아주 은은한 그라데이션으로, 버튼의 가로 여백·자간·아이콘 간격은 줄이고, 아이콘은 이 테마에 맞게 (조금 굵은 둥근 선 + 옅은 면 + E 아이콘 글자 같은 부드러운 그림자) */
+html[data-theme="n-pearl"] { --ui-ls: 0em; --pg-soft: linear-gradient(180deg, #f5f8fe, #eaf0fb); --pg-white: linear-gradient(180deg, #ffffff, #f7f9fe); }
+html[data-theme="n-pearl"] body { letter-spacing: 0; }
+html[data-theme="n-pearl"] .card h3, html[data-theme="n-pearl"] .tab, html[data-theme="n-pearl"] .brand b { letter-spacing: 0; }
+html[data-theme="n-pearl"] .banner, html[data-theme="n-pearl"] .care-item { background: linear-gradient(180deg, color-mix(in srgb, var(--infobg), #fff 45%), var(--infobg)); }
+html[data-theme="n-pearl"] .mood > *, html[data-theme="n-pearl"] .cnt-box, html[data-theme="n-pearl"] .badge, html[data-theme="n-pearl"] .schip.on, html[data-theme="n-pearl"] .btn.on, html[data-theme="n-pearl"] .btn.quiet.on { background: var(--pg-soft); }
+html[data-theme="n-pearl"] .live.green, html[data-theme="n-pearl"] .badge.ok { background: linear-gradient(180deg, color-mix(in srgb, var(--okbg), #fff 45%), var(--okbg)); }
+html[data-theme="n-pearl"] .live.yellow, html[data-theme="n-pearl"] .badge.warn { background: linear-gradient(180deg, color-mix(in srgb, var(--warnbg), #fff 45%), var(--warnbg)); }
+html[data-theme="n-pearl"] .live.red { background: linear-gradient(180deg, color-mix(in srgb, var(--critbg), #fff 45%), var(--critbg)); }
+html[data-theme="n-pearl"] input[type="text"], html[data-theme="n-pearl"] input[type="search"], html[data-theme="n-pearl"] input[type="email"], html[data-theme="n-pearl"] input[type="password"], html[data-theme="n-pearl"] textarea, html[data-theme="n-pearl"] select { background-color: transparent; background-image: var(--pg-white); }
+html[data-theme="n-pearl"] .dock { background: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(241, 245, 252, .8)); }
+html[data-theme="n-pearl"] .modal, html[data-theme="n-pearl"] .sheet, html[data-theme="n-pearl"] .notif, html[data-theme="n-pearl"] .toast, html[data-theme="n-pearl"] .dialog { background: linear-gradient(180deg, #ffffff, #f4f7fd); }
+html[data-theme="n-pearl"] .more-menu { background: linear-gradient(180deg, #ffffff, #f4f7fd); }
+html:root:root[data-theme="n-pearl"] .btn:not(.ic), html:root:root[data-theme="n-pearl"] .schip { letter-spacing: 0; padding-left: 7px; padding-right: 7px; gap: 5px; }
+html:root:root[data-theme="n-pearl"] .btn.primary:not(.ic) { padding-left: 11px; padding-right: 11px; }
+html[data-theme="n-pearl"] .tab { padding-left: 9px; padding-right: 9px; }
+html[data-theme="n-pearl"] .tabs { gap: 2px; }
+html[data-theme="n-pearl"] .ico, html[data-theme="n-pearl"] .ci { stroke-width: 1.9; filter: drop-shadow(0 1px 0.6px color-mix(in srgb, currentColor 22%, transparent)); }
+html[data-theme="n-pearl"] .ico [fill="currentColor"] { fill-opacity: .22; }
+html:root:root[data-theme="n-pearl"] .btn.primary .ico { filter: drop-shadow(0 1.5px 1px rgba(10, 30, 110, .35)); }
+html[data-theme="n-pearl"] .cal .cd:not(.sel):not(.today):not(.x) { background: var(--pg-white); }
+
+
+/* Pearl 2차: 토글 스위치 같은 알약(캡슐) 컨셉으로 버튼 통일 + 줄·칸마다 은은한 색 구분 + 부드러운 막대 */
+/* 버튼: 기능 색(글자색)을 옅게 깐 알약. 주 버튼은 파란 그라데이션 알약, 아이콘 버튼은 평소엔 투명한 원 */
+html:root:root[data-theme="n-pearl"] .btn, html:root:root[data-theme="n-pearl"] .schip { border-radius: 99px; }
+html:root:root[data-theme="n-pearl"] .btn:not(.primary):not(.ic):not(.ghost), html:root:root[data-theme="n-pearl"] .schip { background: linear-gradient(180deg, color-mix(in srgb, currentColor 4%, #fff), color-mix(in srgb, currentColor 11%, #fff)); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent), 0 1px 1px rgba(28, 58, 168, .06); }
+html:root:root[data-theme="n-pearl"] .btn:not(.primary):not(.ic):not(.ghost):hover { background: linear-gradient(180deg, color-mix(in srgb, currentColor 8%, #fff), color-mix(in srgb, currentColor 16%, #fff)); }
+html:root:root[data-theme="n-pearl"] .btn.ic, html:root:root[data-theme="n-pearl"] .btn.ghost { background: transparent; box-shadow: none; }
+html:root:root[data-theme="n-pearl"] .btn.ic:hover, html:root:root[data-theme="n-pearl"] .btn.ghost:hover { background: color-mix(in srgb, currentColor 11%, transparent); }
+html:root:root[data-theme="n-pearl"] .btn.primary.k-del { background: linear-gradient(135deg, #ff8f9c, #d93a55); color: #fff; box-shadow: 0 8px 16px -8px rgba(190, 40, 70, .6), inset 0 1px 0 rgba(255, 255, 255, .35); }
+html:root:root[data-theme="n-pearl"] .schip.on { background: linear-gradient(135deg, rgba(90, 151, 255, .24), rgba(38, 70, 207, .12)); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(90, 151, 255, .45); }
+/* read 표시: 토글처럼 — 흰 손잡이가 있는 알약. 안 읽음은 회색 바탕에 손잡이 왼쪽, 읽음은 초록 바탕에 손잡이 오른쪽 */
+html:root:root[data-theme="n-pearl"] .cl-status { flex-direction: row; gap: 6px; padding: 3px 10px 3px 3px; border: 0; border-radius: 99px; background: linear-gradient(180deg, #d3dae6, #c4ccdb); color: #3d4a66; font: 500 11.5px/1.3 var(--stack-sans); letter-spacing: 0; opacity: 1; box-shadow: inset 0 1px 2px rgba(28, 40, 80, .18); }
+html:root:root[data-theme="n-pearl"] .cl-status:hover { background: linear-gradient(180deg, #c9d2e1, #bac4d6); color: #2a3550; }
+html:root:root[data-theme="n-pearl"] .cl-status .cl-ico { width: 16px; height: 16px; border: 0; border-radius: 50%; background: linear-gradient(180deg, #fff, #eef1f7); color: transparent; font-size: 10px; box-shadow: 0 1px 3px rgba(20, 30, 70, .35); }
+html:root:root[data-theme="n-pearl"] .cl-status.on { flex-direction: row-reverse; padding: 3px 3px 3px 10px; background: linear-gradient(135deg, #4fd6a6, #17a36f); color: #fff; opacity: 1; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 6px 12px -8px rgba(23, 163, 111, .7); }
+html:root:root[data-theme="n-pearl"] .cl-status.on:hover { background: linear-gradient(135deg, #5fe0b2, #1fb27b); color: #fff; }
+html:root:root[data-theme="n-pearl"] .cl-status.on .cl-ico { background: linear-gradient(180deg, #fff, #eefaf5); color: #17a36f; }
+/* 줄마다 은은한 색: 로그 줄은 단계별 색이 옅게 번지고, 단계 표시는 알약, 안 읽힌 줄무늬(짝수 줄)는 아주 옅은 파랑 */
+html[data-theme="n-pearl"] .loglist { background: var(--pg-white); border: 1px solid rgba(159, 178, 220, .5); border-radius: 14px; padding: 6px; box-shadow: 0 10px 24px -18px rgba(28, 58, 168, .35), inset 0 1px 0 #fff; }
+html[data-theme="n-pearl"] .ln { border-radius: 8px; padding-top: 3px; padding-bottom: 3px; }
+html[data-theme="n-pearl"] .loglist > .ln:nth-child(even), html[data-theme="n-pearl"] .loglist > .ln-wrap:nth-child(even) > .ln { background: rgba(47, 109, 240, .04); }
+html[data-theme="n-pearl"] .ln.lv-WARN { background: linear-gradient(90deg, rgba(236, 170, 40, .17), rgba(236, 170, 40, .02) 75%); }
+html[data-theme="n-pearl"] .ln.lv-ERROR { background: linear-gradient(90deg, rgba(232, 84, 110, .16), rgba(232, 84, 110, .02) 75%); }
+html[data-theme="n-pearl"] .ln.lv-FATAL { background: linear-gradient(90deg, rgba(214, 48, 80, .24), rgba(214, 48, 80, .03) 80%); }
+html[data-theme="n-pearl"] .ln.pos { background: linear-gradient(90deg, rgba(23, 163, 111, .10), rgba(23, 163, 111, .01) 70%); }
+html[data-theme="n-pearl"] .ln.fx { background: var(--pg-soft); }
+html[data-theme="n-pearl"] .ln .lv { min-width: 46px; text-align: center; padding: 0 7px; border-radius: 99px; font-size: 10.5px; letter-spacing: .02em; background: rgba(47, 109, 240, .11); color: #2446b8; }
+html[data-theme="n-pearl"] .ln.lv-PASS .lv, html[data-theme="n-pearl"] .ln.pos .lv { background: rgba(23, 163, 111, .13); color: #0e7a52; }
+html[data-theme="n-pearl"] .ln.lv-WARN .lv { background: rgba(236, 170, 40, .22); color: #8a5a08; }
+html[data-theme="n-pearl"] .ln.lv-ERROR .lv { background: rgba(232, 84, 110, .18); color: #b02640; }
+html[data-theme="n-pearl"] .ln.lv-FATAL .lv { background: rgba(214, 48, 80, .85); color: #fff; }
+html[data-theme="n-pearl"] .ln .svc { color: #3d4f8f; }
+html[data-theme="n-pearl"] .ln .code { color: #6a7a9c; }
+/* 칸마다 은은한 색: 카드 왼쪽 위 모서리에 제목 점과 같은 색이 옅게 번진다 */
+html[data-theme="n-pearl"] .grid > .card:nth-child(6n+1) { --cc: var(--c1); } html[data-theme="n-pearl"] .grid > .card:nth-child(6n+2) { --cc: var(--c2); }
+html[data-theme="n-pearl"] .grid > .card:nth-child(6n+3) { --cc: var(--c3); } html[data-theme="n-pearl"] .grid > .card:nth-child(6n+4) { --cc: var(--c4); }
+html[data-theme="n-pearl"] .grid > .card:nth-child(6n+5) { --cc: var(--c5); } html[data-theme="n-pearl"] .grid > .card:nth-child(6n+6) { --cc: var(--c6); }
+html[data-theme="n-pearl"] .card { background: radial-gradient(130% 90% at 0% 0%, color-mix(in srgb, var(--cc, var(--c2)) 9%, transparent), transparent 62%), linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 255, 255, .62)); }
+/* 막대: 눈금 없이 매끈한 알약, 색마다 밝은색→진한색 그라데이션과 옅은 빛 */
+html[data-theme="n-pearl"] .bar { height: 8px; border-radius: 99px; background: linear-gradient(180deg, #dde5f5, #eaeff9); box-shadow: inset 0 1px 2px rgba(28, 58, 168, .14); }
+html[data-theme="n-pearl"] .bar::after { display: none; }
+html[data-theme="n-pearl"] .bar i { border-radius: 99px; background: linear-gradient(90deg, #7be6c4, #1fb685); box-shadow: 0 0 10px -2px rgba(31, 182, 133, .5); }
+html[data-theme="n-pearl"] .bar i.warn { background: linear-gradient(90deg, #ffdc84, #f0a020); box-shadow: 0 0 10px -2px rgba(240, 160, 32, .5); }
+html[data-theme="n-pearl"] .bar i.crit { background: linear-gradient(90deg, #ffa3ae, #e0405a); box-shadow: 0 0 10px -2px rgba(224, 64, 90, .5); }
+html[data-theme="n-pearl"] .bar i.disk { background: linear-gradient(90deg, #bcb0ff, #6c4ee0); box-shadow: 0 0 10px -2px rgba(108, 78, 224, .5); }
+html[data-theme="n-pearl"] .stackbar i.seg { border-radius: 0; box-shadow: none; }
+html[data-theme="n-pearl"] .stackbar i.seg.irr { background: linear-gradient(90deg, #ffbea4, #f0776a); }
+html[data-theme="n-pearl"] .stackbar i.seg.fat { background: linear-gradient(90deg, #92beff, #3a6ff0); }
+html[data-theme="n-pearl"] .stackbar i.seg:first-child { border-radius: 99px 0 0 99px; }
+html[data-theme="n-pearl"] .stackbar i.seg:last-child { border-radius: 0 99px 99px 0; }
+html[data-theme="n-pearl"] .stackbar i.seg:only-child { border-radius: 99px; }
+html[data-theme="n-pearl"] .stackbar i.seg + i.seg { box-shadow: inset 2px 0 0 rgba(255, 255, 255, .9); }
+
+/* Pearl 3차: CHANGE 같은 종류 표시는 글자가 넘치지 않게 넉넉한 알약, 목록 한 건(item)은 부드러운 타일 — 내용을 먼저, 시각·상태는 아래 한 줄 */
+html:root:root[data-theme="n-pearl"] .cl-tag { width: 60px; padding: 1px 0; border-radius: 99px; font: 600 10px/1.5 var(--stack-sans); letter-spacing: .03em; }
+html[data-theme="n-pearl"] .item:not(.cl) { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; margin: 0 0 8px; border: 0; border-top: 0; border-radius: 14px; background: linear-gradient(135deg, rgba(255, 255, 255, .95), rgba(238, 244, 254, .7)); box-shadow: inset 0 0 0 1px rgba(159, 178, 220, .42), 0 8px 18px -14px rgba(28, 58, 168, .35); }
+html[data-theme="n-pearl"] .item:not(.cl):has(.badge.ok) { background: linear-gradient(135deg, rgba(23, 163, 111, .11), rgba(255, 255, 255, .72) 62%); }
+html[data-theme="n-pearl"] .item:not(.cl) .msgtext { order: 1; margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--hi); }
+html[data-theme="n-pearl"] .item:not(.cl) .ih { order: 2; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+html[data-theme="n-pearl"] .item:not(.cl) .ih .badge { margin-left: auto; }
+html[data-theme="n-pearl"] .item:not(.cl) .ih .sha { font: 500 11px/1.5 var(--stack-mono); letter-spacing: 0; color: #5a6a95; background: rgba(47, 109, 240, .08); padding: 0 8px; border-radius: 99px; }
+html[data-theme="n-pearl"] .item:not(.cl) .ih .sub { font-size: 11.5px; color: var(--sub); }
+html[data-theme="n-pearl"] .item:not(.cl) > .row { order: 3; }
+html[data-theme="n-pearl"] .item:not(.cl) > :not(.msgtext):not(.ih):not(.row) { order: 4; }
+html[data-theme="n-pearl"] .badge { padding: 1px 10px; line-height: 1.5; background: linear-gradient(180deg, rgba(47, 109, 240, .08), rgba(47, 109, 240, .15)); color: #3d4f8f; box-shadow: inset 0 0 0 1px rgba(47, 109, 240, .16); }
+html[data-theme="n-pearl"] .badge.ok { background: linear-gradient(180deg, rgba(23, 163, 111, .09), rgba(23, 163, 111, .17)); color: #0e7a52; box-shadow: inset 0 0 0 1px rgba(23, 163, 111, .2); }
+html[data-theme="n-pearl"] .badge.warn { background: linear-gradient(180deg, rgba(236, 170, 40, .12), rgba(236, 170, 40, .22)); color: #8a5a08; box-shadow: inset 0 0 0 1px rgba(236, 170, 40, .3); }
+
+/* ═════════ Pearl — Frosted Glass 디자인 시스템 (VisionOS 느낌): 파랑·라벤더 배경에 옅은 빛 번짐, 주요 패널에만 유리 효과, 파랑 하나를 대표색으로, 상태색은 상태 표시에만 ═════════ */
+html[data-theme="n-pearl"] { --glass: rgba(255, 255, 255, .58); --glass-2: rgba(255, 255, 255, .42); --glass-line: rgba(255, 255, 255, .78); --glass-sh: 0 18px 40px -26px rgba(40, 70, 170, .4); --hair: rgba(110, 130, 200, .18); --accent: #2f6df0; --sub: #566384; }
+html[data-theme="n-pearl"] body { background: linear-gradient(160deg, #e8f0ff 0%, #e8ebff 48%, #efe9ff 100%) fixed; }
+html[data-theme="n-pearl"] body::before { content: ''; position: fixed; inset: -10%; z-index: -1; pointer-events: none; background: radial-gradient(560px 420px at 10% 6%, rgba(78, 140, 255, .36), transparent 70%), radial-gradient(600px 460px at 92% 14%, rgba(168, 140, 250, .3), transparent 70%), radial-gradient(700px 520px at 50% 104%, rgba(110, 175, 255, .3), transparent 70%); filter: blur(24px); }
+/* 위쪽: 떠 있는 유리 내비게이션 바 + 알약 탭 막대 (본문 카드와 같은 가로 폭) */
+html:root:root[data-theme="n-pearl"] .top, html:root:root[data-theme="n-pearl"] .tabs, html:root:root[data-theme="n-pearl"] .mood { width: min(956px, calc(100% - 32px)); box-sizing: border-box; align-self: center; margin-left: auto; margin-right: auto; }
+html:root:root[data-theme="n-pearl"] .top { margin-top: 12px; padding: 9px 16px; border: 1px solid var(--glass-line); border-radius: 18px; background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); box-shadow: var(--glass-sh), inset 0 1px 0 rgba(255, 255, 255, .9); }
+html:root:root[data-theme="n-pearl"] .mood { margin-top: 6px; padding: 0; background: transparent; }
+html:root:root[data-theme="n-pearl"] .tabs { margin-top: 10px; margin-bottom: 4px; padding: 4px; gap: 2px; border: 1px solid var(--glass-line); border-radius: 999px; background: var(--glass-2); -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4); box-shadow: 0 10px 26px -20px rgba(40, 70, 170, .4), inset 0 1px 0 rgba(255, 255, 255, .9); }
+html[data-theme="n-pearl"] .tab::before, html[data-theme="n-pearl"] .tab.on::before { content: none; }
+html:root:root[data-theme="n-pearl"] .tab { padding: 6px 13px; border-radius: 999px; color: var(--sub); font-size: 13px; transition: background .2s ease, color .2s ease, box-shadow .2s ease; }
+html[data-theme="n-pearl"] .tab:hover { background: rgba(255, 255, 255, .6); color: var(--hi); }
+html:root:root[data-theme="n-pearl"] .tab.on { background: #fff; color: var(--accent); box-shadow: 0 2px 8px -2px rgba(40, 70, 170, .3), 0 0 0 1px rgba(255, 255, 255, .9); font-weight: 500; }
+html[data-theme="n-pearl"] .view { padding-top: 14px; }
+/* 카드: 반투명 흰 유리 + 흰 테두리 + 위쪽 반사광. 마우스를 올리면 살짝 떠오른다 */
+html[data-theme="n-pearl"] .grid { gap: 18px; }
+html[data-theme="n-pearl"] .card { background: linear-gradient(180deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .5)); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border: 1px solid var(--glass-line); border-radius: 20px; padding: 18px 20px; gap: 12px; box-shadow: var(--glass-sh), inset 0 1px 0 rgba(255, 255, 255, .95); transition: box-shadow .25s ease, transform .25s ease; }
+html[data-theme="n-pearl"] .card:not(.syslog):hover { transform: translateY(-1px); box-shadow: 0 24px 46px -26px rgba(40, 70, 170, .5), inset 0 1px 0 rgba(255, 255, 255, .95); }
+html[data-theme="n-pearl"] .card h3 { font-size: 15px; font-weight: 500; color: var(--hi); margin-bottom: 0; }
+html[data-theme="n-pearl"] .grid > .card:nth-child(n) h3::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 10px; vertical-align: 1px; background: linear-gradient(135deg, #7fb0ff, #2f6df0); box-shadow: 0 0 0 3px rgba(47, 109, 240, .14); font-size: 0; }
+html[data-theme="n-pearl"] .card h4 { font-size: 12px; color: var(--sub); }
+/* 안내 줄·상태 칩은 유리 없이 얇은 반투명 바탕만 (모든 것을 유리로 만들지 않는다) */
+html[data-theme="n-pearl"] .banner, html[data-theme="n-pearl"] .care-item { background: rgba(255, 255, 255, .5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .8); border-radius: 14px; color: #34508f; }
+html[data-theme="n-pearl"] .mood > * { background: rgba(255, 255, 255, .5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .8); border-radius: 14px; }
+html[data-theme="n-pearl"] .dock { background: rgba(255, 255, 255, .62); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border-top: 1px solid var(--glass-line); }
+html[data-theme="n-pearl"] .dialog, html[data-theme="n-pearl"] .sheet, html[data-theme="n-pearl"] .notif, html[data-theme="n-pearl"] .more-menu { background: rgba(255, 255, 255, .82); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border: 1px solid var(--glass-line); }
+/* 업데이트 목록: 회색 상자를 없애고 가는 구분선만 있는 깔끔한 목록. 종류 표시는 파랑 계열 하나로 */
+html[data-theme="n-pearl"] .item.cl, html[data-theme="n-pearl"] .cl.acked { background: transparent; box-shadow: none; border: 0; border-radius: 0; padding: 10px 2px; margin: 0; }
+html[data-theme="n-pearl"] .item.cl + .item.cl { border-top: 1px solid var(--hair); }
+html[data-theme="n-pearl"] .cl.acked { opacity: .7; }
+html[data-theme="n-pearl"] .cl-head { gap: 10px; }
+html[data-theme="n-pearl"] .cl-head .sha { font: 500 11.5px var(--stack-sans); color: var(--sub); letter-spacing: 0; }
+html[data-theme="n-pearl"] .cl-t { font-size: 14px; color: var(--hi); font-weight: 500; }
+html[data-theme="n-pearl"] .cl-row { border-bottom: 0; padding: 5px 0; font-size: 13px; color: var(--text); }
+html:root:root[data-theme="n-pearl"] .cl-tag { background: rgba(47, 109, 240, .1); color: #2446b8; box-shadow: inset 0 0 0 1px rgba(47, 109, 240, .14); }
+html:root:root[data-theme="n-pearl"] .cl-tag.cl-new { background: linear-gradient(135deg, #5a97ff, #2f55d9); color: #fff; box-shadow: none; }
+html:root:root[data-theme="n-pearl"] .cl-tag.cl-fix { background: rgba(86, 99, 132, .12); color: #3d4a66; box-shadow: inset 0 0 0 1px rgba(86, 99, 132, .16); }
+/* 눌렀을 때 부드럽게 */
+html[data-theme="n-pearl"] .btn, html[data-theme="n-pearl"] .schip { transition: background .2s ease, box-shadow .2s ease, transform .12s ease, color .2s ease; }
+html[data-theme="n-pearl"] .btn:active:not(:disabled), html[data-theme="n-pearl"] .schip:active { transform: scale(.97); }
+/* 막대: 유리 홈 안에 파랑을 대표색으로 (CPU·CACHE·DISK 는 같은 파랑 계열의 밝기 차이, 경고·위험만 상태색) */
+html[data-theme="n-pearl"] .bar { background: rgba(120, 140, 200, .16); box-shadow: inset 0 1px 2px rgba(40, 70, 170, .16), 0 1px 0 rgba(255, 255, 255, .8); }
+html[data-theme="n-pearl"] .bar i { background: linear-gradient(90deg, #8dbcff, #2f6df0); box-shadow: 0 0 10px -2px rgba(47, 109, 240, .55); }
+html[data-theme="n-pearl"] .bar i.disk { background: linear-gradient(90deg, #a9b8ff, #5b6ee8); box-shadow: 0 0 10px -2px rgba(91, 110, 232, .5); }
+@media (prefers-reduced-motion: reduce) { html[data-theme="n-pearl"] * { transition: none !important; } }
