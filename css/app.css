@@ -689,20 +689,6 @@ html[data-ui="v2"] .chip.lv-WARN { color: var(--warn); } html[data-ui="v2"] .chi
 html[data-ui="v2"] .mood > * { border-radius: var(--r); }
 
 /* 주간 보고서 Summary: 줄글 대신 항목(왼쪽 이름·오른쪽 값)과 비율 막대, 색으로 구분한 한 줄 조언 */
-.rp { display: flex; flex-direction: column; }
-.rp-bar { display: flex; gap: 2px; height: 6px; margin: 2px 0 10px; }
-.rp-bar i { display: block; height: 100%; }
-.rp-bar .rp-p { background: var(--bar-ok); } .rp-bar .rp-w { background: var(--bar-warn); } .rp-bar .rp-e { background: var(--bar-crit); } .rp-bar .rp-f { background: var(--fatalbg); }
-.rp-row { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
-.rp-k { flex: none; width: 84px; color: var(--sub); font-size: 12px; }
-.rp-v { color: var(--text); font-variant-numeric: tabular-nums; }
-.rp-v.crit { color: var(--crit); } .rp-v.warn { color: var(--warn); }
-.rp-sub { color: var(--sub); font-size: 12px; }
-.rp-adv { display: flex; align-items: baseline; gap: 12px; margin-top: 10px; padding: 8px 10px; border-radius: var(--r, 4px); font-size: 13px; line-height: 1.5; }
-.rp-adv .rp-k { padding-top: 0; }
-.rp-adv.ok { background: var(--okbg); } .rp-adv.ok .rp-k { color: var(--ok); }
-.rp-adv.warn { background: var(--warnbg); } .rp-adv.warn .rp-k { color: var(--warn); }
-.rp-adv.crit { background: var(--critbg); } .rp-adv.crit .rp-k { color: var(--crit); }
 
 /* Syslog (PC): 왼쪽 목록 + 오른쪽 상세. 글을 누르면 아래로 펼치지 않고 오른쪽 칸에 열린다 */
 .sl-split { align-items: start; }
@@ -713,22 +699,11 @@ html[data-ui="v2"] .mood > * { border-radius: var(--r); }
 .sl-detail .sl-body { padding: 0; border: 0; background: transparent; }
 
 /* 주간 표: 단계마다 색, 값이 있는 칸은 많을수록 진한 배경, 0/– 는 흐리게, 장애가 있던 날은 한눈에 */
-.rt th { font-size: 11px; letter-spacing: .06em; }
 .rt .th-PASS { color: var(--ok); } .rt .th-WARN { color: var(--warn); } .rt .th-ERROR, .rt .th-FATAL { color: var(--crit); }
-.rt td.z { color: var(--ts); opacity: .6; }
-.rt td.hv { font-variant-numeric: tabular-nums; color: var(--hc); background: color-mix(in srgb, var(--hc) calc(var(--i) * 1%), transparent); }
 .rt .hv-PASS, .rt .tv-PASS { --hc: var(--ok); } .rt .hv-WARN, .rt .tv-WARN { --hc: var(--warn); } .rt .hv-ERROR, .rt .tv-ERROR, .rt .hv-FATAL, .rt .tv-FATAL { --hc: var(--crit); }
-.rt td.tv { color: var(--hc); }
-.rt tr.none td:first-child { color: var(--sub); }
-.rt td.wk { color: var(--sub); }
-.rt tr.inc td:first-child { color: var(--text); }
-.rt tr.tot td { border-top: 1px solid var(--sub); border-bottom: 0; padding-top: 8px; }
-.rt tr.tot td:first-child { color: var(--sub); }
 
-.rt tr.tot td { font-weight: 400; }
 /* 리포트 (PC): 표와 Summary를 나란히 */
 .rpt { display: grid; grid-template-columns: 1fr; gap: 24px; }
-.rpt-h { margin: 0 0 8px; }
 @media (min-width: 900px) { .grid > .card.rpt-card { grid-column: 1 / -1; } .rpt { grid-template-columns: 1.1fr 1fr; gap: 44px; } .rpt-h { display: none; } }
 
 /* Frost: 밝은 터미널 — 소문자 제목에 프롬프트($), 점선 구분, 로그 창은 터미널 화면처럼, 신택스 하이라이트처럼 색을 다양하게 */
@@ -749,7 +724,6 @@ html[data-theme="n-frost"] .sev-info .sl-f { color: #0a7080; }
 html[data-theme="n-frost"] .ps { color: #146a2d; }
 html[data-theme="n-frost"] .tabs { border-top-style: dashed; border-bottom-style: dashed; }
 html[data-theme="n-frost"] .cnt-box b { color: var(--accent); }
-html[data-theme="n-frost"] .rp-k, html[data-theme="n-frost"] .kv > span:first-child { color: #8250df; }
 
 /* 고친 글 표시 */
 .b-ed { color: var(--ts); font-size: 11px; font-style: normal; margin-left: 6px; }
@@ -798,33 +772,14 @@ html[data-ui="v2"] .cl-tag, html[data-ui="v2"] .help .hl { font-family: var(--ui
 .cl.acked .cl-tag { filter: grayscale(1); opacity: .7; }
 
 /* 주간 표 정렬: 날짜와 요일을 따로 칸으로 나누고, 모든 줄의 높이·칸 너비·글자색을 같게 */
-.rt { table-layout: fixed; }
-.rt th, .rt td { height: 32px; padding-top: 0; padding-bottom: 0; vertical-align: middle; }
-.rt th.rt-l, .rt td.rt-d, .rt td.rt-w { text-align: left; }
 .rt th:nth-child(1), .rt td.rt-d { width: 22%; } .rt th:nth-child(2), .rt td.rt-w { width: 14%; }
-.rt td.rt-d { font-variant-numeric: tabular-nums; color: var(--text); }
-.rt td.rt-w { color: var(--sub); }
-.rt tr.none td:first-child, .rt tr.inc td:first-child, .rt td.wk { color: var(--text); }
-.rt tr.none td.rt-w { color: var(--sub); }
-.rt tr.tot td { height: 36px; }
 /* Syslog 줄: 종류 칸을 가장 긴 'user.notice' 에 맞춰 작성자 칸의 시작 위치를 줄마다 같게 */
 .sl-f { min-width: 11ch; }
 /* 로그 줄(Console·Archive): 서비스 이름 칸을 가장 긴 이름에 맞춰 코드 칸의 시작 위치를 같게 */
 .ln .svc { display: inline-block; min-width: 17ch; }
 
 /* 요일: 오늘만 강조색 칩. 그날의 상태(Calm · Warn · Error · Fatal)는 날짜 앞 작은 사각 표시와 줄 배경 색으로 */
-.wd { display: inline-block; min-width: 28px; text-align: center; border-radius: var(--r, 4px); padding: 1px 6px; font-size: 12px; line-height: 1.5; font-style: normal; color: var(--sub); }
-.wd-today { background: var(--accent); color: var(--on-accent, #fff); }
-.rt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: middle; background: var(--line); font-style: normal; }
 .rt-dot.d-PASS { background: var(--ok); } .rt-dot.d-WARN { background: var(--warn); } .rt-dot.d-ERROR { background: var(--crit); } .rt-dot.d-FATAL { background: var(--fatalbg); }
-.rt-dot.d-none { background: transparent; border: 1px dashed var(--sub); }
-.rt tr.d-PASS td:not(.hv) { background: color-mix(in srgb, var(--ok) 6%, transparent); }
-.rt tr.d-WARN td:not(.hv) { background: color-mix(in srgb, var(--warn) 8%, transparent); }
-.rt tr.d-ERROR td:not(.hv), .rt tr.d-FATAL td:not(.hv) { background: color-mix(in srgb, var(--crit) 9%, transparent); }
-.rt tr.tot td { background: transparent !important; }
-.rt-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font: 11.5px var(--guide-font, inherit); color: var(--sub); }
-.rt-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.rt-legend .wd-key { min-width: 18px; height: 12px; padding: 0; border-radius: 3px; vertical-align: middle; }
 
 /* 새 버전 안내 배너: 맨 위에 눈에 띄게 */
 .banner.upd { position: sticky; top: 0; z-index: 5; }
@@ -862,8 +817,6 @@ html[data-theme="terminal"] { --ts: #83958e; --codecol: #81968d; }
 html[data-theme="warm"] { --sub: #635f59; --ts: #60656a; --codecol: #5e666d; --accent: #3863b2; --ok: #2f7250; --warn: #925b13; --crit: #ae414b; }
 /* 너무 작은 글자(10~10.5px)는 11px로, 값 칸 글자는 배경색 위에서도 잘 보이게 */
 .mk, .ln .lv, .ln.pos .lv, .lv-PASS .lv, .ln .tag, .cl-tag, .badge, .tag { font-size: 11px; }
-.rt td.hv { color: var(--text); }
-.rt td.z { opacity: 1; color: var(--ts); }
 .sl-like { color: color-mix(in srgb, var(--crit) 88%, var(--panel)); }
 
 /* 새 디자인(v2)에서도 기능별 버튼 색이 유지되게 (v2 의 .btn 글자색보다 우선) */
@@ -1108,13 +1061,6 @@ html:not([data-ui="v2"]):root .btn.primary.small { padding: 5px 13px; }
 :root:root .mh b { font-size: 13px; letter-spacing: .02em; }
 
 /* Today 카드 (live 점 + 단계별 개수 + 시간대 막대) — 깔끔하게: 상자·테두리 없이 옅은 면과 색 숫자만 */
-.tl-strip { display: flex; align-items: flex-end; gap: 2px; height: 36px; margin-top: 12px; }
-.tl-strip i { flex: 1; border-radius: 2px 2px 0 0; background: color-mix(in srgb, var(--sub) 38%, transparent); min-height: 2px; }
-.tl-strip i.w { background: var(--warn); } .tl-strip i.e { background: var(--crit); }
-.tl-strip i.fut { opacity: .28; }
-.tl-strip i.now { outline: 1px solid var(--accent); outline-offset: 1px; }
-.tl-axis { position: relative; height: 14px; margin-top: 4px; font: 10.5px var(--mono); color: var(--sub); }
-.tl-axis span { position: absolute; top: 0; }
 /* 마우스가 있는 기기에서만 올렸을 때 면 표시 (폰에서는 눌렀다 뗀 뒤에도 면이 남지 않게) */
 @media (hover: hover) {
   :root:root .btn:hover { background: var(--btn-tint); }
@@ -1213,52 +1159,10 @@ input[type=checkbox]:focus-visible { outline: 2px solid color-mix(in srgb, var(-
 .col .stick i.lv3 { background: linear-gradient(0deg, var(--bar-crit), color-mix(in srgb, var(--bar-crit) 58%, #fff)); }
 .col.today .stick { outline: 1.5px solid var(--accent); outline-offset: 1px; }
 .col.today .d { color: var(--accent); }
-.tl-strip i.p { background: color-mix(in srgb, var(--ok) 52%, transparent); }
 .grid > .card.span-all { grid-column: 1 / -1; }
 
 /* ═══ 대시보드 ═══ */
-.db { display: flex; flex-direction: column; gap: 10px; }
-.db-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.db-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 20%, transparent); }
-.db-banner.st-yellow .db-dot { background: var(--warn); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 22%, transparent); }
-.db-banner.st-red .db-dot { background: var(--crit); box-shadow: 0 0 0 4px color-mix(in srgb, var(--crit) 22%, transparent); }
-.db-bt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.db-bt b { font: 500 17px var(--btn-font); }
-.db-week { margin-left: auto; }
-.db-up { display: flex; gap: 3px; align-items: flex-end; }
-.db-up i { width: 14px; height: 24px; border-radius: 3px; background: var(--ok); opacity: .85; }
-.db-up i.w { background: var(--warn); } .db-up i.e { background: var(--crit); } .db-up i.n { background: color-mix(in srgb, var(--sub) 30%, transparent); opacity: .7; }
-.db-up i.fut { opacity: .3; } .db-up i.t { outline: 1.5px solid var(--accent); outline-offset: 1px; }
-.db-ax { display: flex; justify-content: space-between; margin-top: 4px; font: 10.5px var(--mono); color: var(--sub); }
-.db-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-.db-tile { display: flex; flex-direction: column; gap: 2px; }
-.db-k { margin: 0 0 4px; font: 500 11px var(--btn-font); letter-spacing: .06em; text-transform: uppercase; color: var(--sub); }
-.db-big { margin: 0; font: 500 28px/1.1 var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
-.db-big small { font-size: 13px; font-weight: 400; color: var(--sub); }
-.db-sub { margin: 0; font: 11px var(--mono); color: var(--sub); text-align: center; }
-.db-dl { margin: 4px 0 0; font: 11.5px var(--btn-font); }
-.db-dl.good { color: var(--ok); } .db-dl.bad { color: var(--crit); } .db-dl.flat { color: var(--sub); }
-.db-tile svg { display: block; width: 100%; }
-.db-tile svg text { font: 500 20px var(--mono); fill: var(--text); }
-.db-tile svg .z { fill: none; stroke-width: 9; opacity: .3; } .db-tile svg .v { fill: none; stroke-width: 9; stroke-linecap: round; }
-.db-tile svg .z.ok, .db-tile svg .v.ok { stroke: var(--bar-ok); } .db-tile svg .z.warn, .db-tile svg .v.warn { stroke: var(--bar-warn); } .db-tile svg .z.crit, .db-tile svg .v.crit { stroke: var(--bar-crit); }
-.db-tile.spk svg .l { fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.db-tile.spk.ok svg .l { stroke: var(--bar-ok); } .db-tile.spk.ok svg .a { fill: var(--bar-ok); opacity: .14; }
-.db-tile.spk.warn svg .l { stroke: var(--bar-warn); } .db-tile.spk.warn svg .a { fill: var(--bar-warn); opacity: .14; }
-.db-lg { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; font: 11px var(--btn-font); color: var(--sub); }
-.db-lg b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
-.db-lg b.ok { background: var(--ok); } .db-lg b.warn { background: var(--warn); } .db-lg b.crit { background: var(--crit); }
-.db-two { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
-.db-hours { height: 78px; margin-top: 4px; }
-.db-ev { display: flex; flex-direction: column; gap: 4px; font: 12px var(--mono); }
-.db-ev > div { display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow: hidden; }
-.db-ev .t { color: var(--sub); } .db-ev .sv { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
-.db-ev .lv-PASS { color: var(--ok); } .db-ev .lv-WARN { color: var(--warn); } .db-ev .lv-ERROR, .db-ev .lv-FATAL { color: var(--crit); }
 @media (max-width: 680px) { .db-two { grid-template-columns: 1fr; } .db-week { margin-left: 0; width: 100%; } .db-up i { flex: 1; width: auto; } }
-.db-banner { flex-direction: row; align-items: center; }
-.db-sub.left { text-align: left; }
-:root:root .db .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; gap: 6px; }
-.db-up i, .db-up i.t { border-radius: 3px; }
 
 /* 채운(주) 버튼: 덜 우악스럽게 — 여백과 글자를 줄여 날씬하게 (터치 기기는 누르기 편하도록 높이만 유지) */
 html:not([data-ui="v2"]):root .btn.primary { padding: 4px 12px; font-size: 13px; gap: 5px; border-radius: 6px; }
@@ -1269,3 +1173,38 @@ html:not([data-ui="v2"]):root .btn.primary.small { padding: 3px 11px; font-size:
 
 /* 입력칸과 같은 줄에 놓인 버튼은 입력칸과 같은 높이 (버튼만 날씬해져서 입력칸보다 낮아지지 않게) */
 :has(> input:not([type=checkbox]):not([type=radio]), > textarea, > .pbox) > .btn { align-self: stretch; }
+
+/* 주간 보고: 차트 먼저 */
+
+/* 대시보드·주간 보고: 단순하게 */
+.ds-card { max-width: 640px; gap: 16px; padding: 18px 20px; }
+.ds-hero { display: flex; align-items: center; gap: 12px; }
+.ds-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--ok); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ok) 18%, transparent); }
+.ds-hero.st-yellow .ds-dot { background: var(--warn); box-shadow: 0 0 0 5px color-mix(in srgb, var(--warn) 20%, transparent); }
+.ds-hero.st-red .ds-dot { background: var(--crit); box-shadow: 0 0 0 5px color-mix(in srgb, var(--crit) 20%, transparent); }
+.ds-t { margin: 0; font: 500 20px var(--btn-font); color: var(--text); }
+.ds-s { margin: 2px 0 0; font: 12px var(--btn-font); color: var(--sub); }
+.ds-mh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font: 13px var(--btn-font); color: var(--sub); }
+.ds-mh b { font: 500 15px var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.ds-bar { height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--sub) 16%, transparent); overflow: hidden; }
+.ds-bar i { display: block; height: 100%; border-radius: 99px; transition: width .4s; }
+.ds-bar i.g { background: var(--bar-ok); } .ds-bar i.y { background: var(--bar-warn); } .ds-bar i.r { background: var(--bar-crit); }
+.ds-line { display: flex; gap: 16px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent); font: 13px var(--btn-font); color: var(--sub); }
+.ds-line b { margin-right: 5px; font: 500 15px var(--mono); }
+.ds-line b.o { color: var(--ok); } .ds-line b.w { color: var(--warn); } .ds-line b.e { color: var(--crit); }
+.rp2 { max-width: 640px; }
+.rp2-h { margin: 0; font: 500 19px var(--btn-font); color: var(--text); }
+.rp2-s { margin: 2px 0 0; font: 12px var(--btn-font); color: var(--sub); }
+.rp2-week { display: flex; gap: 8px; margin: 18px 0 4px; }
+.rp2-d { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.rp2-d em { height: 14px; text-align: center; font: normal 10.5px var(--mono); color: var(--sub); }
+.rp2-plot { height: 110px; display: flex; align-items: flex-end; border-radius: 4px; }
+.rp2-plot i { display: block; width: 100%; border-radius: 4px; min-height: 4px; }
+.rp2-plot i.r { background: var(--crit); } .rp2-plot i.f { background: repeating-linear-gradient(135deg, var(--crit) 0 5px, color-mix(in srgb, var(--crit) 55%, #000) 5px 10px); }   /* FATAL 은 빗금 — 어떤 테마에서도 ERROR 와 구별 */ .rp2-plot i.y { background: var(--warn); } .rp2-plot i.g { background: color-mix(in srgb, var(--ok) 55%, transparent); } .rp2-plot i.n { background: color-mix(in srgb, var(--sub) 28%, transparent); }
+.rp2-d.fut .rp2-plot i { opacity: .4; }
+.rp2-d span { text-align: center; font: 500 11px var(--btn-font); color: var(--sub); }
+.rp2-d.t span { color: var(--accent); }
+.rp2-d.t .rp2-plot { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.rp2-adv { margin: 14px 0 0; padding: 9px 12px; border-radius: 8px; font: 12.5px var(--guide-font); background: color-mix(in srgb, var(--sub) 12%, transparent); color: var(--text); }
+.rp2-adv.warn { background: var(--warnbg); color: var(--warn); } .rp2-adv.crit { background: color-mix(in srgb, var(--crit) 12%, transparent); color: var(--crit); }
+

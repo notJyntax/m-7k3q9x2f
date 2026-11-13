@@ -1,4 +1,4 @@
-import { h, $, uid, pad, clamp, sum, dayKey, weekKey, monthKey, weekdayOf, hm, hms, mdhm, DOW, withTimeout, lsGet, lsSet } from './util.js';
+import { h, $, uid, pad, clamp, sum, dayKey, weekKey, monthKey, weekdayOf, hm, hms, mdhm, withTimeout, lsGet, lsSet } from './util.js';
 import { createStore } from './store.js';
 import * as L from './logic.js';
 import { CONFIG } from './config.js';
@@ -372,7 +372,13 @@ function refresh() {
   if (a && $('#view')?.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) { S.dirty = true; renderChrome(); return; }
   S.dirty = false; renderChrome(); renderView(); syncSoon();
 }
-function go(tab) { if (S.tab === 'syslog' && tab !== 'syslog') S.sys?.open.clear();   // 열어 둔 Syslog 글은 다른 탭으로 옮겨 갈 때만 접는다 (시간으로는 접지 않는다)
+// 열어 둔 것(답글·새 아젠다·메모 입력칸, 아젠다 댓글, 펼친 로그·Syslog 글, 업데이트 내역, 해결된 아젠다·승인 내역 목록, 달력 기간 선택)은 다른 탭으로 옮겨 갈 때 모두 접는다. 시간으로는 접지 않는다.
+function collapseAll() {
+  S.replyOpen?.clear(); S.agOpen?.clear(); S.open?.clear(); S.sys?.open.clear();
+  S.clOpen = {}; S.agHist = false; S.planHist = false;
+  if (S.cal) { S.cal.end = null; S.cal.range = false; }
+}
+function go(tab, keep = false) { if (S.tab !== tab && !keep) collapseAll();
   S.tab = tab; renderChrome(); renderView(); $('#view').scrollTop = 0; if (tab === 'report') ensureReport(false); }
 
 // ── 새 항목 알림: 탭 옆 빨간 숫자 (그 탭을 열면 사라짐, 기기별로 기억) ──
@@ -477,9 +483,10 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.notifO
 document.addEventListener('pointerdown', (e) => { if (S.notifOpen && !e.target.closest?.('#notif, .bell')) { closeNotif(); renderChrome(); } });
 function openActivity(i) {
   closeNotif();
-  if (i.post) { const st = sysState(); st.filter = 'all'; st.q = ''; st.open.clear(); st.open.add(i.post); st.read.add(i.post); }
+  collapseAll();   // 알림에서 이동할 때는 다 접은 뒤 그 항목만 연다
+  if (i.post) { const st = sysState(); st.filter = 'all'; st.q = ''; st.open.add(i.post); st.read.add(i.post); }
   if (i.agenda) (S.agOpen ??= new Set()).add(i.agenda);
-  go(i.tab);
+  go(i.tab, true);
   if (i.mood) { i.mood === 'status' ? openTheirMood() : openTheirMood(); return; }
   setTimeout(() => {
     const el = i.commit ? document.querySelector(`[data-cid="${i.commit}"]`) : i.post ? document.querySelector(`[data-pid="${i.post}"]`) : i.agenda ? document.querySelector(`[data-aid="${i.agenda}"]`) : i.line ? document.querySelector(`[data-lid="${i.line}"]`) : null;
@@ -856,56 +863,16 @@ function openRestart() {
 
 // ───────── 작성자: 대시보드/인박스/리포트/설정 ─────────
 const agoEn = (ts) => { const m = Math.floor((Date.now() - ts) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`; };
-// ───────── 대시보드: 상태 배너 + 7일 띠, 게이지·추세선 타일(어제 대비), 시간대 활동, 최근 이벤트 ─────────
-const svgOf = (inner, vb, label) => { const t = document.createElement('template'); t.innerHTML = `<svg viewBox="${vb}" role="img" aria-label="${label}">${inner}</svg>`; return t.content.firstChild; };   // 숫자·고정 문자열만 사용
-const gaugeEl = (v, label) => {   // 반원 게이지: 0~50 초록 · 50~80 노랑 · 80~100 빨강 구간 위에 값만큼 채운다
-  const pt = (val) => { const a = Math.PI * (1 - val / 100); return [60 + 50 * Math.cos(a), 62 - 50 * Math.sin(a)].map((n) => n.toFixed(1)); };
-  const arc = (a, b, cls) => { const [x0, y0] = pt(a), [x1, y1] = pt(b); return `<path class="${cls}" d="M${x0} ${y0} A50 50 0 0 1 ${x1} ${y1}"/>`; };
-  const val = Math.max(0, Math.min(100, v | 0)), lv = val >= 80 ? 'crit' : val >= 50 ? 'warn' : 'ok';
-  return svgOf(`${arc(0, 50, 'z ok')}${arc(50, 80, 'z warn')}${arc(80, 100, 'z crit')}${val > 0 ? arc(0, Math.max(val, 1), 'v ' + lv) : ''}<text x="60" y="58" text-anchor="middle">${val}%</text>`, '0 0 120 70', label);
-};
-const sparkEl = (pts, cls, label) => {   // 작은 추세선 (점 2개 미만이면 평평한 선)
-  const p = pts.length >= 2 ? pts : [pts[0] ?? 0, pts[0] ?? 0], lo = Math.min(...p), hi = Math.max(...p), span = hi - lo || 1;
-  const xy = p.map((v, i) => `${(2 + i * 116 / (p.length - 1)).toFixed(1)} ${(30 - (v - lo) / span * 24).toFixed(1)}`);
-  return svgOf(`<path class="a" d="M${xy.join(' L')} L118 34 L2 34Z"/><path class="l" d="M${xy.join(' L')}"/>`, '0 0 120 34', label);
-};
-function deltaEl(cur, prev, goodUp, unit) {
-  if (prev == null) return h('p', { class: 'db-dl flat', text: 'no data yesterday' });
-  const d = cur - prev; if (d === 0) return h('p', { class: 'db-dl flat', text: '– same as yesterday' });
-  const good = (d > 0) === goodUp;
-  return h('p', { class: 'db-dl ' + (good ? 'good' : 'bad'), text: `${d > 0 ? '▲' : '▼'} ${Math.abs(d)} ${unit} vs yesterday` });
-}
+// ───────── 대시보드: 단순하게 — 상태 한 줄, 미터 셋(CPU·Cache·Disk), 오늘 개수 한 줄 ─────────
 function viewDash() {
-  const m = metrics(), logs = todayLogs(), now = Date.now(), today = dayKey();
-  const start = new Date(); start.setHours(4, 0, 0, 0); if (now < start.getTime()) start.setDate(start.getDate() - 1);
-  const slots = Array.from({ length: 24 }, () => ({ n: 0, w: 0 })), nowSlot = Math.min(23, Math.max(0, Math.floor((now - start.getTime()) / 3600e3)));
-  for (const l of logs) { const i = Math.floor((l.ts - start.getTime()) / 3600e3); if (i < 0 || i > 23) continue; slots[i].n++; slots[i].w = Math.max(slots[i].w, { WARN: 1, ERROR: 2, FATAL: 3 }[l.level] || 0); }
-  const max = Math.max(1, ...slots.map((x) => x.n)), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
-  const ystat = rows('stats').find((r) => r.day === dayKey(now - 86400e3));
-  const inc = (m.ERROR | 0) + (m.FATAL | 0), yinc = ystat ? (ystat.ERROR | 0) + (ystat.FATAL | 0) : null;
-  // 상태 배너 + 이번 주 7일 띠 (날마다 가장 나쁜 단계)
-  const wmap = new Map(weekRows().map((r) => [r.day, r]));
-  const days = weekDays(), strip = days.map((d) => { const r = wmap.get(d), worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) || 'none' : 'none'; const cls = { none: 'n', PASS: 'p', WARN: 'w', ERROR: 'e', FATAL: 'e' }[worst]; return h('i', { class: cls + (d === today ? ' t' : '') + (d > today ? ' fut' : ''), title: r ? `${d.slice(5)} · ${(r.ERROR | 0) + (r.FATAL | 0)} incidents` : d.slice(5) }); });
-  const banner = h('section', { class: 'card db-banner st-' + m.level },
-    h('span', { class: 'db-dot' }), h('div', { class: 'db-bt' }, h('b', { text: L.STATUS_TEXT[m.level] }), h('span', { class: 'sub', text: (last ? 'last event ' + agoEn(last) : 'no events yet today') + ' · updated just now' })),
-    h('div', { class: 'db-week' }, h('div', { class: 'db-up' }, strip), h('div', { class: 'db-ax' }, h('span', { text: 'Mon' }), h('span', { text: 'Sun' }))));
-  // 요약 타일
-  const cumPos = (() => { const a = []; let c = 0; for (let i = 0; i <= nowSlot; i += 1) { c += logs.filter((l) => Math.floor((l.ts - start.getTime()) / 3600e3) === i).reduce((t, l) => t + (l.pos | 0), 0); a.push(c); } return a; })();
-  const diskPts = (() => { let c = 0; return days.filter((d) => d <= today).map((d) => { c += (wmap.get(d)?.disk | 0); return Math.min(100, Math.round(c * 0.3)); }); })();
-  const cpuTotal = clamp(m.cpu + m.mem);   // 예전 CPU 막대와 같은 값: 짜증(Irritation) + 피로(Fatigue)
-  const cpu = h('div', { class: 'card db-tile' }, h('p', { class: 'db-k', text: 'CPU' }), gaugeEl(cpuTotal, `CPU ${cpuTotal}%`), h('p', { class: 'db-sub', text: `Irritation ${m.cpu | 0} · Fatigue ${m.mem | 0}` }), deltaEl(cpuTotal, ystat ? clamp((ystat.cpu | 0) + (ystat.mem | 0)) : null, false, 'pts'));
-  const cache = h('div', { class: 'card db-tile spk ok' }, h('p', { class: 'db-k', text: 'Cache' }), h('p', { class: 'db-big' }, String(m.pos), h('small', { text: '%' })), sparkEl(cumPos, 'ok', 'Cache since 04:00'), deltaEl(m.pos, ystat ? clamp(ystat.pos) : null, true, 'pts'));
-  const disk = h('div', { class: 'card db-tile spk warn' }, h('p', { class: 'db-k', text: 'Disk · week' }), h('p', { class: 'db-big' }, String(m.disk), h('small', { text: '%' })), sparkEl(diskPts, 'warn', 'Disk this week'), h('p', { class: 'db-dl flat', text: 'resets Monday' }));
-  const incT = h('div', { class: 'card db-tile' }, h('p', { class: 'db-k', text: 'Incidents today' }), h('p', { class: 'db-big' }, String(inc)), h('p', { class: 'db-sub left', text: `error ${m.ERROR | 0} · fatal ${m.FATAL | 0}` }),
-    h('div', { class: 'db-lg' }, [['ok', m.PASS, 'pass'], ['warn', m.WARN, 'warn'], ['crit', m.ERROR, 'error']].map(([c, n, t]) => h('span', {}, h('b', { class: c }), `${n | 0} ${t}`))), deltaEl(inc, yinc, false, ''));
-  // 시간대 활동 + 최근 이벤트
-  const hours = h('div', { class: 'card db-wide' }, h('p', { class: 'db-k', text: 'Activity by hour since 04:00' }),
-    h('div', { class: 'tl-strip db-hours' }, slots.map((x, i) => h('i', { class: (x.w === 1 ? 'w' : x.w >= 2 ? 'e' : x.n ? 'p' : '') + (i === nowSlot ? ' now' : '') + (i > nowSlot ? ' fut' : ''), style: `height:${x.n ? Math.max(15, Math.round(x.n / max * 100)) : 6}%`, title: `${String((i + 4) % 24).padStart(2, '0')}:00 · ${x.n}` }))),
-    h('div', { class: 'tl-axis' }, ['04', '10', '16', '22'].map((t, i) => h('span', { text: t, style: `left:${i * 25}%` }))));
-  const recent = logs.slice().sort((a, b) => b.ts - a.ts).slice(0, 3);
-  const latest = h('div', { class: 'card' }, h('p', { class: 'db-k', text: 'Latest events' }),
-    recent.length ? h('div', { class: 'db-ev' }, recent.map((l) => h('div', {}, h('span', { class: 't', text: hm(l.ts) }), h('span', { class: 'lv lv-' + l.level, text: l.level }), h('span', { class: 'sv', text: `${l.service || 'user'}.${String(l.code || '').toLowerCase()}` })))) : empty('아직 이벤트가 없어요'));
-  return h('div', { class: 'db' }, banner, h('div', { class: 'db-kpis' }, cpu, cache, disk, incT), h('div', { class: 'db-two' }, hours, latest));
+  const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
+  const cpu = clamp(m.cpu + m.mem);   // 짜증(Irritation) + 피로(Fatigue)
+  const cls = (v, hi = 80, mid = 50) => (v >= hi ? 'r' : v >= mid ? 'y' : 'g');
+  const meter1 = (name, v, c) => h('div', { class: 'ds-m' }, h('div', { class: 'ds-mh' }, h('span', { text: name }), h('b', { text: v + '%' })), h('div', { class: 'ds-bar' }, h('i', { class: c, style: `width:${clamp(v)}%` })));
+  return h('div', { class: 'db' }, h('section', { class: 'card ds-card' },
+    h('div', { class: 'ds-hero st-' + m.level }, h('span', { class: 'ds-dot' }), h('div', {}, h('p', { class: 'ds-t', text: L.STATUS_TEXT[m.level] }), h('p', { class: 'ds-s', text: last ? 'last event ' + agoEn(last) : 'no events yet today' }))),
+    meter1('CPU', cpu, cls(cpu)), meter1('Cache', clamp(m.pos), 'g'), meter1('Disk', clamp(m.disk), cls(clamp(m.disk), 85, 65)),
+    h('div', { class: 'ds-line' }, [['o', m.PASS, 'pass'], ['w', m.WARN, 'warn'], ['e', (m.ERROR | 0) + (m.FATAL | 0), 'error']].map(([c, n, t]) => h('span', {}, h('b', { class: c, text: n | 0 }), t)))));
 }
 
 function keepBtn(text, from) {
@@ -1229,30 +1196,24 @@ async function ensureReport(force) {
   const lines = L.templateReport(s);
   S.rep = { sig, lines, busy: false }; schedule();
 }
-const RT_VERDICT = { PASS: 'Calm', WARN: 'Warn', ERROR: 'Error', FATAL: 'Fatal', none: 'No data' };
+// 주간 보고: 단순하게 — 한 줄 요약(사고 수·가장 나빴던 날), 날마다 막대 하나, 조언 한 줄
+const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function reportCard() {
-  const s = L.weekSummary(weekRows());
-  const map = new Map(s.days.map((d) => [d.day, d]));
-  const cell = (v, lv, max) => h('td', { class: v > 0 ? `hv hv-${lv}` : 'z', style: v > 0 ? `--i:${Math.round(14 + 20 * v / Math.max(max, 1))}` : '', text: v == null ? '–' : v });
-  const max = Math.max(1, ...s.days.flatMap((d) => L.LEVELS.map((lv) => d[lv] | 0)));
-  const tbl = h('table', { class: 'tbl rt' }, h('tr', {}, ['Date', 'Day', ...L.LEVELS].map((t) => h('th', { class: L.LEVELS.includes(t) ? 'th-' + t : 'rt-l', text: t }))),
-      weekDays().map((d, i) => { const r = map.get(d), dow = (i + 1) % 7; const worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) || 'none' : 'none';   // 그날의 가장 나쁜 단계 = 그날의 한 줄 평가
-        return h('tr', { class: `d-${worst}` + (r && ((r.ERROR | 0) + (r.FATAL | 0)) ? ' inc' : r ? '' : ' none') }, h('td', { class: 'rt-d' }, h('i', { class: 'rt-dot d-' + worst, title: RT_VERDICT[worst] }), d.slice(5)), h('td', { class: 'rt-w' }, h('span', { class: 'wd' + (d === dayKey() ? ' wd-today' : ''), title: d === dayKey() ? 'Today' : '', text: DOW[dow] })), L.LEVELS.map((lv) => cell(r ? r[lv] | 0 : null, lv, max))); }),
-      h('tr', { class: 'tot' }, h('td', { colspan: 2, text: 'Total' }), L.LEVELS.map((lv) => h('td', { class: s.tot[lv] > 0 ? `tv tv-${lv}` : 'z', text: s.tot[lv] }))));
-  const c = card('Weekly incident report · ' + weekKey(), h('div', { class: 'rpt' }, h('div', {}, tbl, h('div', { class: 'rt-legend' }, [...['PASS', 'WARN', 'ERROR', 'FATAL', 'none'].map((k) => h('span', {}, h('i', { class: 'rt-dot d-' + k }), RT_VERDICT[k])), h('span', {}, h('i', { class: 'wd wd-today wd-key', text: ' ' }), 'Today')])), h('div', {}, h('h4', { class: 'rpt-h', text: 'Summary' }), reportFactsView(L.reportFacts(s)))));
+  const s = L.weekSummary(weekRows()), f = L.reportFacts(s), map = new Map(s.days.map((d) => [d.day, d])), today = dayKey(), days = weekDays();
+  const inc = (r) => (r ? (r.ERROR | 0) + (r.FATAL | 0) : 0), max = Math.max(1, ...days.map((d) => inc(map.get(d))));
+  const peak = s.peakDay && s.incidents ? DOW_EN[new Date(s.peakDay + 'T12:00:00').getDay()] : null;
+  const bars = h('div', { class: 'rp2-week' }, days.map((d, i) => {
+    const r = map.get(d), n = inc(r), fut = d > today, worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) : null;
+    const c = worst === 'FATAL' ? 'f' : worst === 'ERROR' ? 'r' : worst === 'WARN' ? 'y' : worst === 'PASS' ? 'g' : 'n';
+    const hgt = n ? Math.max(14, Math.round(n / max * 100)) + '%' : worst === 'WARN' ? '10%' : worst === 'PASS' ? '6%' : '4px';
+    return h('div', { class: 'rp2-d' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
+      h('em', { text: n || '' }), h('div', { class: 'rp2-plot' }, h('i', { class: c, style: `height:${hgt}` })), h('span', { text: DOW_EN[(i + 1) % 7] }));
+  }));
+  const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
+  const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + 'Week of ' + fmtMD(weekKey()) }), bars,
+    f ? h('p', { class: 'rp2-adv ' + f.advice.tone, text: f.advice.text }) : null));
   c.classList.add('rpt-card');
   return c;
-}
-function reportFactsView(f) {
-  if (!f) return note('이번 주 기록된 이벤트가 없습니다.');
-  const t = f.tot, row = (k, v, cls = '', sub = '') => h('div', { class: 'rp-row' }, h('span', { class: 'rp-k', text: k }), h('span', { class: 'rp-v ' + cls, text: v }), sub ? h('span', { class: 'rp-sub', text: sub }) : null);
-  return h('div', { class: 'rp' },
-    h('div', { class: 'rp-bar' }, [['PASS', 'p'], ['WARN', 'w'], ['ERROR', 'e'], ['FATAL', 'f']].filter(([k]) => t[k]).map(([k, c]) => h('i', { class: 'rp-' + c, style: `flex:${t[k]}`, title: `${k} ${t[k]}` }))),
-    row('Total', `${f.total} events`),
-    row('Incidents', String(f.incidents), f.incidents ? 'crit' : '', `ERROR ${t.ERROR} · FATAL ${t.FATAL}`),
-    row('Warnings', String(t.WARN), t.WARN ? 'warn' : ''),
-    f.peak ? row('Peak day', f.peak) : null,
-    h('div', { class: 'rp-adv ' + f.advice.tone }, h('span', { class: 'rp-k', text: 'Advice' }), h('span', { text: f.advice.text })));
 }
 const viewReport = () => h('div', { class: 'grid' }, reportCard());
 

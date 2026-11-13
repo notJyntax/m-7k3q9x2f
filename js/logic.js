@@ -178,7 +178,7 @@ export function reportFacts(s) {
   if (!s.days.length) return null;
   const t = s.tot, total = t.PASS + t.WARN + t.ERROR + t.FATAL;
   let peak = null;
-  if (s.peakDay) { const [y, m, d] = s.peakDay.split('-').map(Number); peak = `${m}/${d} (${['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()]})`; }
+  if (s.peakDay) { const [y, m, d] = s.peakDay.split('-').map(Number); peak = `${m}/${d} (${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(y, m - 1, d).getDay()]})`; }
   const advice = t.FATAL >= 3 ? { tone: 'crit', text: '치명 오류가 반복되었습니다. 이번 주 안에 부하를 줄이고 충분한 회복 시간을 확보하세요.' }
     : t.FATAL > 0 ? { tone: 'crit', text: '치명 오류가 있었던 날 이후 최소 하루는 부하를 낮추세요.' }
     : s.incidents > 0 ? { tone: 'warn', text: '장애가 일부 있었으나 치명 수준은 아니었습니다. 주 후반 부하 관리에 유의하세요.' }
