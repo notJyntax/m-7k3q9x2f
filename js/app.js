@@ -470,11 +470,11 @@ function renderNotif() {
   const list = feed.length ? feed.map((i) => { const un = isUnreadItem(i, base, read);
     return h('div', { class: 'nt-row' },
       h('button', { type: 'button', class: 'nt-i' + (un ? ' new' : '') + (i.urgent ? ' urgent' : ''), on: { click: () => { markRead(i.id); openActivity(i); } } },
-        h('span', { class: 'nt-t', text: mdhm(i.ts) }), h('span', { class: 'nt-g', text: i.tag }), h('span', { class: 'nt-m', text: i.text }), un ? h('span', { class: 'new-tag', text: 'new' }) : null),
-      un ? h('button', { type: 'button', class: 'btn small quiet nt-read', title: 'Mark as read', 'aria-label': 'Mark as read', on: { click: () => { markRead(i.id); redo(); } } }, 'Read') : null); })
+        h('span', { class: 'nt-t', text: mdhm(i.ts) }), h('span', { class: 'nt-g', text: i.tag }), h('span', { class: 'nt-m', text: i.text })),
+      h('span', { class: 'nt-slot' }, un ? h('button', { type: 'button', class: 'btn small quiet ic nt-read', title: 'Mark as read', 'aria-label': 'Mark as read', on: { click: () => { markRead(i.id); redo(); } } }, icon('check')) : null)); })
     : [h('p', { class: 'empty', text: 'No alerts yet' })];
   const el = h('section', { id: 'notif', class: 'notif', role: 'dialog', 'aria-label': 'Alerts' },
-    h('div', { class: 'nt-h' }, h('b', { text: '# Alerts' }), h('span', { class: 'sub', text: unread ? `${unread} unread` : 'all read' }), h('span', { class: 'sp' }),
+    h('div', { class: 'nt-h' }, h('b', { text: 'Alerts' }), h('span', { class: 'sub', text: unread ? `${unread} unread` : 'all read' }), h('span', { class: 'sp' }),
       unread ? btn('Mark all read', () => { markAllRead(); redo(); }, 'small quiet') : null, btn('Close', () => { closeNotif(); renderChrome(); }, 'small quiet')),
     h('div', { class: 'nt-l' }, list), h('p', { class: 'nt-f', text: 'Shows the type only, never the content. Tap one to jump there and mark it read.' }));
   document.body.append(el);
@@ -508,6 +508,12 @@ async function doRefresh() {
   else if (r === 'current') { S.updateReady = false; renderChrome(); toast('이미 최신 버전이에요'); }
   else if (r === 'offline') toast('서버에 연결하지 못했어요. 인터넷을 확인해 주세요.');
 }
+// 로고: 둥근 네모(위쪽이 옅은 두 톤) 안에 터미널 프롬프트 >_ . 고정 문자열만 사용
+function logoMark() {
+  const t = document.createElement('template');
+  t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><rect class="bg" x="2" y="2" width="20" height="20" rx="6"/><path class="hi" d="M2 8a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v1H2z"/><path class="fg" d="M7.5 11l3.2 2.8-3.2 2.8"/><path class="fg" d="M13 17h3.5"/></svg></span>';
+  return t.content.firstChild;
+}
 function renderChrome() {
   const top = $('#top'), tabs = $('#tabs'), dock = $('#dock');
   if (!top) return;
@@ -526,7 +532,7 @@ function renderChrome() {
   const wr = isWriter();
   const lvl = S.store ? (wr ? metrics().level : (statusToday().level || 'green')) : 'green';
   top.replaceChildren(
-    h('div', { class: 'brand' }, h('span', { class: 'logo', text: '◧' }), h('b', {}, h('span', { class: 'bw', text: 'Service ' }), 'Monitor'), h('span', { class: 'env', text: 'prod-api-02' })),
+    h('div', { class: 'brand' }, logoMark(), h('b', { text: 'Monitor' }), h('span', { class: 'env', text: 'prod-api-02' })),
     h('div', { class: 'right' },
       S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small ic bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, icon('inbox'), notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
       S.store ? notifyBtn() : null,
@@ -885,7 +891,7 @@ const reviewReplies = (rid) => rows('review_replies').filter((c) => c.reviewId =
 // 버튼이 없는 칸에도 같은 버튼을 투명하게 깔아 둔다: 어떤 테마·화면 폭에서도 빈 칸과 채워진 칸의 너비가 같아서 하트 위치가 줄마다 같다
 const cmGhost = (label) => { const g = btn(label, () => {}, 'small quiet' + (label === 'More' ? ' more' : '')); g.classList.add('cm-ghost'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1; return g; };
 function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, onEdit, onDel }) {
-  return h('div', { class: 'cm' + (cls ? ' ' + cls : '') },
+  return h('div', { class: 'cm ' + (them ? 'them' : 'me') + (cls ? ' ' + cls : '') },
     h('div', { class: 'cm-meta' }, h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || (like?.dataset?.newlike === '1' ? newTag(true) : null)),
     h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), extra !== undefined ? h('span', { class: 'cm-slot xtra' }, extra || null) : null, h('span', { class: 'cm-slot more' }, onEdit || onDel ? moreMenu([onEdit ? { label: 'Edit', icon: 'edit', fn: onEdit } : null, onDel ? { label: 'Delete', icon: 'trash', danger: true, fn: act(onDel) } : null].filter(Boolean)) : cmGhost('More'))),
     h('div', { class: 'cm-text', text }));
@@ -1202,12 +1208,14 @@ function reportCard() {
   const s = L.weekSummary(weekRows()), f = L.reportFacts(s), map = new Map(s.days.map((d) => [d.day, d])), today = dayKey(), days = weekDays();
   const inc = (r) => (r ? (r.ERROR | 0) + (r.FATAL | 0) : 0), max = Math.max(1, ...days.map((d) => inc(map.get(d))));
   const peak = s.peakDay && s.incidents ? DOW_EN[new Date(s.peakDay + 'T12:00:00').getDay()] : null;
-  const bars = h('div', { class: 'rp2-week' }, days.map((d, i) => {
-    const r = map.get(d), n = inc(r), fut = d > today, worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) : null;
-    const c = worst === 'FATAL' ? 'f' : worst === 'ERROR' ? 'r' : worst === 'WARN' ? 'y' : worst === 'PASS' ? 'g' : 'n';
-    const hgt = n ? Math.max(14, Math.round(n / max * 100)) + '%' : worst === 'WARN' ? '10%' : worst === 'PASS' ? '6%' : '4px';
-    return h('div', { class: 'rp2-d' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
-      h('em', { text: n || '' }), h('div', { class: 'rp2-plot' }, h('i', { class: c, style: `height:${hgt}` })), h('span', { text: DOW_EN[(i + 1) % 7] }));
+  // 요일마다 한 줄: 요일 · 대시보드 미터와 같은 가는 막대(길이 = 사고 수, 색 = 그날 가장 나쁜 단계) · 개수
+  const bars = h('div', { class: 'rp3' }, days.map((d, i) => {
+    const r = map.get(d), n = inc(r), fut = d > today, worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) : null, fatal = r ? r.FATAL | 0 : 0;
+    const c = worst === 'FATAL' || worst === 'ERROR' ? 'r' : worst === 'WARN' ? 'y' : 'g';
+    const w = n ? Math.max(6, Math.round(n / max * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
+    const txt = n ? String(n) + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0' : fut ? '' : '–';
+    return h('div', { class: 'rp3-r' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
+      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'ds-bar' }, w ? h('i', { class: c, style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }));
   }));
   const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
   const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + 'Week of ' + fmtMD(weekKey()) }), bars,
