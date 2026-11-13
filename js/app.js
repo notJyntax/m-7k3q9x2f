@@ -1070,17 +1070,17 @@ function openDayModal(key) {
     toastUndo(`Added ${fmtMD(key)}${end ? '~' + fmtMD(end) : ''} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
   onEnter(memo, save);
-  const form = h('div', { class: 'dm-form', hidden: true }, memo, h('div', { class: 'dm-opts' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'until (optional)' }), until), h('span', { class: 'sp' }), btn('Add', save, 'small primary')));
+  const form = h('div', { class: 'dm-form', hidden: true }, h('div', { class: 'dm-row' }, memo, btn('Add', save, 'small primary')), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })));
   const chips = Object.entries(KINDS).map(([id, t]) => { const b = h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: () => {
     kind = id; chips.forEach(([k2, el]) => el.classList.toggle('on', k2 === id));
-    memo.placeholder = id === 'etc' ? '이름 (필수)' : '메모 (선택)'; form.hidden = false; memo.focus();
+    memo.placeholder = id === 'etc' ? 'Name (required)' : 'Memo (optional)'; form.hidden = false; memo.focus();
   } } }, catIcon(id), t); return [id, b]; });
   const list = es.length ? es.map((e) => h('div', { class: 'prow' },
     h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
     stBadge(e),
-    (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => { await removeEvent(e); renderView(); close(); openDayModal(key); }), 'small danger') : null)) : [empty('이 날은 비어 있어요')];
-  const body = h('div', { class: 'daymodal' }, list, h('div', { class: 'cat' }, chips.map(([, b]) => b)), form);
-  close = modal({ title: `${fmtMD(key)} (${dow})`, body, actions: [{ label: 'Close', cls: 'small' }] });
+    (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => { await removeEvent(e); renderView(); close(); openDayModal(key); }), 'small danger') : null)) : [];
+  const body = h('div', { class: 'daymodal' }, h('button', { type: 'button', class: 'btn small quiet ic dm-x', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x')), list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
+  close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [] });
 }
 function planChangesCard() {
   const me = roleName(), logs = rows('plan_log').sort((a, b) => b.ts - a.ts);

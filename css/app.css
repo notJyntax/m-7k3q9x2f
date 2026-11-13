@@ -1386,3 +1386,20 @@ html:root:root:root .tabs { border-top: 0; border-bottom: 0; }
 .dm-form[hidden] { display: none; }
 .dm-form .dm-opts { margin-top: 0; }
 
+/* 날짜를 누르면 열리는 일정 추가 창: 조잡해 보이지 않게 정리 — 제목은 한 줄, 닫기는 오른쪽 위 ✕, 종류는 3×2 같은 칸, 메모와 Add 는 같은 줄·같은 높이, 끝나는 날짜는 아래에 작게 */
+.dialog:has(.daymodal) { position: relative; padding-top: 14px; }
+.dialog:has(.daymodal) > .actions { display: none; }
+.dialog:has(.daymodal) h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
+.daymodal { gap: 10px; min-width: min(380px, 80vw); }
+.dm-x { position: absolute; top: 10px; right: 10px; }
+.dm-list { display: flex; flex-direction: column; }
+.dm-list .prow { margin: 0; }
+.dm-cat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+:root:root .dm-cat .catb { justify-content: center; padding: 8px 6px; border-radius: 8px; background: color-mix(in srgb, var(--c) 7%, transparent); }
+:root:root .dm-cat .catb.on { background: color-mix(in srgb, var(--c) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+.dm-row { display: flex; gap: 8px; align-items: stretch; }
+.dm-row input[type=text] { flex: 1; min-width: 0; height: 34px; padding-top: 0; padding-bottom: 0; }
+.dm-row .btn { align-self: stretch; }
+.dm-until { display: flex; align-items: center; gap: 8px; }
+.dm-until input[type=date] { width: 132px; height: 30px; padding: 0 8px; font-size: 12.5px; }
+
