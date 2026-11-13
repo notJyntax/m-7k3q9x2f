@@ -1305,3 +1305,23 @@ b, strong, th, h1, h2, h3, h4, h5 { font-weight: 500; }
 .nt-slot { flex: none; width: 34px; display: flex; align-items: center; justify-content: center; }
 :root:root .nt-read { margin-right: 0; }
 
+
+/* Plan 의 Changes: 가로로 긴 얇은 띠 (변경이 없으면 한 줄) — 아래에 아젠다와 달력이 나란히 보이게 */
+.card.pc-bar { padding: 6px 12px; gap: 2px; }
+.pc-head { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.pc-head h3 { margin: 0; }
+.pc-head .sub.pc-need { color: var(--warn); }
+.pc-bar .prow { padding: 4px 0; }
+.card.pc-bar.has { background: color-mix(in srgb, var(--warn) 7%, var(--panel)); border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+
+/* 엑셀 테마를 조금 더 세련되게: 격자선은 훨씬 옅게(초록 기운), 칸은 조금 넓게, 카드는 둥글고 얇은 그림자, 상단 초록 선은 얇게 */
+html[data-theme="excel"] { --line: #e0e5e2; --bg: #f5f7f6; --track: #e6eae8; }
+html[data-theme="excel"] body { background-color: #f6f8f7; background-image: linear-gradient(rgba(33, 115, 70, .075) 1px, transparent 1px), linear-gradient(90deg, rgba(33, 115, 70, .075) 1px, transparent 1px); background-size: 100% 26px, 104px 100%; }
+html[data-theme="excel"] #top { border-bottom: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); }
+html[data-theme="excel"] .card, html[data-theme="excel"] .sl-list { border-radius: 10px; box-shadow: 0 1px 2px rgba(20, 50, 35, .05), 0 0 0 1px rgba(33, 115, 70, .03); }
+html[data-theme="excel"] .card { border-color: color-mix(in srgb, var(--line) 85%, #fff); }
+html[data-theme="excel"] .banner { border-radius: 10px; }
+
+/* 글 본문도 댓글 본문과 같은 글꼴로 (고정폭은 콘솔 로그 줄에만) */
+:root:root .sl-text, :root:root .sl-dtext, :root:root .msgtext { font-family: var(--guide-font); font-size: 13.5px; line-height: 1.6; letter-spacing: .005em; }
+@media (max-width: 640px) { :root:root .sl-text, :root:root .sl-dtext, :root:root .msgtext { font-size: 14.5px; } }

@@ -1079,15 +1079,16 @@ function planChangesCard() {
   const needs = logs.filter((l) => l.status === 'pending' && l.by !== me), mine = logs.filter((l) => l.status === 'pending' && l.by === me);
   const done = logs.filter((l) => l.status !== 'pending').sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 40);
   const who = (l) => `by ${l.by === me ? '0' : '1'}`;
-  const el = card(`Changes${needs.length ? ` (${needs.length} to review)` : ''}`,
-    needs.length ? needs.map((l) => h('div', { class: 'prow need' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
-      btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))) : empty('확인할 변경사항 없음'),
-    mine.length ? [h('h4', { text: 'Waiting for approval' }), mine.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) })), badge('pending', 'warn')))] : null,
-    done.length ? [
-      btn(S.planHist ? 'Hide history' : `Show history (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet block'),
-      S.planHist ? [done.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.status === 'cancelled' ? ' 취소' : l.decidedBy === me ? ' 내가 처리' : ''}` })),
-        badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : '')))] : null] : null);
-  if (needs.length) el.classList.add('span-all');   // 승인할 게 있으면 맨 위에 전체 폭으로
+  // 가로로 길고 세로가 짧은 띠: 변경이 없으면 한 줄, 있으면 그 줄들만 아래에 이어 붙는다
+  const status = needs.length ? `${needs.length} to review` : mine.length ? `${mine.length} waiting for approval` : 'nothing to review';
+  const head = h('div', { class: 'pc-head' }, h('h3', { text: 'Changes' }), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
+    done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
+  const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
+    needs.map((l) => h('div', { class: 'prow need' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
+      btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))),
+    mine.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) })), badge('pending', 'warn'))),
+    S.planHist ? done.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.status === 'cancelled' ? ' 취소' : l.decidedBy === me ? ' 내가 처리' : ''}` })),
+      badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : ''))) : null);
   return el;
 }
 // ── Weekly Agenda: 승인 없이 각자 등록. 등록한 사람만 삭제하거나 "해결"할 수 있고, 해결하면 기록에 남는다 ──
