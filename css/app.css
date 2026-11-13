@@ -1182,11 +1182,6 @@ html:not([data-ui="v2"]):root .btn.primary.small { padding: 3px 11px; font-size:
 .ds-hero.st-red .ds-dot { background: var(--crit); box-shadow: 0 0 0 5px color-mix(in srgb, var(--crit) 20%, transparent); }
 .ds-t { margin: 0; font: 500 20px var(--btn-font); color: var(--text); }
 .ds-s { margin: 2px 0 0; font: 12px var(--btn-font); color: var(--sub); }
-.ds-mh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font: 13px var(--btn-font); color: var(--sub); }
-.ds-mh b { font: 500 15px var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
-.ds-bar { height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--sub) 16%, transparent); overflow: hidden; }
-.ds-bar i { display: block; height: 100%; border-radius: 99px; transition: width .4s; }
-.ds-bar i.g { background: var(--bar-ok); } .ds-bar i.y { background: var(--bar-warn); } .ds-bar i.r { background: var(--bar-crit); }
 .ds-line { display: flex; gap: 16px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent); font: 13px var(--btn-font); color: var(--sub); }
 .ds-line b { margin-right: 5px; font: 500 15px var(--mono); }
 .ds-line b.o { color: var(--ok); } .ds-line b.w { color: var(--warn); } .ds-line b.e { color: var(--crit); }
@@ -1272,7 +1267,7 @@ b, strong, th, h1, h2, h3, h4, h5 { font-weight: 500; }
 /* 주간 보고 막대: 대시보드 미터와 같은 가는 알약 막대 (요일마다 한 줄) */
 .rp3 { display: flex; flex-direction: column; margin: 14px 0 0; }
 .rp3-r { display: grid; grid-template-columns: 34px 1fr 92px; gap: 10px; align-items: center; padding: 6px 0; }
-.rp3-d { font: 500 12px var(--btn-font); color: var(--sub); }
+.rp3-d { font: 500 12.5px var(--mono); letter-spacing: .06em; color: var(--text); }
 .rp3-n { white-space: nowrap; font: 12px var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
 .rp3-n.f { color: var(--crit); }
 .rp3-r.t .rp3-d { color: var(--accent); }
@@ -1325,3 +1320,23 @@ html[data-theme="excel"] .banner { border-radius: 10px; }
 /* 글 본문도 댓글 본문과 같은 글꼴로 (고정폭은 콘솔 로그 줄에만) */
 :root:root .sl-text, :root:root .sl-dtext, :root:root .msgtext { font-family: var(--guide-font); font-size: 13.5px; line-height: 1.6; letter-spacing: .005em; }
 @media (max-width: 640px) { :root:root .sl-text, :root:root .sl-dtext, :root:root .msgtext { font-size: 14.5px; } }
+.ds-card .meter { gap: 6px; }
+
+/* 댓글 쓰기(Reply) 버튼: 글자와 함께, 가운데 정렬 */
+.row.reply-row { justify-content: center; }
+:root:root .reply-row .btn { padding: 4px 14px; }
+
+/* 모바일 스크롤: 화면 전체가 끌려 올라가지 않게 — 바깥(body)은 고정하고 안쪽 영역(#view)만 스크롤, 끝에서 바깥으로 스크롤이 번지지 않게 한다 */
+html, body { overscroll-behavior: none; }
+.view { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.tabs { overscroll-behavior-x: contain; touch-action: pan-x pan-y; }
+.nt-l, .dialog, .sheet, .loglist { overscroll-behavior: contain; }
+@media (pointer: coarse) { html, body { position: fixed; inset: 0; width: 100%; overflow: hidden; } }
+
+/* Syslog 를 PC 에서 볼 때: 펼친 글(오른쪽)은 자기 안에서 스크롤, 글 목록(왼쪽)은 페이지와 함께 스크롤 */
+.sl-split .sl-detail { overflow-y: auto; overscroll-behavior: contain; }
+
+/* 답댓글: 원댓글 아래에 한 단계 들여쓰고 왼쪽에 옅은 선 */
+.cm-kids { margin: 0 0 4px 12px; padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--line) 80%, transparent); }
+.cm-kids > .row { margin: 4px 0; }
+

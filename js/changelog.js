@@ -2,6 +2,14 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-13-g', date: '11/13', title: '막대·new 표시', items: [
+    ['change', '대시보드·주간 보고 막대를 Overview 와 같은 눈금 막대로'],
+    ['fix', '다른 기기에서 본 댓글·글이 new 로 다시 뜨던 문제 (본 시각도 계정 기준)'],
+    ['fix', '모바일에서 화면 전체가 끌려 올라가고 스크롤이 잘 안 되던 문제'],
+    ['fix', 'PC Syslog 에서 펼친 글이 아니라 글 목록이 스크롤되던 문제'],
+    ['new', 'Syslog 댓글마다 답댓글 달기 (↩ 아이콘)'],
+    ['change', '댓글 쓰기 버튼은 글자와 함께 가운데 정렬'],
+  ] },
   { id: '2026-11-13-f', date: '11/13', title: 'Plan·엑셀 테마', items: [
     ['change', 'Plan: Changes 를 얇은 띠로, 아젠다와 달력은 나란히'],
     ['change', '엑셀 테마를 더 세련되게 (옅은 격자, 둥근 카드)'],

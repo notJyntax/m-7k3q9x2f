@@ -117,11 +117,11 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
 const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy', Reply: 'reply', Comment: 'comment', Approve: 'approve', Reject: 'reject', More: 'more', '<': 'chevL', '>': 'chevR', '×': 'close', '↻': 'refresh', '?': 'help' };
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
 // 아이콘이 될 수 없는(글자가 필요한) 버튼은 앞에 작은 아이콘을 붙인다
-const LEAD = [[/^Add$/, 'plus'], [/^(Post|Send|Commit)$/, 'send'], [/^Today$/, 'calendar'], [/^See$/, 'eye'], [/^(Confirm all|Mark all read)$/, 'checks'], [/^(Show|Hide) resolved/, 'resolve'], [/^(Save|Got it|OK)$/, 'check'], [/^Range$/, 'range'], [/^New agenda$/, 'plus'], [/^Memo$/, 'note'], [/^Refresh$/, 'refresh']];
+const LEAD = [[/^Add$/, 'plus'], [/^(Post|Send|Commit)$/, 'send'], [/^Today$/, 'calendar'], [/^See$/, 'eye'], [/^(Confirm all|Mark all read)$/, 'checks'], [/^(Show|Hide) resolved/, 'resolve'], [/^(Save|Got it|OK)$/, 'check'], [/^Range$/, 'range'], [/^Reply$/, 'reply'], [/^Comment$/, 'comment'], [/^New agenda$/, 'plus'], [/^Memo$/, 'note'], [/^Refresh$/, 'refresh']];
 const leadIcon = (label) => (typeof label === 'string' ? (LEAD.find(([re]) => re.test(label)) || [])[1] : null);
 const btn = (label, fn, cls = '', extra = {}) => {
   const tg = /^(.+: )(on|off)$/.exec(String(label));
-  const ic = ICON_OF[label] && /\bsmall\b/.test(cls) && !/\bprimary\b/.test(cls) ? ICON_OF[label] : null;
+  const ic = ICON_OF[label] && /\bsmall\b/.test(cls) && !/\bprimary\b/.test(cls) && !/\btxt\b/.test(cls) ? ICON_OF[label] : null;   // txt: 아이콘만 쓰지 않고 글자도 함께 보인다
   return h('button', { type: 'button', class: ['btn', cls, btnKind(label), tg ? 'k-tg' : '', ic ? 'ic' : ''].filter(Boolean).join(' '), on: { click: fn }, ...(ic ? { title: extra.title || extra['aria-label'] || label, 'aria-label': extra['aria-label'] || label } : {}), ...extra }, ic ? icon(ic) : tg ? [tg[1], h('span', { class: 'k-state ' + tg[2], text: tg[2] })] : leadIcon(label) ? [icon(leadIcon(label)), label] : label);
 };
 // 켜짐/꺼짐 스위치 버튼: 글자(Mask: on) 대신 아이콘으로, 상태는 아이콘 모양과 강조색으로
@@ -383,11 +383,17 @@ function go(tab, keep = false) { if (S.tab !== tab && !keep) collapseAll();
 
 // ── 새 항목 알림: 탭 옆 빨간 숫자 (그 탭을 열면 사라짐, 기기별로 기억) ──
 const seenKey = (tab) => `svcmon.seen.${S.sandbox ? 'sb' : S.cloud ? 'c' : 'l'}.${S.role}.${tab}`;
-const seenAt = (tab) => lsGet(seenKey(tab), 0);
+// '마지막으로 본 시각'도 기기가 아니라 계정 기준: 이 기기 기록과 계정 문서(notif_<역할>.seen)의 큰 값을 쓴다 (다른 기기에서 본 댓글·글이 여기서 다시 new 로 뜨지 않게)
+const seenAt = (tab) => Math.max(lsGet(seenKey(tab), 0), (notifDoc().seen || {})[tab] || 0);
 // 상대 기기의 시계가 이 기기보다 앞서 있으면 상대가 쓴 글의 시각(ts)이 '지금'보다 미래가 되어 읽음 처리해도 계속 새 글로 남는다. 읽음 시각은 상대 글 중 가장 늦은 시각까지 포함한다.
 const latestOtherTs = () => { let m = 0; for (const c of ['posts', 'post_comments', 'comment_likes', 'reviews', 'review_replies', 'lines', 'commits', 'commit_replies', 'agendas', 'agenda_comments', 'plan_log', 'checkins', 'alerts']) for (const r of rows(c)) if ((r.by == null || r.by !== roleName()) && r.ts > m && r.ts < Date.now() + 864e5) m = r.ts; return m; };   // 하루 넘게 앞선 시각은 오류로 보고 무시
 const seenNow = () => Math.max(Date.now(), latestOtherTs());
-const markSeen = (tab) => { if (tab) lsSet(seenKey(tab), seenNow()); };
+const markSeen = (tab) => {
+  if (!tab) return; const t = seenNow(); lsSet(seenKey(tab), t);
+  // 계정 문서에도 남긴다 (자주 그리므로 탭마다 30초에 한 번만)
+  const seen = notifDoc().seen || {}, last = (S.seenSaved ??= {})[tab] || 0;
+  if (S.store && S.ready && Date.now() - last > 30000 && t - (seen[tab] || 0) > 30000) { S.seenSaved[tab] = Date.now(); saveNotif(notifBase(), notifDoc().ids || [], { ...seen, [tab]: t }); }
+};
 const newReviewTalk = (since) => rows('review_replies').filter((c) => c.by !== roleName() && c.ts > since).length + rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== roleName() && l.ts > since).length;
 function newCounts() {
   const now = Date.now();
@@ -452,7 +458,7 @@ const notifDoc = () => sd(notifDocId());
 const notifBase = () => notifDoc().base || 0;
 const notifRead = () => new Set(notifDoc().ids || []);
 const isUnreadItem = (i, base, read) => i.ts > base && !read.has(i.id);
-const saveNotif = (base, ids) => (S.store ? S.store.set('shared', notifDocId(), { kind: 'notif', v: 2, base, ids }).catch((e) => console.warn('notif read', e)) : null);
+const saveNotif = (base, ids, seen = notifDoc().seen || {}) => (S.store ? S.store.set('shared', notifDocId(), { kind: 'notif', v: 2, base, ids, seen }).catch((e) => console.warn('notif read', e)) : null);
 // 알림 문구가 바뀌면서(영어 → Feedback/Ack 말투) 알림 id 가 달라졌다: 계정마다 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다
 function migrateNotifIds() {
   if (!S.ready || !S.store || S.notifMig || notifDoc().v === 2) return;
@@ -639,6 +645,7 @@ function renderView() {
   closeMenu();
   const view = $('#view'); if (!view) return;
   const keepTop = view.scrollTop;
+  const keepDet = view.querySelector('.sl-detail')?.scrollTop || 0;   // 오른쪽에 펼친 글을 읽던 위치
   const drafts = view.dataset.tab === S.tab ? snapshotDrafts(view) : new Map();
   let node;
   if (S.gate) node = S.gate();
@@ -658,7 +665,11 @@ function renderView() {
   view.replaceChildren(node);
   view.dataset.tab = S.tab; restoreDrafts(view, drafts);
   if (S.ready && isWriter() && S.tab === 'console') { renderLog(); view.scrollTop = view.scrollHeight; } else view.scrollTop = keepTop;
+  fitSysDetail(); const det = view.querySelector('.sl-detail'); if (det && keepDet) det.scrollTop = keepDet;
 }
+// PC 에서 글 목록 옆에 펼친 글(.sl-detail)은 화면 높이에 맞춰 스스로 스크롤된다 (글이 길어도 글 목록만 스크롤되고 글 아래쪽이 잘리지 않게)
+function fitSysDetail() { const v = $('#view'), d = v?.querySelector('.sl-detail'); if (d) d.style.maxHeight = Math.max(240, v.clientHeight - 24) + 'px'; }
+addEventListener('resize', fitSysDetail);
 
 // ───────── 작성자: 콘솔 ─────────
 function logRow(l) {
@@ -872,12 +883,9 @@ const agoEn = (ts) => { const m = Math.floor((Date.now() - ts) / 60000); return 
 // ───────── 대시보드: 단순하게 — 상태 한 줄, 미터 셋(CPU·Cache·Disk), 오늘 개수 한 줄 ─────────
 function viewDash() {
   const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
-  const cpu = clamp(m.cpu + m.mem);   // 짜증(Irritation) + 피로(Fatigue)
-  const cls = (v, hi = 80, mid = 50) => (v >= hi ? 'r' : v >= mid ? 'y' : 'g');
-  const meter1 = (name, v, c) => h('div', { class: 'ds-m' }, h('div', { class: 'ds-mh' }, h('span', { text: name }), h('b', { text: v + '%' })), h('div', { class: 'ds-bar' }, h('i', { class: c, style: `width:${clamp(v)}%` })));
   return h('div', { class: 'db' }, h('section', { class: 'card ds-card' },
     h('div', { class: 'ds-hero st-' + m.level }, h('span', { class: 'ds-dot' }), h('div', {}, h('p', { class: 'ds-t', text: L.STATUS_TEXT[m.level] }), h('p', { class: 'ds-s', text: last ? 'last event ' + agoEn(last) : 'no events yet today' }))),
-    meter1('CPU', cpu, cls(cpu)), meter1('Cache', clamp(m.pos), 'g'), meter1('Disk', clamp(m.disk), cls(clamp(m.disk), 85, 65)),
+    stackMeter('CPU', m.cpu, m.mem), goodMeter(m.pos), meter('DISK', m.disk, 'disk'),   // 리스너 Overview 와 같은 막대
     h('div', { class: 'ds-line' }, [['o', m.PASS, 'pass'], ['w', m.WARN, 'warn'], ['e', (m.ERROR | 0) + (m.FATAL | 0), 'error']].map(([c, n, t]) => h('span', {}, h('b', { class: c, text: n | 0 }), t)))));
 }
 
@@ -901,7 +909,7 @@ function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, on
 function replyArea(key, box, send, label = 'Reply', sendLabel = 'Send') {   // 입력칸은 버튼을 눌러야 열린다 (답글·새 아젠다·댓글 모두 같은 방식)
   S.replyOpen ??= new Set();
   const close = () => { S.replyOpen.delete(key); renderView(); };
-  if (!S.replyOpen.has(key)) return h('div', { class: 'row' }, btn(label, () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, 'small'));
+  if (!S.replyOpen.has(key)) return h('div', { class: 'row reply-row' }, btn(label, () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, 'small txt'));   // 글자와 아이콘을 함께, 가운데 정렬
   box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   return h('div', { class: 'row' }, box, btn(sendLabel, send, 'small primary'), btn('Cancel', close, 'small'));
 }
@@ -1216,7 +1224,7 @@ function reportCard() {
     const w = n ? Math.max(6, Math.round(n / max * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
     const txt = n ? String(n) + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0' : fut ? '' : '–';
     return h('div', { class: 'rp3-r' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
-      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'ds-bar' }, w ? h('i', { class: c, style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }));
+      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }));
   }));
   const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
   const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + 'Week of ' + fmtMD(weekKey()) }), bars,
@@ -1453,14 +1461,26 @@ function likeBtn(c, scope, me) {
   return h('span', { class: 'lk-wrap', 'data-newlike': fresh ? '1' : '0' }, heart, h('span', { class: 'lk-n', title: ls.length ? `${ls.length} liked` : '', text: ls.length || '' }));
 }
 function sysThread(id, canAdd) {
-  const me = roleName(), list = sysComments(id);
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
+  const me = roleName(), all = sysComments(id), top = all.filter((c) => !c.parentId), kids = (pid) => all.filter((c) => c.parentId === pid);
+  S.replyOpen ??= new Set();
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'comment', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
   const send = act(async () => { if (await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() }))) { S.replyOpen.delete('sc-' + id); renderView(); } });
   onEnter(box, send);
+  // 댓글 한 줄 (답댓글이면 isReply: 한 단계만이라 더 답할 수 없다). 답글 쓰기는 줄 오른쪽의 ↩ 아이콘으로 입력칸을 연다.
+  const row = (c, isReply) => { const fr = c.by !== me && c.ts > (S.sysSince ?? Infinity), key = 'scr-' + c.id; return cmtRow({ cls: (c.ack ? 'ack' : '') + (fr ? ' fresh' : ''), time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.ack ? 'ack: I hear you' : c.text, edited: c.editedAt, isNew: newTag(fr), like: c.ack ? null : likeBtn(c, { postId: id }, me),
+    extra: canAdd && !isReply && !c.ack ? btn('Reply', () => { S.replyOpen.add(key); renderView(); document.getElementById(key)?.focus(); }, 'small quiet') : null,
+    onEdit: c.by === me && !c.ack ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('post_comments', c.id) : null }); };
+  const replyBox = (c) => {
+    const key = 'scr-' + c.id; if (!S.replyOpen.has(key)) return null;
+    const rb = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: key, enterkeyhint: 'send', autocomplete: 'off' });
+    const close = () => { S.replyOpen.delete(key); renderView(); };
+    const go = act(async () => { if (await sendField(rb, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, parentId: c.id, by: me, text: t, ts: Date.now() }))) close(); });
+    onEnter(rb, go); rb.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    return h('div', { class: 'row' }, rb, btn('Send', go, 'small primary'), btn('Cancel', close, 'small'));
+  };
   return h('div', { class: 'sl-thread rv-thread' },
-    list.map((c) => { const fr = c.by !== me && c.ts > (S.sysSince ?? Infinity); return cmtRow({ cls: (c.ack ? 'ack' : '') + (fr ? ' fresh' : ''), time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.ack ? 'ack: I hear you' : c.text, edited: c.editedAt, isNew: newTag(fr), like: c.ack ? null : likeBtn(c, { postId: id }, me),
-      onEdit: c.by === me && !c.ack ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('post_comments', c.id) : null }); }),
-    canAdd ? replyArea('sc-' + id, box, send) : null);
+    top.map((c) => { const ks = kids(c.id), rbx = replyBox(c); return ks.length || rbx ? h('div', { class: 'cm-grp' }, row(c, false), h('div', { class: 'cm-kids' }, ks.map((k) => row(k, true)), rbx)) : row(c, false); }),
+    canAdd ? replyArea('sc-' + id, box, send, 'Comment', 'Send') : null);
 }
 function sysRow(p, kept) {
   const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me;
