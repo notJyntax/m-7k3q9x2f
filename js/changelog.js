@@ -2,6 +2,14 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-13-i', date: '11/13', title: 'Commit', items: [
+    ['change', 'commit 메시지 자체의 좋아요·삭제 기능 제거 (답글 좋아요는 유지)'],
+    ['new', 'Plan 달력: 날짜를 누르면 바로 일정 추가 창이 열림'],
+    ['fix', '안 읽은 업데이트가 내역(history)에 섞여 보이던 문제'],
+    ['change', '리뷰 댓글에는 답글 쓰기 기능을 없앰'],
+    ['change', '주간 보고의 숫자에 단위(incidents)와 설명 문구 추가'],
+    ['change', '탭 줄의 위아래 구분선을 없애 선택된 탭 강조와 겹치지 않게'],
+  ] },
   { id: '2026-11-13-h', date: '11/13', title: 'Changes 내역', items: [
     ['change', 'Changes 내역을 상자 없이 얇은 구분선과 점 표시로'],
     ['change', 'Changes 줄에 상태·일정 종류 아이콘 추가'],

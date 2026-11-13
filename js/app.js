@@ -936,9 +936,10 @@ function commitItem(c, view) {
   const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: (view === 'out' ? 'sent ' : 'commit ') + c.sha }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }),
     view === 'out' ? (c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(sender === 'listener' ? 'deployed ✓' : 'read ✓', 'ok') : badge('delivered')) : null);
   const ackLabel = sender === 'listener' ? 'Deployed ✓' : 'Got it';
+  // commit 메시지 자체에는 좋아요·삭제가 없다 (답글의 좋아요는 그대로). 받은 쪽은 확인 버튼(+보관), 보낸 쪽은 아직 도착 전(예약)일 때만 보내기 취소.
   const actions = view === 'in'
-    ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), h('span', { class: 'sp' }), likeBtn(co, { commitId: c.id }, me), sender === 'listener' ? keepBtn(c.text, c.id) : null)
-    : h('div', { class: 'row' }, h('span', { class: 'sp' }), likeBtn(co, { commitId: c.id }, me), moreMenu([c.deliverAt > now ? { label: 'Cancel scheduled', icon: 'reject', danger: true, fn: act(() => S.store.del('commits', c.id)) } : { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 메시지를 삭제할까요?', body: note('답글과 하트도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('commits', c.id)) }] }) }]));
+    ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), h('span', { class: 'sp' }), sender === 'listener' ? keepBtn(c.text, c.id) : null)
+    : c.deliverAt > now ? h('div', { class: 'row' }, h('span', { class: 'sp' }), btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small')) : null;
   return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
 }
 const commitComposer = (id, title, extra) => card(title, h('textarea', { id, rows: 2, maxLength: 200, placeholder: 'commit message' }), extra);
@@ -950,13 +951,11 @@ function reviewRow(ln, r, role) {
 }
 function reviewThread(ln, r) {
   const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'rr-' + r.id, enterkeyhint: 'send', autocomplete: 'off' });
-  const send = act(async () => { if (await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) { S.replyOpen.delete('rr-' + r.id); renderView(); } });
-  onEnter(box, send);
+  if (!reviewReplies(r.id).length) return null;   // 답글이 없으면 빈 묶음(왼쪽 선)도 그리지 않는다
   return h('div', { class: 'sl-thread rv-thread' },
     reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), extra: null, like: likeBtn(c, { lineId: ln.id }, me),
       onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
-    replyArea('rr-' + r.id, box, send, 'Reply', 'Send', true));
+    null);   // 리뷰 댓글에는 답글을 새로 쓰는 기능이 없다 (이미 있는 답글은 그대로 보인다)
 }
 function viewInbox() {
   const now = Date.now(), dnd = sd('status').dnd;
@@ -1027,17 +1026,15 @@ async function decidePlan(l, ok) {
 }
 
 function calendarCard() {
-  const c = calState(), today = dayKey(), evs = rows('events'), endKey = c.end && c.end > c.sel ? c.end : null;
+  const c = calState(), today = dayKey(), evs = rows('events');
   const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), off = first.getDay(); // 일요일 시작
   const cells = [];
   for (let i = 0; i < off; i += 1) cells.push(h('div', { class: 'cd x' }));
   for (let d = 1; d <= dim; d += 1) {
     const key = `${c.y}-${p2(c.m + 1)}-${p2(d)}`;
     const es = evs.filter((e) => e.date <= key && key <= (e.endDate || e.date));
-    const inRange = endKey && key >= c.sel && key <= endKey;
-    // 날짜를 누르면 그 하루를 고른다. Range 를 켠 뒤에 이 날보다 뒤의 날을 누르면 기간(끝 날짜)이 된다.
-    const pick = () => { if (c.range && key > c.sel) { c.end = key; c.range = false; } else { c.sel = key; c.end = null; c.range = false; } renderView(); };
-    cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : '') + (key === c.sel ? ' sel' : '') + (inRange ? ' rg' : ''), on: { click: pick } },
+    // 날짜를 누르면 바로 그 날의 일정 추가 창이 열린다
+    cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : '') + (key === c.sel ? ' sel' : ''), on: { click: () => { c.sel = key; renderView(); openDayModal(key); } } },
       h('b', { text: String(d) }),
       es.slice(0, 3).map((e) => h('span', { class: `ev${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}`, style: `--c:${CATCOL[e.kind] || CATCOL.etc}`, text: e.label })),
       es.length > 3 ? h('span', { class: 'more', text: '+' + (es.length - 3) }) : null));
@@ -1045,9 +1042,8 @@ function calendarCard() {
   const move = (n) => () => { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); renderView(); };
   return card('Shared calendar',
     h('div', { class: 'row' }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), h('span', { class: 'sp' }),
-      btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('Today', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); c.sel = dayKey(); c.end = null; c.range = false; renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
-    h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells),
-    dayPanel());   // 고른 날의 일정과 등록은 달력 바로 아래에서 (멀리 스크롤하지 않게)
+      btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('Today', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); c.sel = dayKey(); renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
+    h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells));
 }
 // 되돌리기 버튼이 있는 안내 (일정을 추가한 직후 몇 초 동안)
 function toastUndo(msg, label, fn) {
@@ -1055,35 +1051,30 @@ function toastUndo(msg, label, fn) {
   t.replaceChildren(h('span', { text: msg }), h('button', { type: 'button', class: 'toast-act', on: { click: () => { t.hidden = true; clearTimeout(toastT); fn(); } } }, label));
   t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 6000);
 }
-function dayPanel() {
-  const c = calState(), key = c.sel, endKey = c.end && c.end > key ? c.end : null;
+// 날짜를 누르면 열리는 창: 그 날의 일정 목록 + 종류를 한 번 누르면 바로 추가 (메모·끝나는 날짜는 선택)
+function openDayModal(key) {
+  const me = roleName(), dow = DOW_EN[new Date(key + 'T12:00:00').getDay()];
   const es = rows('events').filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort((a, b) => a.ts - b.ts);
   const stBadge = (e) => (e.state === 'approved' ? badge('approved', 'ok') : e.state === 'removing' ? badge('Delete pending', 'warn') : badge('Pending', 'warn'));
-  const rangeText = fmtMD(key) + (endKey ? '~' + fmtMD(endKey) : '');
-  // 종류를 한 번 누르면 바로 추가된다 (메모는 입력칸에 적어 두었으면 함께, 기타는 입력칸의 글자가 이름). 방금 추가한 건 Undo 로 취소.
+  const memo = h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '메모 (선택) · 기타는 이름', autocomplete: 'off' });
+  const until = h('input', { id: 'cal-until', type: 'date', min: key, 'aria-label': 'until' });
+  let close = () => {};
   const add = (id) => act(async () => {
-    const box = $('#cal-memo'), txt = (box?.value || '').trim();
-    let label = KINDS[id], memo = txt.slice(0, 40);
-    if (id === 'etc') { label = txt.slice(0, 12); memo = ''; if (!label) { toast('기타는 이름을 적고 눌러 주세요'); S.replyOpen.add('cal-memo'); renderView(); $('#cal-memo')?.focus(); return; } }
-    const eid = await addEvent({ date: key, endDate: endKey, kind: id, label, memo });
-    if (box) box.value = '';
-    S.replyOpen?.delete('cal-memo'); c.end = null; c.range = false; renderView();
-    toastUndo(`Added ${rangeText} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
+    const txt = memo.value.trim(); let label = KINDS[id], m = txt.slice(0, 40);
+    if (id === 'etc') { label = txt.slice(0, 12); m = ''; if (!label) { toast('기타는 이름을 적고 눌러 주세요'); memo.focus(); return; } }
+    const end = until.value && until.value > key ? until.value : null;
+    const eid = await addEvent({ date: key, endDate: end, kind: id, label, memo: m });
+    close(); renderView();
+    toastUndo(`Added ${fmtMD(key)}${end ? '~' + fmtMD(end) : ''} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
-  const memoOpen = (S.replyOpen ??= new Set()).has('cal-memo');   // 메모 입력칸도 버튼을 눌러야 열린다
-  const memoBox = h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '메모 (선택) · 기타는 이름', enterkeyhint: 'done', autocomplete: 'off' });
-  memoBox.addEventListener('keydown', (e) => { if (e.key === 'Escape') { S.replyOpen.delete('cal-memo'); renderView(); } });
-  const memoRow = memoOpen ? h('div', { class: 'row' }, memoBox, btn('Cancel', () => { S.replyOpen.delete('cal-memo'); renderView(); }, 'small'))
-    : h('div', { class: 'row' }, btn('Memo', () => { S.replyOpen.add('cal-memo'); renderView(); $('#cal-memo')?.focus(); }, 'small'));
-  return h('div', { class: 'daypanel' },
-    h('div', { class: 'dp-head' }, h('b', { text: rangeText }), h('span', { class: 'sub', text: c.range ? 'Tap the last day' : '' }), h('span', { class: 'sp' }),
-      btn('Range', () => { c.range = !c.range; renderView(); }, 'small quiet' + (c.range ? ' on' : ''))),
-    es.length ? es.map((e) => h('div', { class: 'prow' },
-      h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === roleName() ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
-      stBadge(e),
-      (e.state === 'approved' || (e.state === 'pending' && e.by === roleName())) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(() => removeEvent(e)), 'small danger') : null)) : empty('이 날은 비어 있어요'),
-    memoRow,
-    h('div', { class: 'cat' }, Object.entries(KINDS).map(([id, t]) => h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: add(id) } }, catIcon(id), t))));
+  const list = es.length ? es.map((e) => h('div', { class: 'prow' },
+    h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
+    stBadge(e),
+    (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => { await removeEvent(e); renderView(); close(); openDayModal(key); }), 'small danger') : null)) : [empty('이 날은 비어 있어요')];
+  const body = h('div', { class: 'daymodal' }, list,
+    h('div', { class: 'cat' }, Object.entries(KINDS).map(([id, t]) => h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: add(id) } }, catIcon(id), t))),
+    h('div', { class: 'dm-opts' }, memo, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'until' }), until)));
+  close = modal({ title: `${fmtMD(key)} (${dow})`, body, actions: [{ label: 'Close', cls: 'small' }] });
 }
 function planChangesCard() {
   const me = roleName(), logs = rows('plan_log').sort((a, b) => b.ts - a.ts);
@@ -1230,12 +1221,13 @@ function reportCard() {
     const r = map.get(d), n = inc(r), fut = d > today, worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) : null, fatal = r ? r.FATAL | 0 : 0;
     const c = worst === 'FATAL' || worst === 'ERROR' ? 'r' : worst === 'WARN' ? 'y' : 'g';
     const w = n ? Math.max(6, Math.round(n / max * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
-    const txt = n ? String(n) + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0' : fut ? '' : '–';
+    const txt = n ? `${n} incident${n === 1 ? '' : 's'}` + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0 incidents' : fut ? '' : '–';   // 사고 = ERROR + FATAL
     return h('div', { class: 'rp3-r' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
       h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }), h('span', { class: 'rp3-l', title: 'logs written that day', text: r ? `${logsOf(r)} ${logsOf(r) === 1 ? 'log' : 'logs'}` : '' }));
   }));
   const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
   const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + `${totalLogs} logs · Week of ${fmtMD(weekKey())}` }), bars,
+    h('p', { class: 'rp2-cap', text: 'Bar and first number: incidents (ERROR + FATAL) per day · last number: logs written that day' }),
     f ? h('p', { class: 'rp2-adv ' + f.advice.tone, text: f.advice.text }) : null));
   c.classList.add('rpt-card');
   return c;
@@ -1261,7 +1253,8 @@ const clFold = (e, history) => {
 };
 const updatesCard = () => { const un = clUnread(); const list = un.length ? un.slice(0, 3) : CHANGELOG.slice(0, 1);
   return card('Updates', ...list.map((e) => clFold(e, false)), un.length > 1 ? h('div', { class: 'row' }, btn('Confirm all', act(() => clConfirm(un.map((e) => e.id))), 'small')) : null); };
-const updateHistoryCard = () => card('Update history', ...CHANGELOG.map((e) => clFold(e, true)));
+// 내역(history)에는 읽은 업데이트만 — 안 읽은 것은 위의 Updates 카드에 있다. 읽음 처리하면 내역으로 옮겨 간다.
+const updateHistoryCard = () => { const read = CHANGELOG.filter((e) => clAcked().has(e.id)); return card('Update history', ...(read.length ? read.map((e) => clFold(e, true)) : [empty('아직 읽은 업데이트가 없어요')])); };
 function viewSettingsW() {
   const st = sd('status'), m = meta();
   const sw = (label, checked, fn, sub) => h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked, on: { change: act((e) => fn(e.target.checked)) } }), h('span', {}, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
