@@ -1403,3 +1403,11 @@ html:root:root:root .tabs { border-top: 0; border-bottom: 0; }
 .dm-until { display: flex; align-items: center; gap: 8px; }
 .dm-until input[type=date] { width: 132px; height: 30px; padding: 0 8px; font-size: 12.5px; }
 
+/* 선택 상자(select): 기본 화살표가 오른쪽 끝에 붙어 보이던 것을 얇은 ˅ 로 바꾸고 끝에서 12px 띄운다. 글자는 화살표와 겹치지 않게 오른쪽 여백을 둔다 */
+html:root:root select {
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238a8f98' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px;
+}
+
