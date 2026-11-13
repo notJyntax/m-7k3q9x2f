@@ -10,11 +10,11 @@ import { CHANGELOG } from './changelog.js';
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
 // 기본 테마(회사에서 보기 좋은 차분한 톤)와 스페셜 테마(기분 전환용). 스페셜은 강조색·버튼색까지 테마마다 달라요.
-const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk'], ['n-frost', 'Frost'], ['n-pearl', 'Pearl']];
+const THEMES_V2 = [['n-ink', 'Ink'], ['n-moss', 'Moss'], ['n-dusk', 'Dusk'], ['n-frost', 'Frost'], ['n-pearl', 'Pearl'], ['n-navy', 'Navy']];
 const DEFAULT_THEME = 'n-ink';
 const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['warm', 'Warm Gray'], ['auto', 'Auto']];
 const THEMES_FUN = [['terminal', 'Terminal'], ['excel', 'Excel']];
-const SWATCH = { 'n-pearl': 'linear-gradient(135deg, #f4f7fd 50%, #3a6ff0 50%)', 'n-frost': 'linear-gradient(135deg, #ffffff 50%, #0969da 50%)', 'n-ink': 'linear-gradient(135deg, #191919 50%, #6aaaf0 50%)', 'n-moss': 'linear-gradient(135deg, #1a1f1c 50%, #7fc4a2 50%)', 'n-dusk': 'linear-gradient(135deg, #1b1d2b 50%, #b4a0f0 50%)', light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
+const SWATCH = { 'n-navy': 'linear-gradient(135deg, #eef2f8 50%, #0f2a66 50%)', 'n-pearl': 'linear-gradient(135deg, #f4f7fd 50%, #3a6ff0 50%)', 'n-frost': 'linear-gradient(135deg, #ffffff 50%, #0969da 50%)', 'n-ink': 'linear-gradient(135deg, #191919 50%, #6aaaf0 50%)', 'n-moss': 'linear-gradient(135deg, #1a1f1c 50%, #7fc4a2 50%)', 'n-dusk': 'linear-gradient(135deg, #1b1d2b 50%, #b4a0f0 50%)', light: '#f4f5f7', dark: '#0f1419', warm: '#f1ede5', auto: 'linear-gradient(135deg, #f4f5f7 50%, #0f1419 50%)',
   terminal: 'linear-gradient(135deg, #161b1d 50%, #7fc4a2 50%)', excel: 'linear-gradient(135deg, #ffffff 50%, #217346 50%)' };
 const ALL_THEMES = [...THEMES_V2, ...THEMES, ...THEMES_FUN];
 window.matchMedia?.('(min-width: 900px)').addEventListener?.('change', () => { if (S.tab === 'syslog') renderView(); });   // PC↔폰 폭이 바뀌면 Syslog 배치를 다시 그린다

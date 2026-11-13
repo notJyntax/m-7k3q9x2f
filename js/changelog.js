@@ -2,6 +2,9 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-13-p', date: '11/13', title: 'Navy 테마', items: [
+    ['new', 'Navy 테마: 네이비 터미널 로그 창, 블루 하나의 절제된 색'],
+  ] },
   { id: '2026-11-13-o', date: '11/13', title: '아이콘·Pearl 테마', items: [
     ['change', '앱 아이콘을 밝은 유리 바탕에 파란 ›_ 와 초록 상태 점으로'],
     ['new', 'Pearl 테마: 유리 카드·떠 있는 탭·알약 버튼'],
