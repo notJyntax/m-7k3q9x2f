@@ -38,6 +38,8 @@ const S = {
 // ───────── 데이터 접근 ─────────
 const rows = (c) => (S.store ? S.store.rows(c) : []);
 const sd = (id) => (S.store && S.store.get('shared', id)) || {};
+// 리스너가 보는 상태: 마지막 갱신이 어제(4시 이전)면 CPU·MEM·CACHE 는 새 하루라서 0, 색은 green (DISK 는 주간 누적이라 그대로). 작성자 앱이 꺼져 있어도 새벽 4시에 맞게 보인다
+const statusToday = () => { const st = sd('status'); return st.level && dayKey(st.ts || 0) < dayKey() ? { ...st, level: 'green', cpu: 0, mem: 0, pos: 0 } : st; };
 const meta = () => (S.store && S.store.get('@', 'meta')) || {};
 const logsAll = () => rows('@').filter((r) => r.type === 'log').sort((a, b) => a.ts - b.ts);
 const dayLogs = (day) => logsAll().filter((l) => l.day === day);
@@ -77,25 +79,73 @@ function weekDays() {
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? h('h3', { text: title }) : null, ...kids);
 const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
 // 버튼은 기능별로 색을 달리한다 (굵기 X): 보내기·추가=파랑, 해결·확인=초록, 삭제·중단=빨강, 보관=노랑, 설정 켜고 끄기=상태만 색, 나머지(취소·닫기·이동)=회색
-const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you|Confirm)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/]];
+const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you|Confirm)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/], ['k-nt', /^(Cancel|Close|Not now|Exit|Hide|OK$)/]];
 const btnKind = (label) => (BTN_KIND.find(([, re]) => re.test(String(label))) || [''])[0];
 // Edit·Delete·Keep·Resolve·Share·Copy 같은 짧은 동작 버튼은 글자 대신 아이콘으로 (이름은 마우스를 올리거나 읽어 줄 때 나온다)
-const ICONS = {
-  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
-  trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>',
-  keep: '<path d="M7 3h10v18l-5-3.5L7 21z"/>', keepOn: '<path d="M7 3h10v18l-5-3.5L7 21z"/>',
-  resolve: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
-  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 13v6h14v-6"/>',
+const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테일 하나. 모두 24×24, 선 굵기·크기는 .ico 가 정한다
+  edit: '<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z" fill="currentColor" fill-opacity=".16"/><path d="M14.5 6.5l3 3"/><path d="M13 20.5h7"/>',
+  trash: '<path d="M6 7l1 12a1.2 1.2 0 0 0 1.2 1h7.6a1.2 1.2 0 0 0 1.2-1l1-12z" fill="currentColor" fill-opacity=".16"/><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v5M14 11v5"/>',
+  keep: '<path d="M7 3h10v18l-5-3.6L7 21z" fill="currentColor" fill-opacity=".16"/><path d="M10 8h4"/>', keepOn: '<path d="M7 3h10v18l-5-3.6L7 21z"/><path d="M10 8h4" stroke="var(--panel)"/>',
+  resolve: '<circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".16"/><path d="M8 12.5l3 3 5-6"/>',
+  approve: '<rect x="4" y="4" width="16" height="16" rx="3.5" fill="currentColor" fill-opacity=".16"/><path d="M8 12.5l3 3 5-6"/>',
+  reject: '<rect x="4" y="4" width="16" height="16" rx="3.5" fill="currentColor" fill-opacity=".16"/><path d="M9 9l6 6M15 9l-6 6"/>',
+  share: '<path d="M5 13v5a1.2 1.2 0 0 0 1.2 1h11.6a1.2 1.2 0 0 0 1.2-1v-5z" fill="currentColor" fill-opacity=".16"/><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/>',
   unshare: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/><path d="M4 4l16 16"/>',
-  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2.4" fill="currentColor" fill-opacity=".16"/><path d="M16 8V6.4A2.4 2.4 0 0 0 13.6 4H6.4A2.4 2.4 0 0 0 4 6.4v7.2A2.4 2.4 0 0 0 6.4 16H8"/>',
+  reply: '<path d="M9.5 6.5L4 12l5.5 5.5v-3.2c4.8-.3 8 .9 10.5 4.2-.6-5.6-4-9.2-10.5-9.6z" fill="currentColor" fill-opacity=".16"/>',
+  comment: '<path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 16h-8l-4.5 4v-4H5a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 5 5z" fill="currentColor" fill-opacity=".16"/><path d="M8 9h8M8 12h5"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z" fill="currentColor" fill-opacity=".16"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  bellOff: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/><path d="M4 4l16 16"/>',
+  eyeOff: '<path d="M3 12s3.5-6 9-6c1.4 0 2.6.3 3.6.8"/><path d="M21 12s-3.5 6-9 6c-1.4 0-2.6-.3-3.6-.8"/><path d="M10 10a2.6 2.6 0 0 0 3.6 3.6"/><path d="M4 4l16 16"/>',
+  inbox: '<path d="M4 13l2.2-6.5A1.5 1.5 0 0 1 7.6 5.5h8.8a1.5 1.5 0 0 1 1.4 1L20 13v4.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" fill="currentColor" fill-opacity=".16"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
+  range: '<circle cx="5.5" cy="12" r="2.2" fill="currentColor" fill-opacity=".16"/><circle cx="18.5" cy="12" r="2.2" fill="currentColor" fill-opacity=".16"/><path d="M8 12h8"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  send: '<path d="M4 11.5L20 4l-5.5 16-3.2-6.3z" fill="currentColor" fill-opacity=".16"/><path d="M11.3 13.7L15 9.5"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  checks: '<path d="M2.8 12.5l4 4 7-8"/><path d="M11.5 15l1.6 1.6 7.4-8.6"/>',
+  calendar: '<rect x="4" y="5.5" width="16" height="14.5" rx="2.5" fill="currentColor" fill-opacity=".16"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="currentColor" fill-opacity=".16"/><circle cx="12" cy="12" r="2.6"/>',
+  chevL: '<path d="M14.5 6l-6 6 6 6"/>', chevR: '<path d="M9.5 6l6 6-6 6"/>', chevU: '<path d="M6 14.5l6-6 6 6"/>', chevD: '<path d="M6 9.5l6 6 6-6"/>',
+  close: '<circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".16"/><path d="M9 9l6 6M15 9l-6 6"/>',
+  refresh: '<circle cx="12" cy="12" r="4.2" fill="currentColor" fill-opacity=".16" stroke="none"/><path d="M19.5 12a7.5 7.5 0 1 1-2.4-5.5"/><path d="M19.8 4.5v4.6h-4.6"/>',
+  help: '<circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".16"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8"/><circle cx="12" cy="17" r=".95" fill="currentColor" stroke="none"/>',
+  heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z" fill="currentColor" fill-opacity=".16"/>',
+  heartOn: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z" fill="currentColor"/>',
+  more: '<circle cx="5.5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
 };
-const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy' };
+const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy', Reply: 'reply', Comment: 'comment', Approve: 'approve', Reject: 'reject', More: 'more', '<': 'chevL', '>': 'chevR', '×': 'close', '↻': 'refresh', '?': 'help' };
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
+// 아이콘이 될 수 없는(글자가 필요한) 버튼은 앞에 작은 아이콘을 붙인다
+const LEAD = [[/^Add$/, 'plus'], [/^(Post|Send|Commit)$/, 'send'], [/^Today$/, 'calendar'], [/^See$/, 'eye'], [/^(Confirm all|Mark all read)$/, 'checks'], [/^(Show|Hide) resolved/, 'resolve'], [/^(Save|Got it|OK)$/, 'check'], [/^Range$/, 'range'], [/^Refresh$/, 'refresh']];
+const leadIcon = (label) => (typeof label === 'string' ? (LEAD.find(([re]) => re.test(label)) || [])[1] : null);
 const btn = (label, fn, cls = '', extra = {}) => {
   const tg = /^(.+: )(on|off)$/.exec(String(label));
   const ic = ICON_OF[label] && /\bsmall\b/.test(cls) && !/\bprimary\b/.test(cls) ? ICON_OF[label] : null;
-  return h('button', { type: 'button', class: ['btn', cls, btnKind(label), tg ? 'k-tg' : '', ic ? 'ic' : ''].filter(Boolean).join(' '), on: { click: fn }, ...(ic ? { title: label, 'aria-label': label } : {}), ...extra }, ic ? icon(ic) : tg ? [tg[1], h('span', { class: 'k-state ' + tg[2], text: tg[2] })] : label);
+  return h('button', { type: 'button', class: ['btn', cls, btnKind(label), tg ? 'k-tg' : '', ic ? 'ic' : ''].filter(Boolean).join(' '), on: { click: fn }, ...(ic ? { title: extra.title || extra['aria-label'] || label, 'aria-label': extra['aria-label'] || label } : {}), ...extra }, ic ? icon(ic) : tg ? [tg[1], h('span', { class: 'k-state ' + tg[2], text: tg[2] })] : leadIcon(label) ? [icon(leadIcon(label)), label] : label);
 };
+// 켜짐/꺼짐 스위치 버튼: 글자(Mask: on) 대신 아이콘으로, 상태는 아이콘 모양과 강조색으로
+const tglBtn = (name, title, on, fn) => h('button', { type: 'button', class: 'btn small quiet ic tgl' + (on ? ' on' : ''), title, 'aria-label': title, 'aria-pressed': String(on), on: { click: fn } }, icon(name));
+// ⋯ 메뉴: 글·댓글·답글·아젠다·commit·로그의 Edit / Delete 는 이 버튼 하나 안에 둔다 (줄이 번잡하지 않게, 위치는 항상 같은 칸).
+// items: [{ label, icon, fn, danger }]. 바깥을 누르거나 Esc, 스크롤, 화면을 다시 그리면 닫힌다.
+const closeMenu = () => { document.getElementById('more-menu')?.remove(); };
+function moreMenu(items) {
+  const b = btn('More', () => {}, 'small quiet more');
+  b.setAttribute('aria-haspopup', 'menu');
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const was = document.getElementById('more-menu'), same = was && was._owner === b; closeMenu(); if (same) return;
+    const m = h('div', { id: 'more-menu', class: 'more-menu', role: 'menu' }, items.map((it) => h('button', { type: 'button', role: 'menuitem', class: 'mi' + (it.danger ? ' danger' : ''), on: { click: (ev) => { ev.stopPropagation(); closeMenu(); it.fn(); } } }, icon(it.icon), h('span', { text: it.label }))));
+    m._owner = b; document.body.append(m);
+    const r = b.getBoundingClientRect(), mh = m.offsetHeight, mw = m.offsetWidth;
+    m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.right - mw)) + 'px';
+    m.style.top = (r.bottom + 4 + mh > innerHeight - 8 ? Math.max(8, r.top - mh - 4) : r.bottom + 4) + 'px';
+    m.querySelector('.mi')?.focus();
+  });
+  return b;
+}
+document.addEventListener('click', (e) => { if (!e.target.closest?.('#more-menu')) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+addEventListener('scroll', closeMenu, true); addEventListener('resize', closeMenu);
 // Enter로 보내기 (한글 입력 중 Enter는 글자 확정과 겹치므로, 확정이 끝난 뒤 한 번에 보낸다)
 function onEnter(el, fn, { shift = false } = {}) {
   let pend = false, endedAt = 0;
@@ -167,12 +217,16 @@ function editText({ title, text, max, onSave }) {
 // ───────── 셸 / 부팅 ─────────
 function buildShell() {
   const ta = h('textarea', { id: 'cmd', rows: 1, placeholder: matchMedia?.('(pointer: coarse)').matches ? 'Enter incident note…' : 'Enter incident note…   (Enter = run · /help)', 'aria-label': 'incident note', on: {
-    input: (e) => autoGrow(e.target),
+    input: (e) => { autoGrow(e.target); syncRun(); },
   } });
-  onEnter(ta, onSubmit, { shift: true });
+  // 쓰는 맛: 입력하면 Run 이 켜지고(비어 있으면 흐리게), 입력칸 오른쪽에 ↵ 힌트, 포커스하면 ~$ 와 칸이 빛난다 (CSS)
+  const run = btn('Run', act(() => { const r = onSubmit(); setTimeout(syncRun, 0); return r; }), 'primary run');
+  function syncRun() { run.classList.toggle('off', !ta.value.trim()); }
+  syncRun();
+  onEnter(ta, () => { const r = onSubmit(); setTimeout(syncRun, 0); return r; }, { shift: true });
   const dock = h('footer', { id: 'dock', class: 'dock', hidden: true },
     h('div', { class: 'chips' }, h('span', { class: 'k', text: 'quick' }), ['WARN', 'ERROR', 'FATAL'].map((lv) => btn('+' + lv, act(() => saveLog(L.quickLine(lv), '')), 'chip lv-' + lv))),
-    h('div', { class: 'prompt' }, h('span', { class: 'ps', text: '~$' }), ta, btn('Run', act(onSubmit), 'primary')));
+    h('div', { class: 'prompt' }, h('span', { class: 'ps', text: '~$' }), h('div', { class: 'pbox' }, ta, h('span', { class: 'kh', 'aria-hidden': 'true', text: '↵' })), run));
   $('#app').replaceChildren(
     h('header', { class: 'top', id: 'top' }), h('div', { class: 'mood', id: 'mood', hidden: true }), h('nav', { class: 'tabs', id: 'tabs' }), h('main', { id: 'view', class: 'view' }), dock,
     h('div', { id: 'modal-root' }), h('div', { id: 'toast', class: 'toast', role: 'status', hidden: true }), h('div', { id: 'boss', class: 'boss', hidden: true }));
@@ -351,26 +405,25 @@ function newCounts() {
 const pcMQ = globalThis.matchMedia ? matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)') : null;
 const isPC = () => !!pcMQ?.matches;
 pcMQ?.addEventListener?.('change', () => { if (!isPC()) closeNotif(); renderChrome(); });
-const notifKey = () => `svcmon.notif.${S.sandbox ? 'sb' : S.cloud ? 'c' : 'l'}.${S.role}`;
 function activityFeed() {
   if (!S.store || !S.ready) return [];
   const me = roleName(), now = Date.now(), out = [], other = (x) => x.by && x.by !== me;
   const add = (ts, tab, tag, text, extra = {}) => { if (ts) out.push({ id: `${extra.mood ? 'status' : tab}|${ts}|${text}|${extra.post || extra.agenda || extra.mood || extra.line || extra.commit || ''}`, ts, tab, tag, text, ...extra }); };   // id 는 지금 보는 탭과 상관없이 항상 같아야 '읽음'이 유지된다
   posts().filter(other).forEach((p) => add(p.ts, 'syslog', 'Syslog', 'New entry', { post: p.id }));
-  rows('post_comments').filter(other).forEach((c) => add(c.ts, 'syslog', 'Syslog', c.ack ? 'Entry acknowledged' : 'New reply', { post: c.postId }));
-  rows('comment_likes').filter((l) => l.on && l.by !== me && !l.lineId).forEach((l) => (l.commitId ? add(l.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'New reaction', { commit: l.commitId }) : l.postId ? add(l.ts, 'syslog', 'Syslog', 'New reaction', { post: l.postId }) : add(l.ts, 'plan', 'Agenda', 'New reaction', { agenda: l.agendaId })));
-  rows('commit_replies').filter(other).forEach((c) => add(c.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'New reply', { commit: c.commitId }));
+  rows('post_comments').filter(other).forEach((c) => add(c.ts, 'syslog', 'Syslog', c.ack ? 'Entry acknowledged' : 'Feedback received', { post: c.postId }));
+  rows('comment_likes').filter((l) => l.on && l.by !== me && !l.lineId).forEach((l) => (l.commitId ? add(l.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'Ack received', { commit: l.commitId }) : l.postId ? add(l.ts, 'syslog', 'Syslog', 'Ack received', { post: l.postId }) : add(l.ts, 'plan', 'Agenda', 'Ack received', { agenda: l.agendaId })));
+  rows('commit_replies').filter(other).forEach((c) => add(c.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'Feedback received', { commit: c.commitId }));
   rows('agendas').filter(other).forEach((a) => { add(a.ts, 'plan', 'Agenda', 'New agenda', { agenda: a.id }); if (a.resolvedAt) add(a.resolvedAt, 'plan', 'Agenda', 'Agenda resolved', { agenda: a.id }); });
-  rows('agenda_comments').filter(other).forEach((c) => add(c.ts, 'plan', 'Agenda', 'New reply', { agenda: c.agendaId }));
+  rows('agenda_comments').filter(other).forEach((c) => add(c.ts, 'plan', 'Agenda', 'Feedback received', { agenda: c.agendaId }));
   rows('plan_log').forEach((l) => {
     if (l.by !== me && l.status === 'pending') add(l.ts, 'plan', 'Plan', l.action === 'remove' ? 'Removal approval request' : 'New approval request');
     if (l.by === me && l.decidedAt && (l.status === 'approved' || l.status === 'rejected')) add(l.decidedAt, 'plan', 'Plan', `Schedule ${l.action === 'remove' ? 'removal ' : ''}${l.status === 'approved' ? 'approved' : 'rejected'}`);
   });
   const mood = sd('me_' + otherRole()); if (mood.ts && (mood.emoji || mood.text)) add(mood.ts, S.tab, 'Status', 'Status changed', { mood: 'status' });
-  const rea = sd('react_' + otherRole()); if (rea.ts && rea.emoji) add(rea.ts, S.tab, 'Status', 'New reaction', { mood: 'react' });
+  const rea = sd('react_' + otherRole()); if (rea.ts && rea.emoji) add(rea.ts, S.tab, 'Status', 'Ack received', { mood: 'react' });
   const rtab = isWriter() ? 'inbox' : 'queue', rtag = isWriter() ? 'Inbox' : 'Queue';
-  rows('review_replies').filter(other).forEach((c) => add(c.ts, rtab, rtag, 'New reply', { line: c.lineId }));
-  rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== me).forEach((l) => add(l.ts, rtab, rtag, 'New reaction', { line: l.lineId }));
+  rows('review_replies').filter(other).forEach((c) => add(c.ts, rtab, rtag, 'Feedback received', { line: c.lineId }));
+  rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== me).forEach((l) => add(l.ts, rtab, rtag, 'Ack received', { line: l.lineId }));
   if (isWriter()) {
     rows('reviews').forEach((r) => add(r.ts, 'inbox', 'Inbox', 'New review comment', { line: r.lineId }));
     if (!sd('status').dnd) rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now).forEach((c) => add(c.deliverAt, 'inbox', 'Inbox', 'New commit', { commit: c.id }));
@@ -381,27 +434,31 @@ function activityFeed() {
     rows('alerts').forEach((x) => add(x.ts, 'overview', 'Overview', 'Care check received'));
     rows('commits').filter((c) => c.ackAt && (c.by || 'listener') === 'listener').forEach((c) => add(c.ackAt, 'send', 'Send', 'Your commit was deployed', { commit: c.id }));
     rows('commits').filter((c) => c.by === 'writer').forEach((c) => add(c.ts, 'send', 'Send', 'New commit', { commit: c.id }));
-    rows('checkins').filter((c) => c.status === 'answered' && c.answeredAt).forEach((c) => add(c.answeredAt, 'overview', 'Overview', 'Reply received'));
+    rows('checkins').filter((c) => c.status === 'answered' && c.answeredAt).forEach((c) => add(c.answeredAt, 'overview', 'Overview', 'Feedback received'));
   }
   return out.sort((x, y) => y.ts - x.ts).slice(0, 100);
 }
 // 읽음: "모두 읽음" 을 누른 시각 이전 것은 모두 읽은 것, 그 뒤 것은 하나씩 눌러서(또는 눌러 이동해서) 읽음 처리한다
-const notifReadKey = () => notifKey() + '.read';
-const notifRead = () => new Set(lsGet(notifReadKey(), []));
+// 읽음 상태는 기기가 아니라 계정(역할)의 shared 문서(notif_<역할>)에 저장한다: PC 에서 읽으면 폰에서도 읽은 것으로 보인다
+const notifDocId = () => 'notif_' + roleName();
+const notifDoc = () => sd(notifDocId());
+const notifBase = () => notifDoc().base || 0;
+const notifRead = () => new Set(notifDoc().ids || []);
 const isUnreadItem = (i, base, read) => i.ts > base && !read.has(i.id);
-// 알림 문구가 영어로 바뀌면서 알림 id 가 달라졌다: 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다(옛 id 의 읽음 표시가 사라져 다시 새 알림으로 뜨는 걸 막는다)
+const saveNotif = (base, ids) => (S.store ? S.store.set('shared', notifDocId(), { kind: 'notif', v: 2, base, ids }).catch((e) => console.warn('notif read', e)) : null);
+// 알림 문구가 바뀌면서(영어 → Feedback/Ack 말투) 알림 id 가 달라졌다: 계정마다 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다
 function migrateNotifIds() {
-  if (!S.ready || lsGet(notifKey() + '.en', false)) return;
-  lsSet(notifKey() + '.en', true); markAllRead();
+  if (!S.ready || !S.store || S.notifMig || notifDoc().v === 2) return;
+  S.notifMig = true; markAllRead();
 }
-const notifUnread = () => { migrateNotifIds(); const base = lsGet(notifKey(), 0), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
-function markRead(id) { const r = notifRead(); r.add(id); lsSet(notifReadKey(), [...r].slice(-300)); }
-function markAllRead() { lsSet(notifKey(), seenNow()); lsSet(notifReadKey(), []); }
+const notifUnread = () => { migrateNotifIds(); const base = notifBase(), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
+function markRead(id) { const ids = [...new Set([...(notifDoc().ids || []), id])].slice(-300); saveNotif(notifBase(), ids); }
+function markAllRead() { saveNotif(Math.max(notifBase(), seenNow()), []); }
 function closeNotif() { S.notifOpen = false; $('#notif')?.remove(); }
 function toggleNotif() { if (S.notifOpen) { closeNotif(); renderChrome(); return; } S.notifOpen = true; renderNotif(); renderChrome(); }
 function renderNotif() {
   $('#notif')?.remove();
-  const feed = activityFeed(), base = lsGet(notifKey(), 0), read = notifRead(), unread = feed.filter((i) => isUnreadItem(i, base, read)).length;
+  const feed = activityFeed(), base = notifBase(), read = notifRead(), unread = feed.filter((i) => isUnreadItem(i, base, read)).length;
   const redo = () => { renderNotif(); renderChrome(); };
   const list = feed.length ? feed.map((i) => { const un = isUnreadItem(i, base, read);
     return h('div', { class: 'nt-row' },
@@ -459,11 +516,11 @@ function renderChrome() {
     document.title = (total ? `(${total}) ` : '') + 'Service Monitor — prod-api-02';
   }
   const wr = isWriter();
-  const lvl = S.store ? (wr ? metrics().level : (sd('status').level || 'green')) : 'green';
+  const lvl = S.store ? (wr ? metrics().level : (statusToday().level || 'green')) : 'green';
   top.replaceChildren(
     h('div', { class: 'brand' }, h('span', { class: 'logo', text: '◧' }), h('b', {}, h('span', { class: 'bw', text: 'Service ' }), 'Monitor'), h('span', { class: 'env', text: 'prod-api-02' })),
     h('div', { class: 'right' },
-      S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, 'Alerts', notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
+      S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small ic bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, icon('inbox'), notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
       S.store ? notifyBtn() : null,
       btn('↻', doRefresh, 'ghost small refresh' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
       btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' }),
@@ -505,7 +562,7 @@ function renderMood() {
   const isNew = (they.ts || 0) > seenAt('mood');
   const theirR = reactDoc(otherRole()), onMe = reactOn(otherRole(), me.ts);
   if (S.prevReact == null) S.prevReact = theirR.ts || 0;
-  else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`New reaction ${onMe}`); }
+  else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`Ack received ${onMe}`); }
   box.hidden = false;
   // 접어 두면 이 기기 화면에서만 가려진다(상대에게는 그대로 보이고, 새 상태가 오면 점으로만 알려 준다)
   const folded = lsGet('svcmon.mood.fold', false), foldAt = lsGet('svcmon.mood.foldAt', 0);
@@ -513,7 +570,7 @@ function renderMood() {
   box.classList.toggle('folded', folded);
   // 접고 펴는 줄은 항상 맨 위 가운데(좌우 대칭): 접어도 펴도 같은 자리
   const handle = h('button', { type: 'button', class: 'mfold', title: folded ? 'Show status bar' : 'Hide status bar', 'aria-label': folded ? 'Show status bar' : 'Hide status bar', 'aria-expanded': String(!folded), on: { click: fold(!folded) } },
-    folded ? '▾' : '▴', h('span', { class: 'ml', text: 'Status' }), folded && ((they.ts || 0) > foldAt || ((theirR.ts || 0) > foldAt && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
+    icon(folded ? 'chevD' : 'chevU'), h('span', { class: 'ml', text: 'Status' }), folded && ((they.ts || 0) > foldAt || ((theirR.ts || 0) > foldAt && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
   if (folded) { box.replaceChildren(handle); return; }
   box.replaceChildren(handle,
     moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
@@ -535,7 +592,7 @@ function openTheirMood() {
   const has = !!(t.emoji || t.text), mine = reactOn(roleName(), t.ts);
   const rbtn = (e) => h('button', { type: 'button', class: 'ropt' + (mine === e ? ' on' : ''), title: e, on: { click: act(async () => {
     await S.store.set('shared', 'react_' + roleName(), { emoji: mine === e ? '' : e, to: t.ts, ts: Date.now() });
-    close(); toast(mine === e ? 'Reaction removed' : 'Reaction sent');
+    close(); toast(mine === e ? 'Ack removed' : 'Ack sent');
   }) } }, e);
   const body = has ? h('div', { class: 'their' }, h('div', { class: 'big', text: t.emoji || '·' }), t.text ? h('p', { class: 'msgtext', text: t.text }) : null, h('p', { class: 'sub', text: `갱신 ${ago(t.ts)}` }),
     h('div', { class: 'reactrow' }, h('div', { class: 'mlab', text: 'React' }), h('div', { class: 'rgrid' }, REACTIONS.map(rbtn)))) : note('아직 상태를 정하지 않았어요.');
@@ -565,6 +622,7 @@ async function sendField(el, send) {
   try { await send(t); if (id && document.activeElement?.id === id) { S.dirty = false; renderView(); renderChrome(); document.getElementById(id)?.focus(); } return true; } catch (e) { const cur = (id && document.getElementById(id)) || el; if (!cur.value) cur.value = t; throw e; }
 }
 function renderView() {
+  closeMenu();
   const view = $('#view'); if (!view) return;
   const keepTop = view.scrollTop;
   const drafts = view.dataset.tab === S.tab ? snapshotDrafts(view) : new Map();
@@ -600,9 +658,8 @@ function logRow(l) {
   return h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' },
     h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })),
     h('div', { class: 'row' },
-      btn('Edit', () => openReclass(l), 'small'),
       l.sharedId ? btn('Unshare', act(() => unshareLine(l)), 'small') : btn('Share log', () => openShare(l), 'small'),
-      btn('Delete', act(() => deleteLog(l)), 'small danger'))));
+      moreMenu([{ label: 'Edit', icon: 'edit', fn: () => openReclass(l) }, { label: 'Delete', icon: 'trash', danger: true, fn: act(() => deleteLog(l)) }]))));
 }
 // ───────── 터미널 효과: tail -f 처럼 새 줄은 글자가 찍히며 올라오고 잠깐 밝게 깜박인다 ─────────
 const reduceFx = () => !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -732,7 +789,7 @@ function openReclass(l) {
   const base = () => ({ ...l, ...(auto || {}) });
   const fin = () => ({ ...(auto ? { ...auto, pos: auto.pos | 0, via: undefined } : {}), ...(cur || {}), ...(hasRaw ? {} : { msg }) });
   const draw = () => { const f = fin(); prev.className = 'mono lv-' + (f.level || l.level); prev.textContent = L.fmtLine({ ...l, ...f }, hms(l.ts)); };
-  const paint = () => chips.replaceChildren(...L.LEVELS.map((v) => h('button', { type: 'button', class: 'schip' + (v === level ? ' on' : ''), 'aria-pressed': String(v === level), on: { click: () => { level = v; cur = L.reclassify(base(), { level }); if (!hasRaw && cur) { msg = cur.msg; ta.value = msg; } paint(); draw(); } } }, v)));
+  const paint = () => chips.replaceChildren(...L.LEVELS.map((v) => h('button', { type: 'button', class: 'schip lv-' + v + (v === level ? ' on' : ''), 'aria-pressed': String(v === level), on: { click: () => { level = v; cur = L.reclassify(base(), { level }); if (!hasRaw && cur) { msg = cur.msg; ta.value = msg; } paint(); draw(); } } }, v)));
   ta.addEventListener('input', () => {
     if (hasRaw) { raw = ta.value; if (raw.trim()) { auto = L.mockTranslate(raw); cur = null; level = auto.level; paint(); } }
     else msg = ta.value;
@@ -797,21 +854,57 @@ function openRestart() {
 }
 
 // ───────── 작성자: 대시보드/인박스/리포트/설정 ─────────
-function weekBars() {
-  const map = new Map(weekRows().map((r) => [r.day, r]));
-  const max = Math.max(1, ...[...map.values()].map((r) => (r.ERROR | 0) + (r.FATAL | 0)));
-  return h('div', { class: 'bars' }, weekDays().map((d, i) => {
-    const r = map.get(d); const n = r ? (r.ERROR | 0) + (r.FATAL | 0) : 0;
-    return h('div', { class: 'col' }, h('span', { class: 'n', text: r ? n : '–' }), h('div', { class: 'stick' }, h('i', { style: `height:${Math.round((n / max) * 100)}%` })), h('span', { class: 'd', text: DOW[(i + 1) % 7] }));
-  }));
+const agoEn = (ts) => { const m = Math.floor((Date.now() - ts) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`; };
+// ───────── 대시보드: 상태 배너 + 7일 띠, 게이지·추세선 타일(어제 대비), 시간대 활동, 최근 이벤트 ─────────
+const svgOf = (inner, vb, label) => { const t = document.createElement('template'); t.innerHTML = `<svg viewBox="${vb}" role="img" aria-label="${label}">${inner}</svg>`; return t.content.firstChild; };   // 숫자·고정 문자열만 사용
+const gaugeEl = (v, label) => {   // 반원 게이지: 0~50 초록 · 50~80 노랑 · 80~100 빨강 구간 위에 값만큼 채운다
+  const pt = (val) => { const a = Math.PI * (1 - val / 100); return [60 + 50 * Math.cos(a), 62 - 50 * Math.sin(a)].map((n) => n.toFixed(1)); };
+  const arc = (a, b, cls) => { const [x0, y0] = pt(a), [x1, y1] = pt(b); return `<path class="${cls}" d="M${x0} ${y0} A50 50 0 0 1 ${x1} ${y1}"/>`; };
+  const val = Math.max(0, Math.min(100, v | 0)), lv = val >= 80 ? 'crit' : val >= 50 ? 'warn' : 'ok';
+  return svgOf(`${arc(0, 50, 'z ok')}${arc(50, 80, 'z warn')}${arc(80, 100, 'z crit')}${val > 0 ? arc(0, Math.max(val, 1), 'v ' + lv) : ''}<text x="60" y="58" text-anchor="middle">${val}%</text>`, '0 0 120 70', label);
+};
+const sparkEl = (pts, cls, label) => {   // 작은 추세선 (점 2개 미만이면 평평한 선)
+  const p = pts.length >= 2 ? pts : [pts[0] ?? 0, pts[0] ?? 0], lo = Math.min(...p), hi = Math.max(...p), span = hi - lo || 1;
+  const xy = p.map((v, i) => `${(2 + i * 116 / (p.length - 1)).toFixed(1)} ${(30 - (v - lo) / span * 24).toFixed(1)}`);
+  return svgOf(`<path class="a" d="M${xy.join(' L')} L118 34 L2 34Z"/><path class="l" d="M${xy.join(' L')}"/>`, '0 0 120 34', label);
+};
+function deltaEl(cur, prev, goodUp, unit) {
+  if (prev == null) return h('p', { class: 'db-dl flat', text: 'no data yesterday' });
+  const d = cur - prev; if (d === 0) return h('p', { class: 'db-dl flat', text: '– same as yesterday' });
+  const good = (d > 0) === goodUp;
+  return h('p', { class: 'db-dl ' + (good ? 'good' : 'bad'), text: `${d > 0 ? '▲' : '▼'} ${Math.abs(d)} ${unit} vs yesterday` });
 }
 function viewDash() {
-  const m = metrics();
-  return h('div', { class: 'grid' },
-    card('Service status', statusPill(m.level)),
-    card('Resources', stackMeter('CPU', m.cpu, m.mem), goodMeter(m.pos), meter('DISK', m.disk, 'disk')),
-    card('Today', h('div', { class: 'counts' }, L.LEVELS.map((lv) => h('div', { class: 'cnt-box lv-' + lv }, h('b', { text: m[lv] }), h('span', { text: lv }))))),
-    card('This week — incidents (ERROR+FATAL)', weekBars()));
+  const m = metrics(), logs = todayLogs(), now = Date.now(), today = dayKey();
+  const start = new Date(); start.setHours(4, 0, 0, 0); if (now < start.getTime()) start.setDate(start.getDate() - 1);
+  const slots = Array.from({ length: 24 }, () => ({ n: 0, w: 0 })), nowSlot = Math.min(23, Math.max(0, Math.floor((now - start.getTime()) / 3600e3)));
+  for (const l of logs) { const i = Math.floor((l.ts - start.getTime()) / 3600e3); if (i < 0 || i > 23) continue; slots[i].n++; slots[i].w = Math.max(slots[i].w, { WARN: 1, ERROR: 2, FATAL: 3 }[l.level] || 0); }
+  const max = Math.max(1, ...slots.map((x) => x.n)), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
+  const ystat = rows('stats').find((r) => r.day === dayKey(now - 86400e3));
+  const inc = (m.ERROR | 0) + (m.FATAL | 0), yinc = ystat ? (ystat.ERROR | 0) + (ystat.FATAL | 0) : null;
+  // 상태 배너 + 이번 주 7일 띠 (날마다 가장 나쁜 단계)
+  const wmap = new Map(weekRows().map((r) => [r.day, r]));
+  const days = weekDays(), strip = days.map((d) => { const r = wmap.get(d), worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) || 'none' : 'none'; const cls = { none: 'n', PASS: 'p', WARN: 'w', ERROR: 'e', FATAL: 'e' }[worst]; return h('i', { class: cls + (d === today ? ' t' : '') + (d > today ? ' fut' : ''), title: r ? `${d.slice(5)} · ${(r.ERROR | 0) + (r.FATAL | 0)} incidents` : d.slice(5) }); });
+  const banner = h('section', { class: 'card db-banner st-' + m.level },
+    h('span', { class: 'db-dot' }), h('div', { class: 'db-bt' }, h('b', { text: L.STATUS_TEXT[m.level] }), h('span', { class: 'sub', text: (last ? 'last event ' + agoEn(last) : 'no events yet today') + ' · updated just now' })),
+    h('div', { class: 'db-week' }, h('div', { class: 'db-up' }, strip), h('div', { class: 'db-ax' }, h('span', { text: 'Mon' }), h('span', { text: 'Sun' }))));
+  // 요약 타일
+  const cumPos = (() => { const a = []; let c = 0; for (let i = 0; i <= nowSlot; i += 1) { c += logs.filter((l) => Math.floor((l.ts - start.getTime()) / 3600e3) === i).reduce((t, l) => t + (l.pos | 0), 0); a.push(c); } return a; })();
+  const diskPts = (() => { let c = 0; return days.filter((d) => d <= today).map((d) => { c += (wmap.get(d)?.disk | 0); return Math.min(100, Math.round(c * 0.3)); }); })();
+  const cpuTotal = clamp(m.cpu + m.mem);   // 예전 CPU 막대와 같은 값: 짜증(Irritation) + 피로(Fatigue)
+  const cpu = h('div', { class: 'card db-tile' }, h('p', { class: 'db-k', text: 'CPU' }), gaugeEl(cpuTotal, `CPU ${cpuTotal}%`), h('p', { class: 'db-sub', text: `Irritation ${m.cpu | 0} · Fatigue ${m.mem | 0}` }), deltaEl(cpuTotal, ystat ? clamp((ystat.cpu | 0) + (ystat.mem | 0)) : null, false, 'pts'));
+  const cache = h('div', { class: 'card db-tile spk ok' }, h('p', { class: 'db-k', text: 'Cache' }), h('p', { class: 'db-big' }, String(m.pos), h('small', { text: '%' })), sparkEl(cumPos, 'ok', 'Cache since 04:00'), deltaEl(m.pos, ystat ? clamp(ystat.pos) : null, true, 'pts'));
+  const disk = h('div', { class: 'card db-tile spk warn' }, h('p', { class: 'db-k', text: 'Disk · week' }), h('p', { class: 'db-big' }, String(m.disk), h('small', { text: '%' })), sparkEl(diskPts, 'warn', 'Disk this week'), h('p', { class: 'db-dl flat', text: 'resets Monday' }));
+  const incT = h('div', { class: 'card db-tile' }, h('p', { class: 'db-k', text: 'Incidents today' }), h('p', { class: 'db-big' }, String(inc)), h('p', { class: 'db-sub left', text: `error ${m.ERROR | 0} · fatal ${m.FATAL | 0}` }),
+    h('div', { class: 'db-lg' }, [['ok', m.PASS, 'pass'], ['warn', m.WARN, 'warn'], ['crit', m.ERROR, 'error']].map(([c, n, t]) => h('span', {}, h('b', { class: c }), `${n | 0} ${t}`))), deltaEl(inc, yinc, false, ''));
+  // 시간대 활동 + 최근 이벤트
+  const hours = h('div', { class: 'card db-wide' }, h('p', { class: 'db-k', text: 'Activity by hour since 04:00' }),
+    h('div', { class: 'tl-strip db-hours' }, slots.map((x, i) => h('i', { class: (x.w === 1 ? 'w' : x.w >= 2 ? 'e' : x.n ? 'p' : '') + (i === nowSlot ? ' now' : '') + (i > nowSlot ? ' fut' : ''), style: `height:${x.n ? Math.max(15, Math.round(x.n / max * 100)) : 6}%`, title: `${String((i + 4) % 24).padStart(2, '0')}:00 · ${x.n}` }))),
+    h('div', { class: 'tl-axis' }, ['04', '10', '16', '22'].map((t, i) => h('span', { text: t, style: `left:${i * 25}%` }))));
+  const recent = logs.slice().sort((a, b) => b.ts - a.ts).slice(0, 3);
+  const latest = h('div', { class: 'card' }, h('p', { class: 'db-k', text: 'Latest events' }),
+    recent.length ? h('div', { class: 'db-ev' }, recent.map((l) => h('div', {}, h('span', { class: 't', text: hm(l.ts) }), h('span', { class: 'lv lv-' + l.level, text: l.level }), h('span', { class: 'sv', text: `${l.service || 'user'}.${String(l.code || '').toLowerCase()}` })))) : empty('아직 이벤트가 없어요'));
+  return h('div', { class: 'db' }, banner, h('div', { class: 'db-kpis' }, cpu, cache, disk, incT), h('div', { class: 'db-two' }, hours, latest));
 }
 
 function keepBtn(text, from) {
@@ -820,11 +913,13 @@ function keepBtn(text, from) {
 }
 // 공유 로그의 리뷰 댓글 아래 답글: 작성자·리스너가 서로 답글을 달고 ♡ 를 누른다
 const reviewReplies = (rid) => rows('review_replies').filter((c) => c.reviewId === rid).sort((a, b) => a.ts - b.ts);
-// 댓글 한 줄(공용): 윗줄 = 시각·작성자·표시 + 오른쪽 고정 칸(하트 | Edit | Delete), 아랫줄 = 내용 전체 폭. 좁은 화면에서도 칸 위치가 줄마다 같다.
+// 댓글 한 줄(공용): 윗줄 = 시각·작성자·new/edited 표시(항상 여기) + 오른쪽 고정 칸(하트 | ⋯), 아랫줄 = 내용 전체 폭. 좁은 화면에서도 칸 위치가 줄마다 같다.
+// 버튼이 없는 칸에도 같은 버튼을 투명하게 깔아 둔다: 어떤 테마·화면 폭에서도 빈 칸과 채워진 칸의 너비가 같아서 하트 위치가 줄마다 같다
+const cmGhost = (label) => { const g = btn(label, () => {}, 'small quiet' + (label === 'More' ? ' more' : '')); g.classList.add('cm-ghost'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1; return g; };
 function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, onEdit, onDel }) {
   return h('div', { class: 'cm' + (cls ? ' ' + cls : '') },
-    h('div', { class: 'cm-meta' }, h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || null),
-    h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), extra ? h('span', { class: 'cm-slot xtra' }, extra) : null, h('span', { class: 'cm-slot edit' }, onEdit ? btn('Edit', onEdit, 'small quiet') : null), h('span', { class: 'cm-slot del' }, onDel ? btn('Delete', act(onDel), 'small quiet del') : null)),
+    h('div', { class: 'cm-meta' }, h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || (like?.dataset?.newlike === '1' ? newTag(true) : null)),
+    h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), extra !== undefined ? h('span', { class: 'cm-slot xtra' }, extra || null) : null, h('span', { class: 'cm-slot more' }, onEdit || onDel ? moreMenu([onEdit ? { label: 'Edit', icon: 'edit', fn: onEdit } : null, onDel ? { label: 'Delete', icon: 'trash', danger: true, fn: act(onDel) } : null].filter(Boolean)) : cmGhost('More'))),
     h('div', { class: 'cm-text', text }));
 }
 // ── commit 주고받기: 리스너·작성자 모두 보낼 수 있고, 받은 commit 에는 답글과 하트를 남길 수 있다 ──
@@ -858,7 +953,7 @@ function commitItem(c, view) {
   const ackLabel = sender === 'listener' ? 'Deployed ✓' : 'Got it';
   const actions = view === 'in'
     ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), likeBtn(co, { commitId: c.id }, me), sender === 'listener' ? keepBtn(c.text, c.id) : null)
-    : h('div', { class: 'row' }, likeBtn(co, { commitId: c.id }, me), c.deliverAt > now ? btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small danger') : btn('Delete', () => modal({ title: '이 메시지를 삭제할까요?', body: note('답글과 하트도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('commits', c.id)) }] }), 'small quiet del'));
+    : h('div', { class: 'row' }, likeBtn(co, { commitId: c.id }, me), moreMenu([c.deliverAt > now ? { label: 'Cancel scheduled', icon: 'reject', danger: true, fn: act(() => S.store.del('commits', c.id)) } : { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 메시지를 삭제할까요?', body: note('답글과 하트도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('commits', c.id)) }] }) }]));
   return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
 }
 const commitComposer = (id, title, extra) => card(title, h('textarea', { id, rows: 2, maxLength: 200, placeholder: 'commit message' }), extra);
@@ -874,7 +969,7 @@ function reviewThread(ln, r) {
   const send = act(async () => { if (await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) { S.replyOpen.delete('rr-' + r.id); renderView(); } });
   onEnter(box, send);
   return h('div', { class: 'sl-thread rv-thread' },
-    reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), like: likeBtn(c, { lineId: ln.id }, me),
+    reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), extra: null, like: likeBtn(c, { lineId: ln.id }, me),
       onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
     replyArea('rr-' + r.id, box, send));
 }
@@ -892,7 +987,7 @@ function viewInbox() {
     }), 'primary'))),
     rows('commits').some((c) => c.by === 'writer') ? card('Sent', ...rows('commits').filter((c) => c.by === 'writer').sort((a, b) => b.ts - a.ts).map((c) => commitItem(c, 'out'))) : null,
     card('Code review', lines.length ? lines.map(([ln, rv]) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono', text: ln.text }), rv.map((r) => reviewRow(ln, r, 'writer')))) : empty('리뷰 댓글 없음')),
-    card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), btn('Delete', act(() => S.store.del('@', k.id)), 'small danger')))) : empty('아직 없음'),
+    card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => S.store.del('@', k.id)) }])))) : empty('아직 없음'),
       kp.some((k) => k.kind === 'learned') ? h('div', { class: 'learned' }, h('b', { text: 'Learned today' }), kp.filter((k) => k.kind === 'learned').slice(0, 7).map((k) => h('p', { class: 'msgtext', text: `${k.day} · ${k.text}` }))) : null),
     updateHistoryCard());
 }
@@ -923,6 +1018,7 @@ async function addEvent({ date, endDate, kind, label, memo }) {
   const eid = 'ev_' + uid(), now = Date.now(), end = endDate && endDate > date ? endDate : null;
   await S.store.set('events', eid, { date, endDate: end, kind, label, memo: memo || '', by: roleName(), state: 'pending', ts: now });
   await S.store.set('plan_log', 'pl_' + uid(), { eventId: eid, action: 'add', by: roleName(), ts: now, status: 'pending', date, endDate: end, label, memo: memo || '' });
+  return eid;
 }
 async function removeEvent(e) {
   const mine = e.by === roleName(), now = Date.now();
@@ -946,14 +1042,17 @@ async function decidePlan(l, ok) {
 }
 
 function calendarCard() {
-  const c = calState(), today = dayKey(), evs = rows('events');
+  const c = calState(), today = dayKey(), evs = rows('events'), endKey = c.end && c.end > c.sel ? c.end : null;
   const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), off = first.getDay(); // 일요일 시작
   const cells = [];
   for (let i = 0; i < off; i += 1) cells.push(h('div', { class: 'cd x' }));
   for (let d = 1; d <= dim; d += 1) {
     const key = `${c.y}-${p2(c.m + 1)}-${p2(d)}`;
     const es = evs.filter((e) => e.date <= key && key <= (e.endDate || e.date));
-    cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : '') + (key === c.sel ? ' sel' : ''), on: { click: () => { c.sel = key; renderView(); } } },
+    const inRange = endKey && key >= c.sel && key <= endKey;
+    // 날짜를 누르면 그 하루를 고른다. Range 를 켠 뒤에 이 날보다 뒤의 날을 누르면 기간(끝 날짜)이 된다.
+    const pick = () => { if (c.range && key > c.sel) { c.end = key; c.range = false; } else { c.sel = key; c.end = null; c.range = false; } renderView(); };
+    cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : '') + (key === c.sel ? ' sel' : '') + (inRange ? ' rg' : ''), on: { click: pick } },
       h('b', { text: String(d) }),
       es.slice(0, 3).map((e) => h('span', { class: `ev${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}`, style: `--c:${CATCOL[e.kind] || CATCOL.etc}`, text: e.label })),
       es.length > 3 ? h('span', { class: 'more', text: '+' + (es.length - 3) }) : null));
@@ -961,47 +1060,56 @@ function calendarCard() {
   const move = (n) => () => { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); renderView(); };
   return card('Shared calendar',
     h('div', { class: 'row' }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), h('span', { class: 'sp' }),
-      btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('Today', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); c.sel = dayKey(); renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
-    h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells));
+      btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('Today', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); c.sel = dayKey(); c.end = null; c.range = false; renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
+    h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells),
+    dayPanel());   // 고른 날의 일정과 등록은 달력 바로 아래에서 (멀리 스크롤하지 않게)
+}
+// 되돌리기 버튼이 있는 안내 (일정을 추가한 직후 몇 초 동안)
+function toastUndo(msg, label, fn) {
+  const t = $('#toast'); if (!t) return;
+  t.replaceChildren(h('span', { text: msg }), h('button', { type: 'button', class: 'toast-act', on: { click: () => { t.hidden = true; clearTimeout(toastT); fn(); } } }, label));
+  t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 6000);
 }
 function dayPanel() {
-  const c = calState(), key = c.sel;
+  const c = calState(), key = c.sel, endKey = c.end && c.end > key ? c.end : null;
   const es = rows('events').filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort((a, b) => a.ts - b.ts);
   const stBadge = (e) => (e.state === 'approved' ? badge('approved', 'ok') : e.state === 'removing' ? badge('Delete pending', 'warn') : badge('Pending', 'warn'));
-  const k = S.calKind;
-  const send = act(async () => {
-    const name = k === 'etc' ? $('#cal-label').value.trim().slice(0, 12) : KINDS[k];
-    if (!name) return toast('일정 이름을 적어주세요');
-    await addEvent({ date: key, endDate: $('#cal-end').value, kind: k, label: name, memo: $('#cal-memo').value.trim() });
-    S.calKind = null; renderView();
+  const rangeText = fmtMD(key) + (endKey ? '~' + fmtMD(endKey) : '');
+  // 종류를 한 번 누르면 바로 추가된다 (메모는 입력칸에 적어 두었으면 함께, 기타는 입력칸의 글자가 이름). 방금 추가한 건 Undo 로 취소.
+  const add = (id) => act(async () => {
+    const box = $('#cal-memo'), txt = (box?.value || '').trim();
+    let label = KINDS[id], memo = txt.slice(0, 40);
+    if (id === 'etc') { label = txt.slice(0, 12); memo = ''; if (!label) { toast('기타는 아래 입력칸에 이름을 적고 눌러 주세요'); box?.focus(); return; } }
+    const eid = await addEvent({ date: key, endDate: endKey, kind: id, label, memo });
+    if (box) box.value = '';
+    c.end = null; c.range = false; renderView();
+    toastUndo(`Added ${rangeText} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
-  return card(`${fmtMD(key)} Events`,
+  return h('div', { class: 'daypanel' },
+    h('div', { class: 'dp-head' }, h('b', { text: rangeText }), h('span', { class: 'sub', text: c.range ? 'Tap the last day' : '' }), h('span', { class: 'sp' }),
+      btn('Range', () => { c.range = !c.range; renderView(); }, 'small quiet' + (c.range ? ' on' : ''))),
     es.length ? es.map((e) => h('div', { class: 'prow' },
       h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === roleName() ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
       stBadge(e),
       (e.state === 'approved' || (e.state === 'pending' && e.by === roleName())) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(() => removeEvent(e)), 'small danger') : null)) : empty('이 날은 비어 있어요'),
-    h('div', { class: 'cat' }, Object.entries(KINDS).map(([id, t]) => h('button', { type: 'button', class: 'catb' + (k === id ? ' on' : ''), style: `--c:${CATCOL[id]}`, on: { click: () => { S.calKind = k === id ? null : id; renderView(); } } }, catIcon(id), t))),
-    k ? h('div', { class: 'catform' },
-      h('b', { class: 'cf-h', style: `color:${CATCOL[k]}`, text: `${KINDS[k]} 일정 등록` }),
-      k === 'etc' ? [h('label', { class: 'lab', text: '일정 이름 (필수)' }), h('input', { id: 'cal-label', type: 'text', maxLength: 12, placeholder: '예: 치과, 이사, 결혼식' })] : null,
-      h('label', { class: 'lab', text: '메모 (선택)' }), h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '예: 늦을 수 있음' }),
-      h('div', { class: 'row' }, h('label', { class: 'lab', text: '종료일 (여러 날이면)' }), h('input', { id: 'cal-end', type: 'date', min: key })),
-      h('div', { class: 'row' }, h('span', { class: 'sp' }), btn('Cancel', () => { S.calKind = null; renderView(); }, 'small'), btn('Send', send, 'small primary')))
-      : null);
+    h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '메모 (선택) · 기타는 이름', enterkeyhint: 'done', autocomplete: 'off' }),
+    h('div', { class: 'cat' }, Object.entries(KINDS).map(([id, t]) => h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: add(id) } }, catIcon(id), t))));
 }
 function planChangesCard() {
   const me = roleName(), logs = rows('plan_log').sort((a, b) => b.ts - a.ts);
   const needs = logs.filter((l) => l.status === 'pending' && l.by !== me), mine = logs.filter((l) => l.status === 'pending' && l.by === me);
   const done = logs.filter((l) => l.status !== 'pending').sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 40);
   const who = (l) => `by ${l.by === me ? '0' : '1'}`;
-  return card(`Changes${needs.length ? ` (${needs.length} to review)` : ''}`,
+  const el = card(`Changes${needs.length ? ` (${needs.length} to review)` : ''}`,
     needs.length ? needs.map((l) => h('div', { class: 'prow need' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
-      btn('Approve', act(() => decidePlan(l, true)), 'small primary'), btn('Reject', act(() => decidePlan(l, false)), 'small danger'))) : empty('확인할 변경사항 없음'),
+      btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))) : empty('확인할 변경사항 없음'),
     mine.length ? [h('h4', { text: 'Waiting for approval' }), mine.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) })), badge('pending', 'warn')))] : null,
     done.length ? [
       btn(S.planHist ? 'Hide history' : `Show history (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet block'),
       S.planHist ? [done.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.status === 'cancelled' ? ' 취소' : l.decidedBy === me ? ' 내가 처리' : ''}` })),
         badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : '')))] : null] : null);
+  if (needs.length) el.classList.add('span-all');   // 승인할 게 있으면 맨 위에 전체 폭으로
+  return el;
 }
 // ── Weekly Agenda: 승인 없이 각자 등록. 등록한 사람만 삭제하거나 "해결"할 수 있고, 해결하면 기록에 남는다 ──
 const agendas = () => rows('agendas');
@@ -1011,8 +1119,8 @@ const removeAgenda = (a) => S.store.del('agendas', a.id);
 const agComments = (id) => rows('agenda_comments').filter((c) => c.agendaId === id).sort((a, b) => a.ts - b.ts);
 const addAgComment = (a, text) => S.store.set('agenda_comments', 'ac_' + uid(), { agendaId: a.id, by: roleName(), text, ts: Date.now() });
 const AGICON = {
-  open: '<path d="M7 3h10v18l-5-3.5L7 21z"/>',
-  done: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  open: '<path d="M6 21V4"/><path d="M6 4h11.5l-2.8 4.2 2.8 4.2H6z" fill="currentColor" fill-opacity=".16"/>',   // 깃발 (책갈피=Keep, 동그라미 ✓=Resolve 와 겹치지 않게)
+  done: '<path d="M6 21V4"/><path d="M6 4h11.5l-2.8 4.2 2.8 4.2H6z" fill="currentColor" fill-opacity=".42"/>',
 };
 const agIcon = (k) => { const t = document.createElement('template'); t.innerHTML = `<svg class="agi ${k}" viewBox="0 0 24 24" aria-hidden="true">${AGICON[k]}</svg>`; return t.content.firstChild; }; // 고정 문자열만 사용
 function agendaCard() {
@@ -1043,6 +1151,8 @@ function agendaCard() {
         : h('p', { class: 'empty', text: 'No comments yet' }),
       canAdd ? h('div', { class: 'row' }, box, btn('Add', send, 'small primary')) : null);
   };
+  // 댓글 버튼(말풍선 아이콘 + 개수): 개수가 있든 없든 버튼 폭이 같아야 옆의 Resolve·Edit·Delete 위치가 줄마다 같다 (개수 자리를 항상 비워 둔다)
+  const cmtBtn = (n, fn, on) => { const b = btn('Comment', fn, 'small quiet cm-open' + (on ? ' on' : '')); b.setAttribute('aria-label', 'Comments'); b.append(h('span', { class: 'cm-n', text: n ? String(n) : '' })); return b; };
   const item = (a, kind) => {
     const n = agComments(a.id).length, isOpen = opened.has(a.id);
     return h('div', { 'data-aid': a.id, class: 'ag-wrap ' + kind },
@@ -1050,8 +1160,8 @@ function agendaCard() {
         h('div', { class: 'ag-body' }, h('span', { class: 'ag-t', text: a.text }, a.editedAt ? h('span', { class: 'b-ed', text: ' edited' }) : null, newTag(a.by !== me && a.ts > (S.planSince ?? Infinity))),
           h('span', { class: 'sub', text: kind === 'done' ? `${who(a)} · ${a.resolvedAt ? 'resolved ' + mdhm(a.resolvedAt) : ''}` : `${who(a)} · ${mdhm(a.ts)}` }),
           h('div', { class: 'ag-act' },
-            btn(n ? `Comments (${n})` : 'Comment', () => { isOpen ? opened.delete(a.id) : opened.add(a.id); redraw(); }, 'small quiet' + (isOpen ? ' on' : '')),
-            kind === 'open' && a.by === me ? [btn('Resolve', act(() => resolveAgenda(a)), 'small quiet'), btn('Edit', () => editText({ title: 'Edit agenda', text: a.text, max: 60, onSave: (t) => S.store.patch('agendas', a.id, { text: t, editedAt: Date.now() }) }), 'small quiet'), btn('Delete', () => confirmDelete(a), 'small quiet del')] : null))),
+            cmtBtn(n, () => { isOpen ? opened.delete(a.id) : opened.add(a.id); redraw(); }, isOpen),
+            kind === 'open' && a.by === me ? [btn('Resolve', act(() => resolveAgenda(a)), 'small quiet'), moreMenu([{ label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit agenda', text: a.text, max: 60, onSave: (t) => S.store.patch('agendas', a.id, { text: t, editedAt: Date.now() }) }) }, { label: 'Delete', icon: 'trash', danger: true, fn: () => confirmDelete(a) }])] : null))),
       isOpen ? thread(a, kind === 'open') : null);
   };
   return h('section', { class: 'card agenda' },
@@ -1063,8 +1173,7 @@ function agendaCard() {
       S.agHist ? [h('div', { class: 'ag-list' }, solved.map((a) => item(a, 'done')))] : null] : null);
 }
 function viewPlanW() {
-  return h('div', { class: 'grid' }, agendaCard(),
-    calendarCard(), dayPanel(), planChangesCard());
+  return h('div', { class: 'grid' }, planChangesCard(), agendaCard(), calendarCard());   // 확인할 변경이 있는 카드를 맨 위에
 }
 
 // ───────── Archive (작성자: 날짜별 기록 보관함) ─────────
@@ -1093,7 +1202,7 @@ function viewArchive() {
         const open = S.open.has(l.id);
         const row = h('div', { class: `ln lv-${l.level}${String(l.code).startsWith('OK_') ? ' pos' : ''}`, on: { click: () => { open ? S.open.delete(l.id) : S.open.add(l.id); renderView(); } } },
           h('span', { class: 'ts', text: hms(l.ts) }), h('span', { class: 'lv', text: l.level }), h('span', { class: 'svc', text: l.service }), h('span', { class: 'code', text: `[${l.code}]` }), h('span', { class: 'msg', text: l.msg }));
-        return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, btn('Delete', act(() => deleteLog(l)), 'small danger')))) : A.raw ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-rawline' }, '↳ ' + (l.raw || '(quick entry)'))) : row;
+        return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => deleteLog(l)) }])))) : A.raw ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-rawline' }, '↳ ' + (l.raw || '(quick entry)'))) : row;
       }),
       h('div', { class: 'row' }, btn('Delete all for this day', () => modal({ title: `${fmtMD(sel)} 기록을 모두 지울까요?`, body: note('지운 기록은 복구되지 않아요. 통계 숫자는 남아요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { for (const l of ls) await deleteLog(l); }) }] }), 'small danger'))]
       : empty('이 날은 기록이 없어요'));
@@ -1153,7 +1262,7 @@ const clFold = (e, history) => {
   return h('div', { class: 'item cl' + (acked ? ' acked' : '') },
     h('div', { class: 'cl-head' },
       h('button', { type: 'button', class: 'cl-toggle', 'aria-expanded': String(open), on: { click: () => { S.clOpen[key] = !open; renderView(); } } },
-        h('span', { class: 'cl-caret', text: open ? '▾' : '▸' }), h('span', { class: 'sha', text: e.date }), h('span', { class: 'cl-t', text: e.title })),
+        h('span', { class: 'cl-caret' }, icon(open ? 'chevD' : 'chevR')), h('span', { class: 'sha', text: e.date }), h('span', { class: 'cl-t', text: e.title })),
       h('button', { type: 'button', class: 'cl-status' + (acked ? ' on' : ''), 'aria-pressed': String(acked), title: acked ? '확인함 (누르면 취소)' : '눌러서 확인 표시', on: { click: () => clSetAck(e.id, !acked) } },
         h('span', { class: 'cl-ico', 'aria-hidden': 'true', text: acked ? '✓' : '' }), h('span', { text: 'read' }))),
     open ? clItems(e) : null);
@@ -1187,7 +1296,7 @@ function notifyBtn() {
     if (st === 'denied') return toast('알림이 차단돼 있어요. 기기 설정에서 허용해 주세요.');
     return openInstall();
   };
-  return h('button', { type: 'button', class: 'btn ghost small notify ' + (on ? 'is-on' : 'is-off'), title: on ? 'Notifications on (this device) · tap to turn off' : 'Notifications off (this device) · tap to turn on', 'aria-label': 'Notifications', 'aria-pressed': String(on), on: { click } }, h('span', { class: 'nd' }), 'Notify', h('span', { class: 'ns', text: ': ' + (on ? 'on' : 'off') }));
+  return h('button', { type: 'button', class: 'btn ghost small ic notify ' + (on ? 'is-on' : 'is-off'), title: on ? 'Notifications on (this device) · tap to turn off' : 'Notifications off (this device) · tap to turn on', 'aria-label': 'Notifications', 'aria-pressed': String(on), on: { click } }, icon(on ? 'bell' : 'bellOff'));
 }
 function pushCard() {
   const st = S.push, kids = [];
@@ -1281,7 +1390,7 @@ function openCheckinReply(ck) {
 
 // ───────── 리스너 ─────────
 function viewOverview() {
-  const st = sd('status');
+  const st = statusToday();
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
     card('Service status', st.level ? [statusPill(st.level), st.dnd ? badge('Do not disturb', 'warn') : null, h('div', { class: 'sub', text: '갱신 ' + (st.ts ? mdhm(st.ts) : '–') })] : note('아직 신호가 없어요.'),
@@ -1324,7 +1433,7 @@ function viewSend() {
     card('Sent', mine.length ? mine.map((c) => commitItem(c, 'out')) : empty('보낸 메시지 없음')));
 }
 function viewPlan() {
-  return h('div', { class: 'grid' }, agendaCard(), calendarCard(), dayPanel(), planChangesCard());
+  return h('div', { class: 'grid' }, planChangesCard(), agendaCard(), calendarCard());
 }
 
 function viewSettingsL() {
@@ -1336,7 +1445,6 @@ function viewSettingsL() {
 // 글 종류(태그)는 없고, 글을 쓸 때 "긴급(Urgent)"만 표시할 수 있다. 질문(Question)은 투표를 붙일 수 있다.
 const posts = () => rows('posts').map(({ urgent, question, poll, status, resolvedAt, ...p }) => p);   // 긴급·질문(투표) 기능은 없앴다: 예전에 쓴 글도 평범한 글로 보인다
 const sysComments = (id) => rows('post_comments').filter((c) => c.postId === id).sort((a, b) => a.ts - b.ts);
-const sysReacts = (id) => rows('post_reactions').filter((r) => r.postId === id && r.emoji);
 const newTag = (on) => (on ? h('span', { class: 'new-tag', text: 'new' }) : null);
 const sysLikes = (cid) => rows('comment_likes').filter((l) => l.commentId === cid && l.on);
 const sysVotes = (id) => rows('post_votes').filter((v) => v.postId === id && v.option != null);
@@ -1355,12 +1463,14 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && S.s
 const syslogMuted = () => !!sd('syslog_mute_' + roleName()).muted;
 const sysSev = () => 'info';
 
-// 댓글 좋아요: 상대의 댓글에만 누를 수 있고(다시 누르면 취소), 내 댓글에는 받은 개수만 보인다
+// 댓글 좋아요: 상대의 댓글에만 누를 수 있고(다시 누르면 취소). 사용자가 둘뿐이라 숫자는 없다 — 안 눌렀으면 ♡, 눌렀으면 ♥, 내 댓글은 상대가 눌렀을 때만 ♥
 function likeBtn(c, scope, me) {
-  const n = sysLikes(c.id).length, mine = sysLikes(c.id).some((l) => l.by === me);
-  if (c.by === me) { const since = scope.postId ? S.sysSince : scope.agendaId ? S.planSince : S.revSince; return n ? h('span', { class: 'sl-like own', title: 'Likes' }, `♥ ${n}`, newTag(sysLikes(c.id).some((l) => l.by !== me && l.ts > (since ?? Infinity)))) : null; }
-  return h('button', { type: 'button', class: 'sl-like' + (mine ? ' on' : ''), title: mine ? 'Unlike' : 'Like', 'aria-label': 'Like', 'aria-pressed': String(mine),
-    on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, '♥', n ? ` ${n}` : '');
+  const ls = sysLikes(c.id), mine = ls.some((l) => l.by === me), since = scope.postId ? S.sysSince : scope.agendaId ? S.planSince : S.revSince;
+  const theirs = ls.some((l) => l.by !== me), fresh = ls.some((l) => l.by !== me && l.ts > (since ?? Infinity));
+  // 하트는 모든 댓글에 항상 있다(내 댓글에도 누를 수 있다). 큰 하트 = 내가 누른 것, 작은 하트(앞 칸) = 상대가 누른 것. 칸은 항상 비워 둬서 위치가 변하지 않는다.
+  const heart = h('button', { type: 'button', class: 'sl-like' + (mine ? ' on' : ' off'), title: mine ? 'Unlike' : 'Like', 'aria-label': 'Like', 'aria-pressed': String(mine),
+    on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, icon(mine ? 'heartOn' : 'heart'));
+  return h('span', { class: 'lk-wrap', 'data-newlike': fresh ? '1' : '0' }, h('span', { class: 'lk-th' + (theirs ? ' on' : ''), title: theirs ? 'Liked by them' : '' }, theirs ? icon('heartOn') : null), heart);
 }
 function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);
@@ -1372,14 +1482,9 @@ function sysThread(id, canAdd) {
       onEdit: c.by === me && !c.ack ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('post_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('post_comments', c.id) : null }); }),
     canAdd ? replyArea('sc-' + id, box, send) : null);
 }
-function sysReactRow(p) {
-  const me = roleName(), rs = sysReacts(p.id), mine = rs.find((r) => r.by === me)?.emoji;
-  return h('div', { class: 'sl-react' }, REACTIONS.map((e) => { const n = rs.filter((r) => r.emoji === e).length;
-    return h('button', { type: 'button', class: 'sl-r' + (mine === e ? ' on' : ''), title: e, on: { click: act(() => S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: mine === e ? '' : e, ts: Date.now() })) } }, e, n ? h('i', { text: n }) : null); }));
-}
 function sysRow(p, kept) {
   const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me;
-  const nC = sysComments(p.id).filter((c) => !c.ack).length, nR = sysReacts(p.id).length;
+  const nC = sysComments(p.id).filter((c) => !c.ack).length;
   const title = (p.text || '').split('\n')[0].slice(0, 90);
   const since = S.sysSince ?? Infinity, unread = !st.read.has(p.id);
   const newPost = !mine && p.ts > since && unread, newReply = !newPost && unread && sysComments(p.id).some((c) => c.by !== me && c.ts > since);
@@ -1390,7 +1495,7 @@ function sysRow(p, kept) {
 
     h('span', { class: 'sl-b' },
       ...[[newPost ? '[new]' : newReply ? '[new reply]' : newLike ? '[new like]' : '', 'b-new'], [p.editedAt ? '[edited]' : '', 'b-ed']].filter(([t]) => t).map(([t, c]) => h('span', { class: c, text: t })),
-      h('span', { class: 'b-c', text: nC ? `(${nC})` : '' }), h('span', { class: 'b-r', text: nR ? `+${nR}` : '' }), h('span', { class: 'b-k', text: kept ? '*' : '' })));
+      h('span', { class: 'b-c', text: nC ? `(${nC})` : '' }), h('span', { class: 'b-k', text: kept ? '*' : '' })));
   if (!open || sysWide()) return line;   // 넓은 화면(PC)에서는 아래로 펼치지 않고 오른쪽 칸에 보여준다
   return h('div', { class: 'sl-wrap open' }, line, sysBody(p, kept));
 }
@@ -1407,11 +1512,11 @@ function sysBody(p, kept) {
   const title = (p.text || '').split('\n')[0].slice(0, 90);
   const keepBtn2 = btn(kept ? 'Unkeep' : 'Keep', act(async () => { if (kept) { for (const x of keeps().filter((x) => x.kind === 'syslog' && x.from === p.id)) await S.store.del('@', x.id); } else await S.store.set('@', 'keep_' + uid(), { type: 'keep', kind: 'syslog', ts: Date.now(), text: title, from: p.id }); }), 'small quiet');
   return h('div', { class: 'sl-body' },
-    sysReactRow(p),
     sysThread(p.id, true),
     h('div', { class: 'sl-act' }, keepBtn2,
-      mine ? btn('Edit', () => editText({ title: 'Edit entry', text: p.text, max: SYS_MAX, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }), 'small quiet') : null,
-      mine ? btn('Delete', () => modal({ title: '이 글을 삭제할까요?', body: note('댓글, 반응, 좋아요도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('posts', p.id)) }] }), 'small quiet del') : null));
+      mine ? moreMenu([
+        { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit entry', text: p.text, max: SYS_MAX, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
+        { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 글을 삭제할까요?', body: note('댓글과 좋아요도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('posts', p.id)) }] }) }]) : null));
 }
 // 새 글 쓰기: PC 는 목록 위 입력줄(여러 줄 가능, Enter 는 줄바꿈, 올리기는 Post 버튼 또는 Ctrl/⌘+Enter), 폰은 칸이 좁아서 입력줄을 누르면 팝업이 열린다.
 const SYS_MAX = 20000;   // Syslog 글 최대 글자 수 (서버 규칙 010 과 같아야 한다)
@@ -1465,8 +1570,8 @@ function viewSyslog() {
   return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, h('section', { class: 'card syslog' },
     h('div', { class: 'row sl-head' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sl-hact' },
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
-      btn(`Mask: ${st.mask ? 'on' : 'off'}`, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); renderView(); }, 'small quiet'),
-      btn(`Notify: ${syslogMuted() ? 'off' : 'on'}`, act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() })), 'small quiet'))),
+      tglBtn(st.mask ? 'eyeOff' : 'eye', st.mask ? 'Mask on (hide text) · tap to show' : 'Mask off · tap to hide text', st.mask, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); renderView(); }),
+      tglBtn(syslogMuted() ? 'bellOff' : 'bell', syslogMuted() ? 'Notify off for Syslog · tap to turn on' : 'Notify on for Syslog · tap to turn off', !syslogMuted(), act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() }))))),
     h('div', { class: 'sl-chips' }, chips),
     h('input', { class: 'grep', type: 'search', placeholder: 'grep…', value: st.q, on: { input: (e) => { st.q = e.target.value; listBox.replaceChildren(...listRows()); } } }),
     composeBar(),
@@ -1494,7 +1599,12 @@ async function syncNow() {
 }
 
 // ───────── 정리(GC) — 하루는 새벽 4시에 바뀌고, 지난 하루치는 자동 정리·기록된다 ─────────
+function dayRoll() {   // 앱을 켜 둔 채 새벽 4시가 지나면 화면의 CPU·MEM·CACHE 를 새 하루로 다시 그리고, 작성자는 리스너에게 가는 상태도 0 으로 보낸다
+  const today = dayKey(), prev = S.dayMark; S.dayMark = today;
+  if (prev && prev !== today) refresh();   // 입력 중이면 refresh 가 알아서 미룬다
+}
 async function gcOnce() {
+  dayRoll();
   if (S.gcBusy || !S.ready || !S.canWrite) return;
   S.gcBusy = true;
   try { await gc(); } catch (e) { console.warn('gc', e); } finally { S.gcBusy = false; }
@@ -1563,7 +1673,7 @@ const HELP_W = [
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
   { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
-    how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, 반응, **Keep**'],
+    how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, **Keep**'],
     tip: ['**Notify**로 이 게시판 알림을 끄고 켤 수 있어요', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 commit이 도착했어요" 같은 안내만)', '방해금지를 켜면 commit 알림은 오지 않아요'] },
@@ -1595,7 +1705,7 @@ const HELP_L = [
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
   { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
-    how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, 반응, **Keep**'],
+    how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, **Keep**'],
     tip: ['**Notify**로 이 게시판 알림을 끄고 켤 수 있어요', '**Esc**로 엑셀 화면 위장'] },
   { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 공유 로그가 있어요" 같은 안내만)'] },
