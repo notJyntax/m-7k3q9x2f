@@ -1437,11 +1437,11 @@ const sysSev = () => 'info';
 // 댓글 좋아요: 상대의 댓글에만 누를 수 있고(다시 누르면 취소). 사용자가 둘뿐이라 숫자는 없다 — 안 눌렀으면 ♡, 눌렀으면 ♥, 내 댓글은 상대가 눌렀을 때만 ♥
 function likeBtn(c, scope, me) {
   const ls = sysLikes(c.id), mine = ls.some((l) => l.by === me), since = scope.postId ? S.sysSince : scope.agendaId ? S.planSince : S.revSince;
-  const theirs = ls.some((l) => l.by !== me), fresh = ls.some((l) => l.by !== me && l.ts > (since ?? Infinity));
-  // 하트는 모든 댓글에 항상 있다(내 댓글에도 누를 수 있다). 큰 하트 = 내가 누른 것, 작은 하트(앞 칸) = 상대가 누른 것. 칸은 항상 비워 둬서 위치가 변하지 않는다.
+  const fresh = ls.some((l) => l.by !== me && l.ts > (since ?? Infinity));
+  // 하트는 모든 댓글에 항상 있다(내 댓글에도 누를 수 있다). 하트 = 내가 눌렀는지, 옆의 작은 숫자 = 누른 사람 수. 숫자 칸은 비어 있어도 자리를 차지해서 하트 위치가 변하지 않는다.
   const heart = h('button', { type: 'button', class: 'sl-like' + (mine ? ' on' : ' off'), title: mine ? 'Unlike' : 'Like', 'aria-label': 'Like', 'aria-pressed': String(mine),
     on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, icon(mine ? 'heartOn' : 'heart'));
-  return h('span', { class: 'lk-wrap', 'data-newlike': fresh ? '1' : '0' }, h('span', { class: 'lk-th' + (theirs ? ' on' : ''), title: theirs ? 'Liked by them' : '' }, theirs ? icon('heartOn') : null), heart);
+  return h('span', { class: 'lk-wrap', 'data-newlike': fresh ? '1' : '0' }, heart, h('span', { class: 'lk-n', title: ls.length ? `${ls.length} liked` : '', text: ls.length || '' }));
 }
 function sysThread(id, canAdd) {
   const me = roleName(), list = sysComments(id);

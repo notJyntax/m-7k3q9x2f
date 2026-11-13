@@ -1095,10 +1095,8 @@ html[data-theme="excel"]:root .toolbar > .btn { background: color-mix(in srgb, v
   :root:root .btn.lv-FATAL:hover { background: color-mix(in srgb, var(--crit) 20%, transparent); }
 }
 
-/* 좋아요: 큰 하트 = 내가 누른 것, 앞의 작은 하트 = 상대가 누른 것 (칸은 항상 확보) */
+/* 좋아요: 하트 = 내가 누른 것, 옆의 작은 숫자 = 누른 사람 수 (숫자 칸은 항상 확보) */
 .lk-wrap { display: inline-flex; align-items: center; gap: 2px; }
-.lk-th { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--accent); }
-.lk-th .ico { width: 12px; height: 12px; }
 :root:root .btn.ic.bell { width: auto; min-width: 34px; padding: 0 8px; gap: 4px; }
 :root:root .btn.ic.bell .cnt { margin-left: 0; }
 
@@ -1208,3 +1206,22 @@ html:not([data-ui="v2"]):root .btn.primary.small { padding: 3px 11px; font-size:
 .rp2-adv { margin: 14px 0 0; padding: 9px 12px; border-radius: 8px; font: 12.5px var(--guide-font); background: color-mix(in srgb, var(--sub) 12%, transparent); color: var(--text); }
 .rp2-adv.warn { background: var(--warnbg); color: var(--warn); } .rp2-adv.crit { background: color-mix(in srgb, var(--crit) 12%, transparent); color: var(--crit); }
 
+
+/* 업데이트 내역(Update history): 간결하게 — 박스 높이·글자·간격을 줄인다 */
+:root:root .card:has(> .item.cl) { gap: 3px; }
+:root:root .item.cl, :root:root .cl.acked { padding: 2px 8px; border-radius: 6px; }
+:root:root .cl-head { gap: 6px; }
+:root:root .cl-toggle { gap: 8px; padding: 3px 0; align-items: center; }
+:root:root .cl-toggle .sha { font-size: 11px; }
+:root:root .cl-toggle .cl-t { font-size: 12.5px; }
+:root:root .cl-caret .ico { width: 11px; height: 11px; }
+:root:root .cl-status { padding: 1px 7px; gap: 4px; font-size: 10.5px; border-radius: 99px; }
+:root:root .cl-ico { width: 13px; height: 13px; font-size: 9px; border-width: 1.2px; }
+:root:root .cl-row, html[data-theme] :root:root .cl-row { font-size: 12.5px; line-height: 1.5; padding: 3px 0; }
+:root:root .cl-tag { width: 46px; font-size: 10px; }
+.lk-n { min-width: 1.1ch; font: 11px var(--mono); color: var(--sub); font-variant-numeric: tabular-nums; text-align: left; }
+.lk-wrap { gap: 1px; }
+/* 읽음 처리한 항목은 초록으로 강조하지 않는다 (읽었다는 사실은 중요하지 않다): 흐린 회색 체크만 */
+:root:root .cl-status.on { color: var(--sub); border-color: transparent; background: transparent; opacity: .75; }
+:root:root .cl-status.on .cl-ico { background: transparent; border-color: currentColor; color: var(--sub); }
+:root:root .cl-status.on:hover { color: var(--text); opacity: 1; }
