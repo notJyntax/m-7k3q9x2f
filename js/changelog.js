@@ -2,6 +2,15 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-13-h', date: '11/13', title: 'Changes 내역', items: [
+    ['change', 'Changes 내역을 상자 없이 얇은 구분선과 점 표시로'],
+    ['change', 'Changes 줄에 상태·일정 종류 아이콘 추가'],
+    ['change', '하트·⋯·보관 같은 아이콘 모음을 어느 줄에서나 오른쪽 정렬'],
+    ['new', '주간 보고에 하루에 쓴 로그 수와 한 주 합계 표시'],
+    ['change', '테마 버튼을 작은 칩으로, 설정의 Push notifications 카드 삭제'],
+    ['change', '리뷰·commit 답글 버튼을 오른쪽의 작은 아이콘으로'],
+    ['fix', 'Syslog 글 패널 끝까지 스크롤하면 페이지 전체가 이어서 스크롤'],
+  ] },
   { id: '2026-11-13-g', date: '11/13', title: '막대·new 표시', items: [
     ['change', '대시보드·주간 보고 막대를 Overview 와 같은 눈금 막대로'],
     ['fix', '다른 기기에서 본 댓글·글이 new 로 다시 뜨던 문제 (본 시각도 계정 기준)'],

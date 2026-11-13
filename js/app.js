@@ -100,6 +100,8 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
   inbox: '<path d="M4 13l2.2-6.5A1.5 1.5 0 0 1 7.6 5.5h8.8a1.5 1.5 0 0 1 1.4 1L20 13v4.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" fill="currentColor" fill-opacity=".16"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
   note: '<path d="M6 4h9l3 3v13H6z" fill="currentColor" fill-opacity=".16"/><path d="M9 11h6M9 14.5h6"/>',
   range: '<circle cx="5.5" cy="12" r="2.2" fill="currentColor" fill-opacity=".16"/><circle cx="18.5" cy="12" r="2.2" fill="currentColor" fill-opacity=".16"/><path d="M8 12h8"/>',
+  x: '<path d="M7 7l10 10M17 7L7 17"/>', minus: '<path d="M6 12h12"/>',
+  clock: '<circle cx="12" cy="12" r="8.5" fill="currentColor" fill-opacity=".16"/><path d="M12 7.5V12l3 2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   send: '<path d="M4 11.5L20 4l-5.5 16-3.2-6.3z" fill="currentColor" fill-opacity=".16"/><path d="M11.3 13.7L15 9.5"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
@@ -684,6 +686,7 @@ function logRow(l) {
     h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })),
     h('div', { class: 'row' },
       l.sharedId ? btn('Unshare', act(() => unshareLine(l)), 'small') : btn('Share log', () => openShare(l), 'small'),
+      h('span', { class: 'sp' }),
       moreMenu([{ label: 'Edit', icon: 'edit', fn: () => openReclass(l) }, { label: 'Delete', icon: 'trash', danger: true, fn: act(() => deleteLog(l)) }]))));
 }
 // ───────── 터미널 효과: tail -f 처럼 새 줄은 글자가 찍히며 올라오고 잠깐 밝게 깜박인다 ─────────
@@ -906,10 +909,10 @@ function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, on
 }
 // ── commit 주고받기: 리스너·작성자 모두 보낼 수 있고, 받은 commit 에는 답글과 하트를 남길 수 있다 ──
 // 답글 입력칸은 Reply 버튼을 눌러야 열린다 (열린 칸은 화면을 다시 그려도 유지, 보내거나 Cancel/Esc 로 닫힘)
-function replyArea(key, box, send, label = 'Reply', sendLabel = 'Send') {   // 입력칸은 버튼을 눌러야 열린다 (답글·새 아젠다·댓글 모두 같은 방식)
+function replyArea(key, box, send, label = 'Reply', sendLabel = 'Send', compact = false) {   // 입력칸은 버튼을 눌러야 열린다 (답글·새 아젠다·댓글 모두 같은 방식)
   S.replyOpen ??= new Set();
   const close = () => { S.replyOpen.delete(key); renderView(); };
-  if (!S.replyOpen.has(key)) return h('div', { class: 'row reply-row' }, btn(label, () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, 'small txt'));   // 글자와 아이콘을 함께, 가운데 정렬
+  if (!S.replyOpen.has(key)) return h('div', { class: 'row reply-row' + (compact ? ' end' : '') }, btn(label, () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, compact ? 'small quiet' : 'small txt'));   // compact: 아이콘만, 오른쪽 정렬   // 글자와 아이콘을 함께, 가운데 정렬
   box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   return h('div', { class: 'row' }, box, btn(sendLabel, send, 'small primary'), btn('Cancel', close, 'small'));
 }
@@ -925,7 +928,7 @@ function commitThread(c, view) {
   return h('div', { class: 'sl-thread rv-thread' },
     list.map((r) => cmtRow({ time: hm(r.ts), by: `by ${r.by === me ? '0' : '1'}`, them: r.by !== me, text: r.text, edited: r.editedAt, like: likeBtn(r, { commitId: c.id }, me),
       onEdit: r.by === me ? () => editText({ title: 'Edit reply', text: r.text, max: 200, onSave: (t) => S.store.patch('commit_replies', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: r.by === me ? () => S.store.del('commit_replies', r.id) : null })),
-    view === 'in' ? replyArea('cr-' + c.id, box, send) : null);
+    view === 'in' ? replyArea('cr-' + c.id, box, send, 'Reply', 'Send', true) : null);
 }
 // view: 'in' = 내가 받은 commit(확인·하트·답글), 'out' = 내가 보낸 commit(상태·예약 취소·삭제·상대의 답글)
 function commitItem(c, view) {
@@ -934,8 +937,8 @@ function commitItem(c, view) {
     view === 'out' ? (c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(sender === 'listener' ? 'deployed ✓' : 'read ✓', 'ok') : badge('delivered')) : null);
   const ackLabel = sender === 'listener' ? 'Deployed ✓' : 'Got it';
   const actions = view === 'in'
-    ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), likeBtn(co, { commitId: c.id }, me), sender === 'listener' ? keepBtn(c.text, c.id) : null)
-    : h('div', { class: 'row' }, likeBtn(co, { commitId: c.id }, me), moreMenu([c.deliverAt > now ? { label: 'Cancel scheduled', icon: 'reject', danger: true, fn: act(() => S.store.del('commits', c.id)) } : { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 메시지를 삭제할까요?', body: note('답글과 하트도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('commits', c.id)) }] }) }]));
+    ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), h('span', { class: 'sp' }), likeBtn(co, { commitId: c.id }, me), sender === 'listener' ? keepBtn(c.text, c.id) : null)
+    : h('div', { class: 'row' }, h('span', { class: 'sp' }), likeBtn(co, { commitId: c.id }, me), moreMenu([c.deliverAt > now ? { label: 'Cancel scheduled', icon: 'reject', danger: true, fn: act(() => S.store.del('commits', c.id)) } : { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 메시지를 삭제할까요?', body: note('답글과 하트도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(() => S.store.del('commits', c.id)) }] }) }]));
   return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
 }
 const commitComposer = (id, title, extra) => card(title, h('textarea', { id, rows: 2, maxLength: 200, placeholder: 'commit message' }), extra);
@@ -953,7 +956,7 @@ function reviewThread(ln, r) {
   return h('div', { class: 'sl-thread rv-thread' },
     reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), extra: null, like: likeBtn(c, { lineId: ln.id }, me),
       onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
-    replyArea('rr-' + r.id, box, send));
+    replyArea('rr-' + r.id, box, send, 'Reply', 'Send', true));
 }
 function viewInbox() {
   const now = Date.now(), dnd = sd('status').dnd;
@@ -969,7 +972,7 @@ function viewInbox() {
     }), 'primary'))),
     rows('commits').some((c) => c.by === 'writer') ? card('Sent', ...rows('commits').filter((c) => c.by === 'writer').sort((a, b) => b.ts - a.ts).map((c) => commitItem(c, 'out'))) : null,
     card('Code review', lines.length ? lines.map(([ln, rv]) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono', text: ln.text }), rv.map((r) => reviewRow(ln, r, 'writer')))) : empty('리뷰 댓글 없음')),
-    card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => S.store.del('@', k.id)) }])))) : empty('아직 없음'),
+    card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), h('span', { class: 'sp' }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => S.store.del('@', k.id)) }])))) : empty('아직 없음'),
       kp.some((k) => k.kind === 'learned') ? h('div', { class: 'learned' }, h('b', { text: 'Learned today' }), kp.filter((k) => k.kind === 'learned').slice(0, 7).map((k) => h('p', { class: 'msgtext', text: `${k.day} · ${k.text}` }))) : null),
     updateHistoryCard());
 }
@@ -1087,16 +1090,20 @@ function planChangesCard() {
   const needs = logs.filter((l) => l.status === 'pending' && l.by !== me), mine = logs.filter((l) => l.status === 'pending' && l.by === me);
   const done = logs.filter((l) => l.status !== 'pending').sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 40);
   const who = (l) => `by ${l.by === me ? '0' : '1'}`;
+  // 줄 앞의 둥근 상태 아이콘(승인 ✓ · 거절 ✕ · 취소 − · 대기 시계)과 일정 종류 아이콘(야근 달·회식 잔·출장 가방…)
+  const kindOf = (l) => Object.entries(KINDS).find(([, v]) => v === l.label)?.[0] || 'etc';
+  const stIc = (st) => h('span', { class: 'pc-ic ' + st }, icon(st === 'approved' ? 'check' : st === 'rejected' ? 'x' : st === 'cancelled' ? 'minus' : 'clock'));
+  const title = (l) => h('b', { class: 'pc-t' }, catIcon(kindOf(l)), planText(l));
   // 가로로 길고 세로가 짧은 띠: 변경이 없으면 한 줄, 있으면 그 줄들만 아래에 이어 붙는다
   const status = needs.length ? `${needs.length} to review` : mine.length ? `${mine.length} waiting for approval` : 'nothing to review';
   const head = h('div', { class: 'pc-head' }, h('h3', { text: 'Changes' }), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
     done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
   const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
-    needs.map((l) => h('div', { class: 'prow need' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
+    needs.map((l) => h('div', { class: 'prow need' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
       btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))),
-    mine.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) })), badge('pending', 'warn'))),
-    S.planHist ? done.map((l) => h('div', { class: 'prow' }, h('span', { class: 'sp' }, h('b', { text: planText(l) }), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.status === 'cancelled' ? ' 취소' : l.decidedBy === me ? ' 내가 처리' : ''}` })),
-      badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : ''))) : null);
+    mine.map((l) => h('div', { class: 'prow' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) })), badge('pending', 'warn'))),
+    S.planHist ? done.map((l) => h('div', { class: 'prow' }, stIc(l.status), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.status === 'cancelled' ? '' : ` · handled by ${l.decidedBy === me ? '0' : '1'}`}` })),
+      badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : ''))) : null);
   return el;
 }
 // ── Weekly Agenda: 승인 없이 각자 등록. 등록한 사람만 삭제하거나 "해결"할 수 있고, 해결하면 기록에 남는다 ──
@@ -1190,7 +1197,7 @@ function viewArchive() {
         const open = S.open.has(l.id);
         const row = h('div', { class: `ln lv-${l.level}${String(l.code).startsWith('OK_') ? ' pos' : ''}`, on: { click: () => { open ? S.open.delete(l.id) : S.open.add(l.id); renderView(); } } },
           h('span', { class: 'ts', text: hms(l.ts) }), h('span', { class: 'lv', text: l.level }), h('span', { class: 'svc', text: l.service }), h('span', { class: 'code', text: `[${l.code}]` }), h('span', { class: 'msg', text: l.msg }));
-        return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => deleteLog(l)) }])))) : A.raw ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-rawline' }, '↳ ' + (l.raw || '(quick entry)'))) : row;
+        return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, h('span', { class: 'sp' }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => deleteLog(l)) }])))) : A.raw ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-rawline' }, '↳ ' + (l.raw || '(quick entry)'))) : row;
       }),
       h('div', { class: 'row' }, btn('Delete all for this day', () => modal({ title: `${fmtMD(sel)} 기록을 모두 지울까요?`, body: note('지운 기록은 복구되지 않아요. 통계 숫자는 남아요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { for (const l of ls) await deleteLog(l); }) }] }), 'small danger'))]
       : empty('이 날은 기록이 없어요'));
@@ -1217,6 +1224,7 @@ function reportCard() {
   const s = L.weekSummary(weekRows()), f = L.reportFacts(s), map = new Map(s.days.map((d) => [d.day, d])), today = dayKey(), days = weekDays();
   const inc = (r) => (r ? (r.ERROR | 0) + (r.FATAL | 0) : 0), max = Math.max(1, ...days.map((d) => inc(map.get(d))));
   const peak = s.peakDay && s.incidents ? DOW_EN[new Date(s.peakDay + 'T12:00:00').getDay()] : null;
+  const logsOf = (r) => (r ? L.LEVELS.reduce((t, lv) => t + (r[lv] | 0), 0) : 0), totalLogs = days.reduce((t, d) => t + logsOf(map.get(d)), 0);   // 하루에 쓴 로그 수 = 그날의 PASS+WARN+ERROR+FATAL
   // 요일마다 한 줄: 요일 · 대시보드 미터와 같은 가는 막대(길이 = 사고 수, 색 = 그날 가장 나쁜 단계) · 개수
   const bars = h('div', { class: 'rp3' }, days.map((d, i) => {
     const r = map.get(d), n = inc(r), fut = d > today, worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) : null, fatal = r ? r.FATAL | 0 : 0;
@@ -1224,10 +1232,10 @@ function reportCard() {
     const w = n ? Math.max(6, Math.round(n / max * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
     const txt = n ? String(n) + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0' : fut ? '' : '–';
     return h('div', { class: 'rp3-r' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
-      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }));
+      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }), h('span', { class: 'rp3-l', title: 'logs written that day', text: r ? `${logsOf(r)} ${logsOf(r) === 1 ? 'log' : 'logs'}` : '' }));
   }));
   const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
-  const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + 'Week of ' + fmtMD(weekKey()) }), bars,
+  const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + `${totalLogs} logs · Week of ${fmtMD(weekKey())}` }), bars,
     f ? h('p', { class: 'rp2-adv ' + f.advice.tone, text: f.advice.text }) : null));
   c.classList.add('rpt-card');
   return c;
@@ -1262,7 +1270,7 @@ function viewSettingsW() {
       sw('Do not disturb', !!st.dnd, (v) => S.store.patch('shared', 'status', { kind: 'status', dnd: v, ts: Date.now() }), ''),
       sw('Safety alert', m.alertOn !== false, (v) => setMeta({ alertOn: v }), '"죽고 싶다" 같은 표현이 입력되면 상대에게 안부 확인 신호만 가요(내용은 가지 않아요). 끄면 상대에게 아무것도 가지 않아요.')),
     card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
-    pushCard(), themeCard(), modeCard());
+    themeCard(), modeCard());
 }
 const pushOn = act(async () => {
   try { await Push.enablePush(S.sb); toast('이 기기에서 알림을 켰어요.'); } catch (e) { if (e?.message === 'denied') toast('알림이 허용되지 않았어요. 기기 설정에서 허용해 주세요.'); else throw e; }
@@ -1281,20 +1289,6 @@ function notifyBtn() {
     return openInstall();
   };
   return h('button', { type: 'button', class: 'btn ghost small ic notify ' + (on ? 'is-on' : 'is-off'), title: on ? 'Notifications on (this device) · tap to turn off' : 'Notifications off (this device) · tap to turn on', 'aria-label': 'Notifications', 'aria-pressed': String(on), on: { click } }, icon(on ? 'bell' : 'bellOff'));
-}
-function pushCard() {
-  const st = S.push, kids = [];
-  const turnOn = pushOn, turnOff = pushOff;
-  if (st === 'local') kids.push(note('공유 저장소에 연결되면 쓸 수 있어요 (혼자 쓰는 모드에서는 알림이 없어요).'));
-  else if (st === 'loading') kids.push(note('확인 중…'));
-  else if (st === 'unconfigured') kids.push(note('이 배포에는 푸시 키가 아직 설정되지 않았어요 (config.js 의 VAPID_PUBLIC_KEY).'));
-  else if (st === 'need-install') kids.push(note('아이폰은 먼저 "홈 화면에 추가"를 해야 알림을 받을 수 있어요.'), btn('How to install', openInstall, 'small primary'));
-  else if (st === 'unsupported') kids.push(note('이 브라우저는 푸시 알림을 지원하지 않아요. 최신 Safari(홈 화면 앱)나 Chrome을 써 주세요.'), btn('How to install', openInstall, 'small'));
-  else if (st === 'denied') kids.push(note('알림이 차단돼 있어요. 기기(또는 브라우저) 설정에서 이 앱의 알림을 허용한 뒤 다시 와 주세요.'), btn('How to install', openInstall, 'small'));
-  else if (st === 'on') kids.push(h('div', { class: 'row' }, badge('On (this device)', 'ok'), h('span', { class: 'sp' }), btn('Turn off', turnOff, 'small')));
-  else kids.push(btn('Turn on', turnOn, 'small primary'));
-  return card('Push notifications', note('알림은 기기마다 따로 켜요.'), ...kids,
-    st !== 'local' && st !== 'need-install' ? btn('How to install', openInstall, 'ghost small') : null);
 }
 function openInstall() {
   const ios = Push.isIOS();
@@ -1425,7 +1419,7 @@ function viewPlan() {
 }
 
 function viewSettingsL() {
-  return h('div', { class: 'grid' }, pushCard(), themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
+  return h('div', { class: 'grid' }, themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
 // ───────── Syslog: 둘이 쓰는 게시판 ─────────
