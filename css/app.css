@@ -1266,3 +1266,6 @@ html:not([data-ui="v2"]):root .btn.primary.small { padding: 3px 11px; font-size:
 :root:root .btn.primary .ico { width: 15px; height: 15px; }
 @media (max-width: 640px) { html:not([data-ui="v2"]):root .btn.primary { font-size: 13.5px; } html:not([data-ui="v2"]):root .btn.primary.small { font-size: 13px; } }
 @media (pointer: coarse) { html:not([data-ui="v2"]):root .btn.primary { min-height: 32px; } }
+
+/* 입력칸과 같은 줄에 놓인 버튼은 입력칸과 같은 높이 (버튼만 날씬해져서 입력칸보다 낮아지지 않게) */
+:has(> input:not([type=checkbox]):not([type=radio]), > textarea, > .pbox) > .btn { align-self: stretch; }

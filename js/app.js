@@ -98,6 +98,7 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
   bellOff: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/><path d="M4 4l16 16"/>',
   eyeOff: '<path d="M3 12s3.5-6 9-6c1.4 0 2.6.3 3.6.8"/><path d="M21 12s-3.5 6-9 6c-1.4 0-2.6-.3-3.6-.8"/><path d="M10 10a2.6 2.6 0 0 0 3.6 3.6"/><path d="M4 4l16 16"/>',
   inbox: '<path d="M4 13l2.2-6.5A1.5 1.5 0 0 1 7.6 5.5h8.8a1.5 1.5 0 0 1 1.4 1L20 13v4.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" fill="currentColor" fill-opacity=".16"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
+  note: '<path d="M6 4h9l3 3v13H6z" fill="currentColor" fill-opacity=".16"/><path d="M9 11h6M9 14.5h6"/>',
   range: '<circle cx="5.5" cy="12" r="2.2" fill="currentColor" fill-opacity=".16"/><circle cx="18.5" cy="12" r="2.2" fill="currentColor" fill-opacity=".16"/><path d="M8 12h8"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   send: '<path d="M4 11.5L20 4l-5.5 16-3.2-6.3z" fill="currentColor" fill-opacity=".16"/><path d="M11.3 13.7L15 9.5"/>',
@@ -116,7 +117,7 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
 const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy', Reply: 'reply', Comment: 'comment', Approve: 'approve', Reject: 'reject', More: 'more', '<': 'chevL', '>': 'chevR', '×': 'close', '↻': 'refresh', '?': 'help' };
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
 // 아이콘이 될 수 없는(글자가 필요한) 버튼은 앞에 작은 아이콘을 붙인다
-const LEAD = [[/^Add$/, 'plus'], [/^(Post|Send|Commit)$/, 'send'], [/^Today$/, 'calendar'], [/^See$/, 'eye'], [/^(Confirm all|Mark all read)$/, 'checks'], [/^(Show|Hide) resolved/, 'resolve'], [/^(Save|Got it|OK)$/, 'check'], [/^Range$/, 'range'], [/^Refresh$/, 'refresh']];
+const LEAD = [[/^Add$/, 'plus'], [/^(Post|Send|Commit)$/, 'send'], [/^Today$/, 'calendar'], [/^See$/, 'eye'], [/^(Confirm all|Mark all read)$/, 'checks'], [/^(Show|Hide) resolved/, 'resolve'], [/^(Save|Got it|OK)$/, 'check'], [/^Range$/, 'range'], [/^New agenda$/, 'plus'], [/^Memo$/, 'note'], [/^Refresh$/, 'refresh']];
 const leadIcon = (label) => (typeof label === 'string' ? (LEAD.find(([re]) => re.test(label)) || [])[1] : null);
 const btn = (label, fn, cls = '', extra = {}) => {
   const tg = /^(.+: )(on|off)$/.exec(String(label));
@@ -924,12 +925,12 @@ function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, on
 }
 // ── commit 주고받기: 리스너·작성자 모두 보낼 수 있고, 받은 commit 에는 답글과 하트를 남길 수 있다 ──
 // 답글 입력칸은 Reply 버튼을 눌러야 열린다 (열린 칸은 화면을 다시 그려도 유지, 보내거나 Cancel/Esc 로 닫힘)
-function replyArea(key, box, send) {
+function replyArea(key, box, send, label = 'Reply', sendLabel = 'Send') {   // 입력칸은 버튼을 눌러야 열린다 (답글·새 아젠다·댓글 모두 같은 방식)
   S.replyOpen ??= new Set();
   const close = () => { S.replyOpen.delete(key); renderView(); };
-  if (!S.replyOpen.has(key)) return h('div', { class: 'row' }, btn('Reply', () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, 'small'));
+  if (!S.replyOpen.has(key)) return h('div', { class: 'row' }, btn(label, () => { S.replyOpen.add(key); renderView(); document.getElementById(box.id)?.focus(); }, 'small'));
   box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-  return h('div', { class: 'row' }, box, btn('Send', send, 'small primary'), btn('Cancel', close, 'small'));
+  return h('div', { class: 'row' }, box, btn(sendLabel, send, 'small primary'), btn('Cancel', close, 'small'));
 }
 const commitReplies = (id) => rows('commit_replies').filter((r) => r.commitId === id).sort((a, b) => a.ts - b.ts);
 // 답글은 commit 을 받은 쪽(view 'in')만 쓴다. 보낸 쪽(view 'out')은 받은 사람의 답글을 읽기만 한다 (재답장 없음)
@@ -1079,12 +1080,17 @@ function dayPanel() {
   const add = (id) => act(async () => {
     const box = $('#cal-memo'), txt = (box?.value || '').trim();
     let label = KINDS[id], memo = txt.slice(0, 40);
-    if (id === 'etc') { label = txt.slice(0, 12); memo = ''; if (!label) { toast('기타는 아래 입력칸에 이름을 적고 눌러 주세요'); box?.focus(); return; } }
+    if (id === 'etc') { label = txt.slice(0, 12); memo = ''; if (!label) { toast('기타는 이름을 적고 눌러 주세요'); S.replyOpen.add('cal-memo'); renderView(); $('#cal-memo')?.focus(); return; } }
     const eid = await addEvent({ date: key, endDate: endKey, kind: id, label, memo });
     if (box) box.value = '';
-    c.end = null; c.range = false; renderView();
+    S.replyOpen?.delete('cal-memo'); c.end = null; c.range = false; renderView();
     toastUndo(`Added ${rangeText} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
+  const memoOpen = (S.replyOpen ??= new Set()).has('cal-memo');   // 메모 입력칸도 버튼을 눌러야 열린다
+  const memoBox = h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '메모 (선택) · 기타는 이름', enterkeyhint: 'done', autocomplete: 'off' });
+  memoBox.addEventListener('keydown', (e) => { if (e.key === 'Escape') { S.replyOpen.delete('cal-memo'); renderView(); } });
+  const memoRow = memoOpen ? h('div', { class: 'row' }, memoBox, btn('Cancel', () => { S.replyOpen.delete('cal-memo'); renderView(); }, 'small'))
+    : h('div', { class: 'row' }, btn('Memo', () => { S.replyOpen.add('cal-memo'); renderView(); $('#cal-memo')?.focus(); }, 'small'));
   return h('div', { class: 'daypanel' },
     h('div', { class: 'dp-head' }, h('b', { text: rangeText }), h('span', { class: 'sub', text: c.range ? 'Tap the last day' : '' }), h('span', { class: 'sp' }),
       btn('Range', () => { c.range = !c.range; renderView(); }, 'small quiet' + (c.range ? ' on' : ''))),
@@ -1092,7 +1098,7 @@ function dayPanel() {
       h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === roleName() ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
       stBadge(e),
       (e.state === 'approved' || (e.state === 'pending' && e.by === roleName())) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(() => removeEvent(e)), 'small danger') : null)) : empty('이 날은 비어 있어요'),
-    h('input', { id: 'cal-memo', type: 'text', maxLength: 40, placeholder: '메모 (선택) · 기타는 이름', enterkeyhint: 'done', autocomplete: 'off' }),
+    memoRow,
     h('div', { class: 'cat' }, Object.entries(KINDS).map(([id, t]) => h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: add(id) } }, catIcon(id), t))));
 }
 function planChangesCard() {
@@ -1133,7 +1139,7 @@ function agendaCard() {
   const add = act(async () => {
     const el = $('#ag-text');
     if (!el.value.trim()) return toast('아젠다를 한 줄 적어주세요');
-    await sendField(el, addAgenda);
+    if (await sendField(el, addAgenda)) { S.replyOpen?.delete('ag-new'); renderView(); }
   });
   const input = h('input', { id: 'ag-text', type: 'text', maxLength: 60, placeholder: '아젠다 한 줄 (예: 휴가 일정 정하기)', enterkeyhint: 'send', autocomplete: 'off' });
   onEnter(input, add);
@@ -1143,13 +1149,13 @@ function agendaCard() {
   const thread = (a, canAdd) => {
     const list = agComments(a.id);
     const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id, enterkeyhint: 'send', autocomplete: 'off' });
-    const send = act(async () => { await sendField(box, (t) => addAgComment(a, t)); });
+    const send = act(async () => { if (await sendField(box, (t) => addAgComment(a, t))) { S.replyOpen?.delete('agc-' + a.id); renderView(); } });
     onEnter(box, send);
     return h('div', { class: 'ag-thread' },
       list.length ? list.map((c) => cmtRow({ time: mdhm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(c.by !== me && c.ts > (S.planSince ?? Infinity)), like: likeBtn(c, { agendaId: a.id }, me),
         onEdit: c.by === me ? () => editText({ title: 'Edit comment', text: c.text, max: 200, onSave: (t) => S.store.patch('agenda_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('agenda_comments', c.id) : null }))
         : h('p', { class: 'empty', text: 'No comments yet' }),
-      canAdd ? h('div', { class: 'row' }, box, btn('Add', send, 'small primary')) : null);
+      canAdd ? replyArea('agc-' + a.id, box, send) : null);
   };
   // 댓글 버튼(말풍선 아이콘 + 개수): 개수가 있든 없든 버튼 폭이 같아야 옆의 Resolve·Edit·Delete 위치가 줄마다 같다 (개수 자리를 항상 비워 둔다)
   const cmtBtn = (n, fn, on) => { const b = btn('Comment', fn, 'small quiet cm-open' + (on ? ' on' : '')); b.setAttribute('aria-label', 'Comments'); b.append(h('span', { class: 'cm-n', text: n ? String(n) : '' })); return b; };
@@ -1167,7 +1173,7 @@ function agendaCard() {
   return h('section', { class: 'card agenda' },
     h('h3', { text: 'Weekly Agenda' }),
     open.length ? h('div', { class: 'ag-list' }, open.map((a) => item(a, 'open'))) : empty('No agenda yet'),
-    h('div', { class: 'row' }, input, btn('Add', add, 'small primary')),
+    replyArea('ag-new', input, add, 'New agenda', 'Add'),
     solved.length ? [
       btn(S.agHist ? 'Hide resolved' : `Show resolved (${solved.length})`, () => { S.agHist = !S.agHist; redraw(); }, 'small quiet block'),
       S.agHist ? [h('div', { class: 'ag-list' }, solved.map((a) => item(a, 'done')))] : null] : null);
@@ -1406,8 +1412,12 @@ function viewQueue() {
         ln.note ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Note' }), h('span', { text: ln.note })) : null,
         ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Raw (shared)' }), h('span', { text: ln.raw })) : null,
         rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts).map((r) => reviewRow(ln, r, 'listener')),
-        h('div', { class: 'row' }, h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment', enterkeyhint: 'send', autocomplete: 'off' }),
-          btn('Comment', act(async () => { await sendField($('#rv-' + ln.id), (t) => S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t })); }), 'small primary')))) : empty('공유된 로그 없음')));
+        (() => {
+          const box = h('input', { id: 'rv-' + ln.id, type: 'text', maxLength: 140, placeholder: 'review comment', enterkeyhint: 'send', autocomplete: 'off' });
+          const send = act(async () => { if (await sendField(box, (t) => S.store.set('reviews', 'rv_' + uid(), { lineId: ln.id, ts: Date.now(), day: dayKey(), text: t }))) { S.replyOpen?.delete('rv-' + ln.id); renderView(); } });
+          onEnter(box, send);
+          return replyArea('rv-' + ln.id, box, send, 'Comment', 'Comment');
+        })())) : empty('공유된 로그 없음')));
 }
 function whenTs(v) {
   const n = new Date(), now = n.getTime();
