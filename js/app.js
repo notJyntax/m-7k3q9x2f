@@ -436,7 +436,7 @@ function activityFeed() {
   rows('post_comments').filter(other).forEach((c) => add(c.ts, 'syslog', 'Syslog', c.ack ? 'Entry acknowledged' : 'Feedback received', { post: c.postId }));
   rows('comment_likes').filter((l) => l.on && l.by !== me && !l.lineId).forEach((l) => (l.commitId ? add(l.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'Ack received', { commit: l.commitId }) : l.postId ? add(l.ts, 'syslog', 'Syslog', 'Ack received', { post: l.postId }) : add(l.ts, 'plan', 'Agenda', 'Ack received', { agenda: l.agendaId })));
   rows('commit_replies').filter(other).forEach((c) => add(c.ts, isWriter() ? 'inbox' : 'send', isWriter() ? 'Inbox' : 'Send', 'Feedback received', { commit: c.commitId }));
-  rows('agendas').filter(other).forEach((a) => { add(a.ts, 'plan', 'Agenda', 'New agenda', { agenda: a.id }); if (a.resolvedAt) add(a.resolvedAt, 'plan', 'Agenda', 'Agenda resolved', { agenda: a.id }); });
+  rows('agendas').forEach((a) => { if (other(a)) add(a.ts, 'plan', 'Agenda', 'New agenda', { agenda: a.id }); if (a.resolvedAt && (a.resolvedBy || a.by) !== me) add(a.resolvedAt, 'plan', 'Agenda', 'Agenda resolved', { agenda: a.id }); });   // 해결 알림은 해결한 사람이 내가 아닐 때
   rows('agenda_comments').filter(other).forEach((c) => add(c.ts, 'plan', 'Agenda', 'Feedback received', { agenda: c.agendaId }));
   rows('plan_log').forEach((l) => {
     if (l.by !== me && l.status === 'pending') add(l.ts, 'plan', 'Plan', l.action === 'remove' ? 'Removal approval request' : 'New approval request');
@@ -526,10 +526,10 @@ async function doRefresh() {
   else if (r === 'current') { S.updateReady = false; renderChrome(); toast('이미 최신 버전이에요'); }
   else if (r === 'offline') toast('서버에 연결하지 못했어요. 인터넷을 확인해 주세요.');
 }
-// 로고: 둥근 네모(위쪽이 옅은 두 톤) 안에 터미널 프롬프트 >_ . 고정 문자열만 사용
+// 로고: 둥근 네모(위쪽 반사광) 안에 터미널 프롬프트 >_ 와 초록 상태 점. 모양은 고정, 색은 테마의 --lg-* 값을 따른다 (app.css 토큰). 고정 문자열만 사용
 function logoMark() {
   const t = document.createElement('template');
-  t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 512 512"><defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fcfdff"/><stop offset="1" stop-color="#d3def5"/></linearGradient><linearGradient id="lg-gl" gradientUnits="userSpaceOnUse" x1="126" y1="206" x2="376" y2="372"><stop offset="0" stop-color="#5a97ff"/><stop offset="1" stop-color="#2646cf"/></linearGradient><clipPath id="lg-c"><rect width="512" height="512" rx="115"/></clipPath></defs><rect width="512" height="512" rx="115" fill="url(#lg-bg)"/><g clip-path="url(#lg-c)"><path d="M0 0H512V150C380 205 160 120 0 190Z" fill="#fff" fill-opacity=".55"/></g><rect x="7" y="7" width="498" height="498" rx="108" fill="none" stroke="#9fb2dc" stroke-opacity=".75" stroke-width="14"/><g fill="none" stroke="url(#lg-gl)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"><path d="M126 206 232 286 126 366"/><path d="M268 372H376"/></g><circle cx="392" cy="136" r="62" fill="#22c58a" fill-opacity=".28"/><circle cx="392" cy="136" r="40" fill="#22c58a" stroke="#fff" stroke-opacity=".8" stroke-width="12"/></svg></span>';
+  t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 512 512"><defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lg-bg1)"/><stop offset="1" style="stop-color:var(--lg-bg2)"/></linearGradient><linearGradient id="lg-gl" gradientUnits="userSpaceOnUse" x1="126" y1="206" x2="376" y2="372"><stop offset="0" style="stop-color:var(--lg-g1)"/><stop offset="1" style="stop-color:var(--lg-g2)"/></linearGradient><clipPath id="lg-c"><rect width="512" height="512" rx="115"/></clipPath></defs><rect width="512" height="512" rx="115" fill="url(#lg-bg)"/><g clip-path="url(#lg-c)"><path d="M0 0H512V150C380 205 160 120 0 190Z" style="fill:var(--lg-sheen)"/></g><rect x="7" y="7" width="498" height="498" rx="108" fill="none" stroke-width="14" style="stroke:var(--lg-line)"/><g fill="none" stroke="url(#lg-gl)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"><path d="M126 206 232 286 126 366"/><path d="M268 372H376"/></g><circle cx="392" cy="136" r="62" fill-opacity=".28" style="fill:var(--lg-dot)"/><circle cx="392" cy="136" r="40" stroke-width="12" style="fill:var(--lg-dot);stroke:var(--lg-ring)"/></svg></span>';
   return t.content.firstChild;
 }
 function renderChrome() {
@@ -584,7 +584,9 @@ function renderChrome() {
 const MOODS_ACTIVITY = [['💻', '집중'], ['🍚', '식사'], ['🚇', '이동'], ['☕', '휴식']];
 const MOODS_FEELING = [['🙂', '평온'], ['😄', '신남'], ['😌', '안도'], ['😮‍💨', '지침'], ['😡', '화남'], ['😢', '우울'], ['😰', '불안'], ['🤒', '아픔']];
 const otherRole = () => (isWriter() ? 'listener' : 'writer');
-const moodDoc = (role) => sd('me_' + role);
+// 두 사람의 상태는 하루짜리: 새벽 4시(하루 경계)가 지나면 어제 정한 상태는 비어 있는 것으로 본다 (아래 gc 가 자기 상태 문서도 비운다)
+const moodDoc = (role) => { const d = sd('me_' + role); return d.ts && dayKey(d.ts) < dayKey() ? {} : d; };
+const moodHas = (d) => !!(d.emoji || d.text);
 const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
 const saveMood = (emoji, text) => S.store.set('shared', 'me_' + roleName(), { emoji, text, ts: Date.now() });
 const MOOD_INFO = new Map([...MOODS_ACTIVITY.map(([e, l]) => [e, { label: l, kind: 'act' }]), ...MOODS_FEELING.map(([e, l]) => [e, { label: l, kind: 'feel' }])]);
@@ -606,8 +608,8 @@ function renderMood() {
   if (!S.ready || !S.store) { box.hidden = true; return; }
   const me = moodDoc(roleName()), they = moodDoc(otherRole());
   if (S.prevMood == null) S.prevMood = they.ts || 0; // 처음 열 때는 알리지 않고 기준만 잡는다
-  else if ((they.ts || 0) > S.prevMood) { S.prevMood = they.ts; toast(`Status changed ${they.emoji || ''}`.trim()); }
-  const isNew = (they.ts || 0) > seenAt('mood');
+  else if ((they.ts || 0) > S.prevMood) { S.prevMood = they.ts; if (moodHas(they)) toast(`Status changed ${they.emoji || ''}`.trim()); }   // 4시 초기화로 비워진 것은 알리지 않는다
+  const isNew = moodHas(they) && (they.ts || 0) > seenAt('mood');
   const theirR = reactDoc(otherRole()), onMe = reactOn(otherRole(), me.ts);
   if (S.prevReact == null) S.prevReact = theirR.ts || 0;
   else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`Ack received ${onMe}`); }
@@ -618,7 +620,7 @@ function renderMood() {
   box.classList.toggle('folded', folded);
   // 접고 펴는 줄은 항상 맨 위 가운데(좌우 대칭): 접어도 펴도 같은 자리
   const handle = h('button', { type: 'button', class: 'mfold', title: folded ? 'Show status bar' : 'Hide status bar', 'aria-label': folded ? 'Show status bar' : 'Hide status bar', 'aria-expanded': String(!folded), on: { click: fold(!folded) } },
-    icon(folded ? 'chevD' : 'chevU'), h('span', { class: 'ml', text: 'Status' }), folded && ((they.ts || 0) > foldAt || ((theirR.ts || 0) > foldAt && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
+    icon(folded ? 'chevD' : 'chevU'), h('span', { class: 'ml', text: 'Status' }), folded && ((moodHas(they) && (they.ts || 0) > foldAt) || ((theirR.ts || 0) > foldAt && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
   if (folded) { box.replaceChildren(handle); return; }
   box.replaceChildren(handle,
     moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
@@ -1136,7 +1138,7 @@ function planChangesCard() {
 // ── Weekly Agenda: 승인 없이 각자 등록. 등록한 사람만 삭제하거나 "해결"할 수 있고, 해결하면 기록에 남는다 ──
 const agendas = () => rows('agendas');
 const addAgenda = (text) => S.store.set('agendas', 'ag_' + uid(), { text, by: roleName(), ts: Date.now(), status: 'open' });
-const resolveAgenda = (a) => S.store.patch('agendas', a.id, { status: 'resolved', resolvedAt: Date.now() });
+const resolveAgenda = (a) => S.store.patch('agendas', a.id, { status: 'resolved', resolvedAt: Date.now(), resolvedBy: roleName() });   // 등록한 사람이 아니어도 해결할 수 있다 (DB 016)
 const removeAgenda = (a) => S.store.del('agendas', a.id);
 const agComments = (id) => rows('agenda_comments').filter((c) => c.agendaId === id).sort((a, b) => a.ts - b.ts);
 const addAgComment = (a, text) => S.store.set('agenda_comments', 'ac_' + uid(), { agendaId: a.id, by: roleName(), text, ts: Date.now() });
@@ -1183,7 +1185,8 @@ function agendaCard() {
           h('span', { class: 'sub', text: kind === 'done' ? `${who(a)} · ${a.resolvedAt ? 'resolved ' + mdhm(a.resolvedAt) : ''}` : `${who(a)} · ${mdhm(a.ts)}` }),
           h('div', { class: 'ag-act' },
             cmtBtn(n, () => { isOpen ? opened.delete(a.id) : opened.add(a.id); redraw(); }, isOpen),
-            kind === 'open' && a.by === me ? [btn('Resolve', act(() => resolveAgenda(a)), 'small quiet'), moreMenu([{ label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit agenda', text: a.text, max: 60, onSave: (t) => S.store.patch('agendas', a.id, { text: t, editedAt: Date.now() }) }) }, { label: 'Delete', icon: 'trash', danger: true, fn: () => confirmDelete(a) }])] : null))),
+            kind === 'open' ? btn('Resolve', act(() => resolveAgenda(a)), 'small quiet') : null,
+            kind === 'open' && a.by === me ? [moreMenu([{ label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit agenda', text: a.text, max: 60, onSave: (t) => S.store.patch('agendas', a.id, { text: t, editedAt: Date.now() }) }) }, { label: 'Delete', icon: 'trash', danger: true, fn: () => confirmDelete(a) }])] : null))),
       isOpen ? thread(a, kind === 'open') : null);
   };
   return h('section', { class: 'card agenda' },
@@ -1649,6 +1652,9 @@ async function gc() {
   for (const r of rows('alerts').filter((r) => r.day < today)) await del('alerts', r);
   for (const r of rows('commits').filter((r) => r.deliverAt <= now && dayKey(r.deliverAt) < today)) await del('commits', r);   // 어제까지의 commit (주고받은 답글·하트는 서버가 함께 지운다)
   for (const r of rows('checkins').filter((r) => r.day < today)) await del('checkins', r);
+  // 내 상태(이모지·한마디)도 하루짜리: 어제 정한 상태가 남아 있으면 비운다 (상대 화면에서도 사라지게. 각자 자기 상태만 쓸 수 있어서 내 것만)
+  const myMood = sd('me_' + roleName());
+  if (moodHas(myMood) && myMood.ts && dayKey(myMood.ts) < today) await saveMood('', '');
   const cutoff = dayKey(now - 28 * 86400e3);
   for (const r of rows('stats').filter((r) => r.day < cutoff)) await del('stats', r);
 }

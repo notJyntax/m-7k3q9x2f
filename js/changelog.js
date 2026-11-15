@@ -2,6 +2,13 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-15-b', date: '11/15', title: '화면 잘림·로고 색·상태 초기화·아젠다', items: [
+    ['fix', 'PC 에서 Dashboard 등 아래쪽 내용이 잘리던 문제'],
+    ['change', '로고 색이 테마(Dark·Light·Excel)에 맞게 바뀜'],
+    ['change', '나와 상대의 상태(이모지·한마디)도 새벽 4시에 초기화'],
+    ['change', 'CPU·CACHE·DISK 와 PASS·WARN·ERROR 큰 숫자 글꼴을 깔끔하게'],
+    ['change', 'Weekly Agenda 는 등록하지 않은 사람도 Resolve 할 수 있음'],
+  ] },
   { id: '2026-11-15-a', date: '11/15', title: '탭 정리·폰 상단 여백', items: [
     ['change', '탭 5개로 정리: Report·Archive 는 Dashboard 안으로, Settings 는 상단 톱니'],
     ['change', '폰 하단 탭바에 More 없이 다 보이게'],

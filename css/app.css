@@ -21,6 +21,8 @@
   --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --r: 8px; --r-lg: 12px; --side: 224px; --top: 52px;
+  /* 로고 색 (모양은 같고 색만 테마를 따른다) */
+  --lg-bg1: #252d3a; --lg-bg2: #12161d; --lg-sheen: rgba(255, 255, 255, .07); --lg-line: rgba(255, 255, 255, .14); --lg-g1: #8ab9ff; --lg-g2: #4a86ff; --lg-dot: #3ecf8e; --lg-ring: rgba(19, 22, 27, .9);
   color-scheme: dark;
 }
 html[data-theme="ops-light"] {
@@ -36,6 +38,7 @@ html[data-theme="ops-light"] {
   --ts: #98a2b2; --svc: #5f6b7c; --codecol: #98a2b2; --fatalbg: #d13b47; --scrim: rgba(15, 23, 42, .4);
   --bar-irr: #d98a66; --bar-fat: #2f6df0; --bar-ok: #148a5c; --bar-warn: #c98a12; --bar-crit: #d13b47; --bar-disk: #7f74c4;
   --shadow: 0 10px 30px rgba(15, 23, 42, .14);
+  --lg-bg1: #fcfdff; --lg-bg2: #d3def5; --lg-sheen: rgba(255, 255, 255, .55); --lg-line: rgba(159, 178, 220, .75); --lg-g1: #5a97ff; --lg-g2: #2646cf; --lg-dot: #22c58a; --lg-ring: rgba(255, 255, 255, .8);
   color-scheme: light;
 }
 
@@ -53,6 +56,7 @@ html[data-theme="ops-excel"] {
   --ts: #8c8c8c; --svc: #595959; --codecol: #8c8c8c; --fatalbg: #c00000; --scrim: rgba(0, 0, 0, .35);
   --bar-irr: #ed7d31; --bar-fat: #4472c4; --bar-ok: #70ad47; --bar-warn: #ffc000; --bar-crit: #c00000; --bar-disk: #7030a0;
   --shadow: 0 4px 16px rgba(0, 0, 0, .14);
+  --lg-bg1: #ffffff; --lg-bg2: #dcebd6; --lg-sheen: rgba(255, 255, 255, .6); --lg-line: rgba(112, 173, 71, .6); --lg-g1: #2e9e5f; --lg-g2: #185c37; --lg-dot: #ffc000; --lg-ring: rgba(255, 255, 255, .85);
   --sans: Calibri, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
   --mono: Consolas, "Courier New", Menlo, monospace;
   --r: 2px; --r-lg: 2px;
@@ -120,6 +124,15 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .view { grid-area: view; }
 .dock { grid-area: dock; }
 .sidebrand, .tabs, .mood { background: var(--panel); border-right: 1px solid var(--line); }
+/* PC: 왼쪽 메뉴와 두 사람 상태는 한 칸(side)을 위에서 아래까지 같이 쓴다 (상태는 그 칸의 맨 아래).
+   예전에는 상태가 맨 아랫줄을 차지해서, 아래 입력줄이 없는 화면(Dashboard 등)에서도 내용 아래 138px 가 비고 내용이 잘렸다 */
+@media (min-width: 760px) {
+  #app { grid-template-areas: "brand top" "side view" "side dock"; }
+  .tabs, .mood { grid-area: side; }
+  .mood { align-self: end; z-index: 1; }
+  #app:has(> .mood:not([hidden]):not(.folded)) > .tabs { padding-bottom: 156px; }
+  #app:has(> .mood.folded:not([hidden])) > .tabs { padding-bottom: 48px; }
+}
 .sidebrand { display: flex; align-items: center; gap: 10px; padding: 0 20px; }
 .sidebrand b { font-weight: 600; font-size: 14px; color: var(--hi); display: block; line-height: 1.2; }
 .sidebrand small { display: block; color: var(--sub); font: 11.5px var(--mono); }
@@ -345,14 +358,14 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 .ds-s { margin: 2px 0 0; color: var(--sub); font-size: 12.5px; }
 .ds-line { display: flex; gap: 18px; margin-left: auto; }
 .ds-line span { display: flex; flex-direction: column; align-items: flex-end; font: 500 10.5px var(--mono); color: var(--sub); text-transform: uppercase; letter-spacing: .05em; }
-.ds-line b { font: 500 20px/1.1 var(--mono); color: var(--text); }
+.ds-line b { font: 500 22px/1.1 var(--sans); font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--text); }   /* 큰 숫자는 고정폭(빗금 0) 대신 깔끔한 Pretendard + 같은 폭 숫자 */
 .ds-line b.w { color: var(--warn); } .ds-line b.e { color: var(--crit); } .ds-line b.o { color: var(--ok); }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .meter { display: flex; flex-direction: column; gap: 8px; }
 .mh { display: flex; gap: 8px; align-items: baseline; }
 .mh b { font: 600 11px var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--sub); flex: 1; }
-.pct { font: 500 24px/1 var(--mono); color: var(--hi); letter-spacing: -.02em; }
+.pct { font: 500 28px/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--hi); letter-spacing: -.03em; }
 .bar { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--bar-ok); transition: width .4s; }
 .bar i.warn { background: var(--bar-warn); } .bar i.crit { background: var(--bar-crit); } .bar i.disk { background: var(--bar-disk); } .bar i.ok { background: var(--bar-ok); }
