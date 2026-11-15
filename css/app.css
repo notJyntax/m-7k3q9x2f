@@ -39,6 +39,56 @@ html[data-theme="ops-light"] {
   color-scheme: light;
 }
 
+/* ───────── Excel: 스프레드시트 위장 테마 — 흰 칸·옅은 격자·엑셀 초록 제목줄·Calibri·각진 모서리 ───────── */
+html[data-theme="ops-excel"] {
+  --bg: #ffffff; --panel: #ffffff; --panel2: #f3f3f3; --line: #d9d9d9; --line2: #bfbfbf;
+  --text: #262626; --hi: #000000; --sub: #595959; --mute: #8c8c8c;
+  --accent: #217346; --on-accent: #ffffff; --accent-bg: rgba(33, 115, 70, .10); --accent-line: rgba(33, 115, 70, .45);
+  --ok: #107c41; --warn: #9c6500; --crit: #c00000;
+  --okbg: #e2efda; --warnbg: #fff2cc; --critbg: #ffc7ce;
+  --okline: #a9d08e; --warnline: #ffd966; --critline: #ff9999;
+  --warnfg: #7f6000; --notebg: #fff2cc; --notefg: #7f6000; --notekw: #ffe699;
+  --infofg: #1f5c3a; --kwfg: #1f5c3a;
+  --soft: #f3f3f3; --hover: #e8f3ec; --track: #e7e6e6; --codebg: #fafafa; --gloss: #f3f3f3;
+  --ts: #8c8c8c; --svc: #595959; --codecol: #8c8c8c; --fatalbg: #c00000; --scrim: rgba(0, 0, 0, .35);
+  --bar-irr: #ed7d31; --bar-fat: #4472c4; --bar-ok: #70ad47; --bar-warn: #ffc000; --bar-crit: #c00000; --bar-disk: #7030a0;
+  --shadow: 0 4px 16px rgba(0, 0, 0, .14);
+  --sans: Calibri, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --mono: Consolas, "Courier New", Menlo, monospace;
+  --r: 2px; --r-lg: 2px;
+  color-scheme: light;
+}
+html[data-theme="ops-excel"] body { font-size: 14px; letter-spacing: 0; }
+/* 내용 영역: 옅은 격자(셀) 무늬 */
+html[data-theme="ops-excel"] .view { background-color: #fff; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 100% 22px, 88px 100%; }
+/* 제목줄: 엑셀 초록 */
+html[data-theme="ops-excel"] .top { background: var(--accent); border-bottom: 0; color: #fff; }
+html[data-theme="ops-excel"] .top .crumb, html[data-theme="ops-excel"] .top .crumb b, html[data-theme="ops-excel"] .top .brand b, html[data-theme="ops-excel"] .top .btn.ghost { color: #fff; }
+html[data-theme="ops-excel"] .top .btn.ghost:hover { background: rgba(255, 255, 255, .16); color: #fff; }
+html[data-theme="ops-excel"] .top .live { background: rgba(255, 255, 255, .92); }
+html[data-theme="ops-excel"] .top .mode, html[data-theme="ops-excel"] .top .env { background: rgba(255, 255, 255, .18); color: #fff; }
+html[data-theme="ops-excel"] .btn.refresh.has-update::after { border-color: var(--accent); }
+/* 사이드 메뉴: 시트 탭처럼 — 선택된 항목은 흰 바탕에 초록 왼쪽 선 */
+html[data-theme="ops-excel"] .sidebrand, html[data-theme="ops-excel"] .tabs, html[data-theme="ops-excel"] .mood { background: #f3f3f3; }
+html[data-theme="ops-excel"] .tab { border-radius: 0; }
+html[data-theme="ops-excel"] .tab.on { background: #fff; color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+html[data-theme="ops-excel"] .cnt { border-radius: 2px; }
+/* 카드·버튼·입력: 각진 테두리, 그림자 없음 */
+html[data-theme="ops-excel"] .card, html[data-theme="ops-excel"] .tile, html[data-theme="ops-excel"] .console, html[data-theme="ops-excel"] .loglist, html[data-theme="ops-excel"] .sl-list { border-color: var(--line2); }
+html[data-theme="ops-excel"] .card h3 { color: var(--accent); letter-spacing: .04em; }
+html[data-theme="ops-excel"] .btn, html[data-theme="ops-excel"] .btn.chip, html[data-theme="ops-excel"] .schip, html[data-theme="ops-excel"] .catb, html[data-theme="ops-excel"] .pbox, html[data-theme="ops-excel"] input, html[data-theme="ops-excel"] select, html[data-theme="ops-excel"] textarea, html[data-theme="ops-excel"] .badge, html[data-theme="ops-excel"] .ln .lv, html[data-theme="ops-excel"] .cl-status, html[data-theme="ops-excel"] .dialog, html[data-theme="ops-excel"] .more-menu, html[data-theme="ops-excel"] .toast, html[data-theme="ops-excel"] .notif, html[data-theme="ops-excel"] .bar, html[data-theme="ops-excel"] .cd, html[data-theme="ops-excel"] .ev { border-radius: 2px; }
+html[data-theme="ops-excel"] .btn.chip { border-radius: 2px; }
+html[data-theme="ops-excel"] .live { border-radius: 2px; }
+html[data-theme="ops-excel"] .ln { border-bottom-color: var(--line); }
+html[data-theme="ops-excel"] .ln:hover { background: var(--hover); }
+/* 통계 글자는 엑셀 숫자처럼 */
+html[data-theme="ops-excel"] .pct, html[data-theme="ops-excel"] .ds-line b { font-family: var(--sans); font-weight: 600; }
+html[data-theme="ops-excel"] .dock { background: #f3f3f3; border-top: 1px solid var(--line2); }
+html[data-theme="ops-excel"] .toast { background: var(--accent); color: #fff; }
+html[data-theme="ops-excel"] .banner { background: #e2efda; color: #1f5c3a; }
+html[data-theme="ops-excel"] .banner.warn { background: #fff2cc; color: #7f6000; }
+@media (max-width: 759px) { html[data-theme="ops-excel"] .tab.on { box-shadow: inset 0 3px 0 var(--accent); border-radius: 0; } }
+
 /* ───────── 2. 기본 ───────── */
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--sub) 40%, transparent) transparent; }
 html, body { height: 100%; margin: 0; }
@@ -60,7 +110,7 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 #view h4 { margin: 12px 0 2px; font-size: 11.5px; color: var(--mute); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
 
 /* ───────── 3. 앱 뼈대 (grid 영역으로 PC·폰 배치를 바꾼다) ───────── */
-#app { display: grid; height: 100dvh; background: var(--bg);
+#app { display: grid; height: 100dvh; background: var(--bg); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
   grid-template-columns: var(--side) 1fr; grid-template-rows: var(--top) 1fr auto;
   grid-template-areas: "brand top" "tabs view" "mood dock"; }
 .sidebrand { grid-area: brand; }
@@ -97,6 +147,7 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .btn.refresh { position: relative; }
 .btn.refresh.has-update::after { content: ''; position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--crit); border: 2px solid var(--bg); }
 .btn.notify.is-on { color: var(--accent); }
+.top .btn.gear.on { color: var(--accent); background: var(--accent-bg); }
 .bell { position: relative; }
 .bell .cnt { position: absolute; top: 2px; right: 0; margin: 0; }
 
@@ -578,9 +629,9 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 
 /* ───────── 12. 폰 (≤ 759px): 상단바 + 상태 줄 + 내용 + 입력줄 + 하단 탭바 ───────── */
 @media (max-width: 759px) {
-  #app { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr auto auto; grid-template-areas: "top" "mood" "view" "dock" "tabs"; }
+  #app { grid-template-columns: 1fr; grid-template-rows: calc(48px + env(safe-area-inset-top, 0px)) auto 1fr auto auto; grid-template-areas: "top" "mood" "view" "dock" "tabs"; }
   .sidebrand { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; border: 0; padding: 0; }
-  .top { padding: 0 12px; gap: 6px; }
+  .top { padding: env(safe-area-inset-top, 0px) 12px 0; gap: 6px; }
   .top .brand { display: flex; }
   .crumb, .env { display: none; }
   .mood { flex-direction: row; align-items: center; padding: 6px 10px; border-right: 0; border-top: 0; border-bottom: 1px solid var(--line); gap: 4px; }
@@ -603,7 +654,7 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
   .tab { flex: 1 1 0; flex-direction: column; gap: 3px; padding: 4px 0; font-size: 10.5px; font-weight: 500; align-items: center; justify-content: center; min-width: 0; border-radius: 8px; margin: 0; }
   .tab .ico { width: 21px; height: 21px; }
   .tab.on { background: transparent; }
-  .tab .cnt { position: absolute; top: 0; right: calc(50% - 22px); margin: 0; min-width: 16px; height: 16px; font-size: 9.5px; }
+  .tab .cnt { position: absolute; top: 0; right: calc(50% - 20px); margin: 0; min-width: 16px; height: 16px; font-size: 9.5px; }
   .tab.t-archive::before { content: none; }
   .tab.t-archive { margin-top: 0; }
   .tab.hid { display: none; }

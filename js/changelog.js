@@ -2,13 +2,21 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-15-a', date: '11/15', title: '탭 정리·폰 상단 여백', items: [
+    ['change', '탭 5개로 정리: Report·Archive 는 Dashboard 안으로, Settings 는 상단 톱니'],
+    ['change', '폰 하단 탭바에 More 없이 다 보이게'],
+    ['fix', '폰에서 화면 위가 상태바에 가려지던 문제'],
+  ] },
+  { id: '2026-11-14-b', date: '11/14', title: 'Excel 테마', items: [
+    ['new', 'Excel 테마 복귀: 흰 셀 격자·초록 제목줄·Calibri (새 레이아웃 그대로)'],
+  ] },
   { id: '2026-11-14-a', date: '11/14', title: '디자인 전면 수정 (Ops)', items: [
     ['new', '새 레이아웃: PC 는 왼쪽 메뉴, 폰은 아래 탭바(앞 4개 + More)'],
-    ['change', '상단 한 줄로 정리: 경로·상태·모드·아이콘. 두 사람 상태는 PC 왼쪽 아래, 폰 상단 아래 줄로'],
-    ['change', 'Console 로그를 시각·레벨·서비스·메시지 칸이 맞는 표 모양으로'],
+    ['change', '상단 한 줄로 정리. 두 사람 상태는 PC 왼쪽 아래, 폰 상단 아래 줄로'],
+    ['change', 'Console 로그를 시각·레벨·서비스·메시지 칸이 맞는 표로'],
     ['change', 'Dashboard: 상태 한 장 + CPU·CACHE·DISK 큰 숫자 타일 + 주간 보고'],
     ['change', '글꼴을 Pretendard 하나로, 시각·코드·레벨만 고정폭'],
-    ['change', '테마를 Dark · Light · Auto 셋으로 정리 (예전 테마는 밝기에 맞춰 자동 이동)'],
+    ['change', '테마를 Dark · Light · Auto 로 정리 (예전 테마는 자동 이동)'],
   ] },
   { id: '2026-11-13-p', date: '11/13', title: 'Navy 테마', items: [
     ['new', 'Navy 테마: 네이비 터미널 로그 창, 블루 하나의 절제된 색'],

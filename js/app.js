@@ -11,14 +11,14 @@ const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'eve
 
 // 테마는 한 디자인(Ops)의 Dark·Light 두 가지뿐. Auto 는 기기 설정을 따른다. 예전 테마 이름이 저장돼 있으면 밝기만 보고 둘 중 하나로 옮긴다.
 const DEFAULT_THEME = 'ops-dark';
-const THEMES = [['ops-dark', 'Dark'], ['ops-light', 'Light'], ['auto', 'Auto']];
-const SWATCH = { 'ops-dark': '#0b0d10', 'ops-light': '#f4f6f9', auto: 'linear-gradient(135deg, #f4f6f9 50%, #0b0d10 50%)' };
-const LEGACY_LIGHT = ['light', 'warm', 'excel', 'n-frost', 'n-pearl', 'n-navy'];
+const THEMES = [['ops-dark', 'Dark'], ['ops-light', 'Light'], ['ops-excel', 'Excel'], ['auto', 'Auto']];
+const SWATCH = { 'ops-dark': '#0b0d10', 'ops-light': '#f4f6f9', 'ops-excel': 'linear-gradient(135deg, #ffffff 50%, #217346 50%)', auto: 'linear-gradient(135deg, #f4f6f9 50%, #0b0d10 50%)' };
+const LEGACY_LIGHT = ['light', 'warm', 'n-frost', 'n-pearl', 'n-navy'];
 const ALL_THEMES = THEMES;
 window.matchMedia?.('(min-width: 900px)').addEventListener?.('change', () => { if (S.tab === 'syslog') renderView(); });   // PC↔폰 폭이 바뀌면 Syslog 배치를 다시 그린다
 const darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 function applyTheme(t = lsGet('svcmon.theme', DEFAULT_THEME)) {
-  const id = t === 'auto' ? (darkMQ?.matches ? 'ops-dark' : 'ops-light') : ALL_THEMES.some(([x]) => x === t) ? t : LEGACY_LIGHT.includes(t) ? 'ops-light' : DEFAULT_THEME;
+  const id = t === 'auto' ? (darkMQ?.matches ? 'ops-dark' : 'ops-light') : ALL_THEMES.some(([x]) => x === t) ? t : t === 'excel' ? 'ops-excel' : LEGACY_LIGHT.includes(t) ? 'ops-light' : DEFAULT_THEME;
   document.documentElement.dataset.theme = id;
   delete document.documentElement.dataset.ui;
   // 폰 상단 상태줄 색도 테마 배경에 맞춘다
@@ -121,7 +121,7 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
   tOverview: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tQueue: '<path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2"/>', tSend: '<path d="M4 11.5L20 4l-5.5 16-3.2-6.3z"/><path d="M11.3 13.7L15 9.5"/>',
 };
 const TAB_ICON = { console: 'tConsole', dash: 'tDash', inbox: 'tInbox', syslog: 'tSyslog', plan: 'tPlan', report: 'tReport', archive: 'tArchive', settings: 'tSettings', overview: 'tOverview', queue: 'tQueue', send: 'tSend' };
-const PHONE_TABS = 4;   // 폰 하단 탭바에 바로 보이는 탭 수. 나머지는 More 안에
+const PHONE_TABS = 5;   // 폰 하단 탭바에 바로 보이는 탭 수. 나머지는 More 안에
 const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy', Reply: 'reply', Comment: 'comment', Approve: 'approve', Reject: 'reject', More: 'more', '<': 'chevL', '>': 'chevR', '×': 'close', '↻': 'refresh', '?': 'help' };
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
 // 아이콘이 될 수 없는(글자가 필요한) 버튼은 앞에 작은 아이콘을 붙인다
@@ -510,8 +510,10 @@ function openActivity(i) {
   }, 60);
 }
 
-const TABS_W = [['console', 'Console'], ['dash', 'Dashboard'], ['inbox', 'Inbox'], ['syslog', 'Syslog'], ['plan', 'Plan'], ['report', 'Report'], ['archive', 'Archive'], ['settings', 'Settings']];
-const TABS_L = [['overview', 'Overview'], ['queue', 'Queue'], ['send', 'Send'], ['syslog', 'Syslog'], ['plan', 'Plan'], ['report', 'Report'], ['settings', 'Settings']];
+// 탭은 역할마다 5개. Report 와 Archive 는 Dashboard(리스너는 Overview) 안에 들어 있고, Settings 는 상단 톱니 아이콘으로 연다 (폰 하단 탭바에 다 들어가게)
+const TABS_W = [['console', 'Console'], ['dash', 'Dashboard'], ['inbox', 'Inbox'], ['syslog', 'Syslog'], ['plan', 'Plan']];
+const TABS_L = [['overview', 'Overview'], ['queue', 'Queue'], ['send', 'Send'], ['syslog', 'Syslog'], ['plan', 'Plan']];
+const TAB_LABEL = { settings: 'Settings', report: 'Report', archive: 'Archive' };
 function tabsFor(counts) {
   return (isWriter() ? TABS_W : TABS_L).map(([id, label]) => [id, label, counts[id] || 0]);
 }
@@ -548,7 +550,7 @@ function renderChrome() {
   const wr = isWriter();
   const lvl = S.store ? (wr ? metrics().level : (statusToday().level || 'green')) : 'green';
   const tabList = S.store ? tabsFor(counts) : [];
-  const curLabel = (tabList.find(([id]) => id === S.tab) || [])[1] || '';
+  const curLabel = (tabList.find(([id]) => id === S.tab) || [])[1] || TAB_LABEL[S.tab] || '';
   // 상단바: (폰) 로고·이름 / (PC) 경로 prod-api-02 / 탭 이름 · 상태 pill · 모드 · 오른쪽 아이콘
   top.replaceChildren(
     h('div', { class: 'brand' }, logoMark(), h('b', { text: 'Monitor' })),
@@ -559,7 +561,8 @@ function renderChrome() {
       S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small ic bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, icon('inbox'), notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
       S.store ? notifyBtn() : null,
       btn('↻', doRefresh, 'ghost small refresh' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
-      btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' })));
+      btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' }),
+      S.store ? h('button', { type: 'button', class: 'btn ghost small ic gear' + (S.tab === 'settings' ? ' on' : ''), title: 'Settings', 'aria-label': 'Settings', 'aria-pressed': String(S.tab === 'settings'), on: { click: () => go('settings') } }, icon('tSettings')) : null));
   // 메뉴: PC 는 왼쪽 세로 목록, 폰은 하단 탭바(앞 4개 + More). More 를 누르면 나머지 탭이 작은 메뉴로 뜬다.
   const tabBtn = ([id, label, n], i) => h('button', { type: 'button', class: 'tab t-' + id + (S.tab === id ? ' on' : '') + (i >= PHONE_TABS ? ' hid' : ''), on: { click: () => go(id) } }, icon(TAB_ICON[id] || 'more'), h('span', { class: 'tl', text: label }), n ? h('span', { class: 'cnt', text: n }) : null);
   const rest = tabList.slice(PHONE_TABS), restN = rest.reduce((t, [, , n]) => t + n, 0), curHidden = rest.some(([id]) => id === S.tab);
@@ -571,7 +574,7 @@ function renderChrome() {
     const r = e.currentTarget.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
     m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.right - mw)) + 'px'; m.style.top = Math.max(8, r.top - mh - 6) + 'px';
   } } }, icon(curHidden ? TAB_ICON[S.tab] || 'more' : 'more'), h('span', { class: 'tl', text: curHidden ? curLabel : 'More' }), restN ? h('span', { class: 'cnt', text: restN }) : null) : null;
-  tabs.replaceChildren(...tabList.map(tabBtn), moreTab);
+  tabs.replaceChildren(...tabList.map(tabBtn), ...(moreTab ? [moreTab] : []));
   dock.hidden = !(S.ready && wr && S.tab === 'console' && S.canWrite);
   renderMood();
   if (S.notifOpen) { if (isPC()) renderNotif(); else closeNotif(); }
@@ -792,7 +795,7 @@ function runCmd(t) {
   if (c === 'grep') { S.filter = arg; if (S.tab !== 'console') go('console'); else { $('#grep').value = arg; renderLog(); } }
   else if (c === 'clear') { S.viewFrom = Date.now(); S.idle = []; renderLog(); }
   else if (c === 'restart') openRestart();
-  else if (c === 'report') go('report');
+  else if (c === 'report') go(isWriter() ? 'dash' : 'overview');
   else if (c === 'status') go('dash');
   else if (c === 'help') toast('/grep 검색어 · /clear · /restart · /status · /report');
   else toast('unknown command: ' + c);
@@ -916,7 +919,7 @@ function statusBlock(m, sub, extra) {
 }
 function viewDash() {
   const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
-  return h('div', { class: 'db' }, statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard());
+  return h('div', { class: 'db' }, statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive());   // 주간 보고와 날짜별 기록(Archive)도 여기에
 }
 
 function keepBtn(text, from) {
@@ -1331,7 +1334,7 @@ function themeCard() {
   const cur = lsGet('svcmon.theme', DEFAULT_THEME);
   const pick = (id) => () => { lsSet('svcmon.theme', id); applyTheme(id); renderView(); };
   const row = (list) => h('div', { class: 'row theme-row' }, list.map(([id, label]) => btn([h('span', { class: 'sw', style: `background:${SWATCH[id]}` }), label], pick(id), 'small' + (cur === id ? ' primary' : ''))));
-  return card('Theme', row(THEMES), note('Auto 는 기기의 라이트·다크 설정을 따라요. 이 기기에만 저장돼요.'));
+  return card('Theme', row(THEMES), note('Excel 은 스프레드시트처럼 보이는 위장용이에요. Auto 는 기기의 라이트·다크 설정을 따라요. 이 기기에만 저장돼요.'));
 }
 function modeCard() {
   const kids = [];
@@ -1395,7 +1398,7 @@ function viewOverview() {
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
     st.level ? h('div', { class: 'db span-all' }, statusBlock(st, 'updated ' + (st.ts ? mdhm(st.ts) : '–'), st.dnd ? badge('Do not disturb', 'warn') : null)) : card('Service status', note('아직 신호가 없어요.')),
-    checkinCardL(st), updatesCard(),
+    checkinCardL(st), updatesCard(), reportCard(),
     alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null, updateHistoryCard());
 }
 function viewQueue() {
@@ -1673,14 +1676,14 @@ const HELP_W = [
   { t: '📅 **Plan**', why: '야근·회식·출장 같은 일정을 상대와 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타**', '메모·종료일 입력 (선택, **기타**는 일정 이름 필수)', '**상대에게 전송** 클릭', '상대가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
     tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (상대 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 다음 대화의 주제를 승인 없이 바로 등록 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
-  { t: '📈 **Report**', why: '한 주를 숫자로 돌아보기.',
-    how: ['보기 전용 (요일별 로그 수 표와 3줄 요약)', '**다시 작성**: 요약 문구 재생성'],
+  { t: '📈 **Weekly report**', why: '한 주를 숫자로 돌아보기. **Dashboard** 아래에 있어요.',
+    how: ['보기 전용 (요일별 사고 수 막대와 조언 한 줄)'],
     tip: ['집계 숫자만으로 작성 (원문 미사용)', '상대도 같은 보고서 확인'] },
-  { t: '🗂 **Archive**', why: '지난 기록을 날짜별로 되돌아보기. 새벽 4시 정리 뒤에도 기록은 보관.',
+  { t: '🗂 **Archive**', why: '지난 기록을 날짜별로 되돌아보기. **Dashboard** 맨 아래에 있고, 새벽 4시 정리 뒤에도 기록은 보관.',
     how: ['달력에서 날짜 클릭 시 그날의 로그 전체 확인', '줄 클릭 시 원문 확인 (나만 열람)', '**이 날 기록 모두 삭제**로 직접 정리'],
     tip: ['달력 점 색은 그날의 상태 (green / yellow / red)', '지운 기록은 복구 불가'] },
-  { t: '⚙️ **Settings · 기타**', why: '알림과 화면 설정, 알아두면 좋은 기능.',
-    how: ['**Do not disturb**: 응원 메시지 숨김', '**위험 신호 알림**: 위험한 표현 입력 시 상대에게 안부 확인 신호만 전송 (내용 미전송, 끌 수 있음)', '**Theme**: Dark · Light · Auto (이 기기에만 저장)'],
+  { t: '⚙️ **Settings · 기타**', why: '알림과 화면 설정, 알아두면 좋은 기능. 상단 오른쪽 **톱니** 아이콘으로 열어요.',
+    how: ['**Do not disturb**: 응원 메시지 숨김', '**위험 신호 알림**: 위험한 표현 입력 시 상대에게 안부 확인 신호만 전송 (내용 미전송, 끌 수 있음)', '**Theme**: Dark · Light · Excel(스프레드시트 위장) · Auto (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '**Esc**: 엑셀 화면으로 위장 (한 번 더 누르면 복귀)', '**/exit**: 엑셀 화면으로 위장'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
@@ -1709,10 +1712,10 @@ const HELP_L = [
   { t: '📅 **Plan**', why: '친구와 일정을 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타** (**기타**는 일정 이름 필수)', '**친구에게 전송** 클릭', '친구가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
     tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (친구 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 나도 주제를 바로 등록 가능 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
-  { t: '📈 **Report**', why: '친구의 한 주를 숫자로 확인.',
-    how: ['보기 전용 (요일별 로그 수 표와 3줄 요약)'], tip: ['집계 숫자만으로 작성 (원문 미사용)'] },
-  { t: '⚙️ **Settings · 기타**', why: '화면 설정과 알림 안내.',
-    how: ['**Theme**: Dark · Light · Auto (이 기기에만 저장)'],
+  { t: '📈 **Weekly report**', why: '친구의 한 주를 숫자로 확인. **Overview** 안에 있어요.',
+    how: ['보기 전용 (요일별 사고 수 막대와 조언 한 줄)'], tip: ['집계 숫자만으로 작성 (원문 미사용)'] },
+  { t: '⚙️ **Settings · 기타**', why: '화면 설정과 알림 안내. 상단 오른쪽 **톱니** 아이콘으로 열어요.',
+    how: ['**Theme**: Dark · Light · Excel(스프레드시트 위장) · Auto (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '다른 탭을 보는 중 새 항목이 오면 화면 아래에 짧은 안내', '어제 공유된 줄·리뷰·전달된 메시지는 새벽 4시 기준 자동 정리'] },
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
