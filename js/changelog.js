@@ -2,6 +2,11 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-16-a', date: '11/16', title: '기기 간 읽음·폰 아이콘', items: [
+    ['fix', '한 기기에서 읽은 알림·new 표시가 다른 기기에서 되살아나던 문제'],
+    ['change', '앱을 열면 폰 알림 센터에 쌓인 이 앱 알림을 지움'],
+    ['fix', '폰 홈 화면 아이콘 모서리가 검게·작게 보이던 문제'],
+  ] },
   { id: '2026-11-15-b', date: '11/15', title: '화면 잘림·로고 색·상태 초기화·아젠다', items: [
     ['fix', 'PC 에서 Dashboard 등 아래쪽 내용이 잘리던 문제'],
     ['change', '로고 색이 테마(Dark·Light·Excel)에 맞게 바뀜'],

@@ -362,7 +362,7 @@ async function refreshPush() {
   if (S.push === 'on') { lsSet('svcmon.push.want', true); Push.enablePush(S.sb).catch((e) => console.warn('push sync', e)); } // 이 기기의 구독이 현재 계정 것으로 저장되게 맞춘다
 }
 function onReady() {
-  S.ready = true; S.slow = false;
+  S.ready = true; S.slow = false; clearShownNotifs();
   renderChrome(); renderView(); bootSplash();
   gcOnce(); syncSoon(); Push.registerSW();
   S.timers.push(setInterval(() => { gcOnce(); schedule(); }, 60_000));
@@ -468,7 +468,14 @@ const notifDoc = () => sd(notifDocId());
 const notifBase = () => notifDoc().base || 0;
 const notifRead = () => new Set(notifDoc().ids || []);
 const isUnreadItem = (i, base, read) => i.ts > base && !read.has(i.id);
-const saveNotif = (base, ids, seen = notifDoc().seen || {}) => (S.store ? S.store.set('shared', notifDocId(), { kind: 'notif', v: 2, base, ids, seen }).catch((e) => console.warn('notif read', e)) : null);
+// 기기 여러 대가 같은 문서를 쓰므로 읽음은 앞으로만 간다: 지금 알고 있는 값과 합쳐서 쓰고(큰 값·합집합), 서버도 한 번 더 합친다 (DB 017)
+const saveNotif = (base, ids, seen = {}) => {
+  if (!S.store) return null;
+  const cur = notifDoc(), old = cur.seen || {}, merged = { ...old };
+  for (const [k, v] of Object.entries(seen)) merged[k] = Math.max(Number(old[k]) || 0, Number(v) || 0);
+  const allIds = [...new Set([...(cur.ids || []), ...ids])].slice(-300);
+  return S.store.set('shared', notifDocId(), { kind: 'notif', v: 2, base: Math.max(Number(cur.base) || 0, Number(base) || 0), ids: allIds, seen: merged }).catch((e) => console.warn('notif read', e));
+};
 // 알림 문구가 바뀌면서(영어 → Feedback/Ack 말투) 알림 id 가 달라졌다: 계정마다 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다
 function migrateNotifIds() {
   if (!S.ready || !S.store || S.notifMig || notifDoc().v === 2) return;
@@ -477,6 +484,9 @@ function migrateNotifIds() {
 const notifUnread = () => { migrateNotifIds(); const base = notifBase(), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
 function markRead(id) { const ids = [...new Set([...(notifDoc().ids || []), id])].slice(-300); saveNotif(notifBase(), ids); }
 function markAllRead() { saveNotif(Math.max(notifBase(), seenNow()), []); }
+// 앱을 열거나 다시 화면에 띄우면, 폰 알림 센터에 쌓인 이 앱의 알림을 지운다 (이미 앱 안에서 보고 있으니까). 지원하지 않는 기기에서는 아무 일도 하지 않는다
+const clearShownNotifs = () => { try { navigator.serviceWorker?.getRegistration?.().then((r) => r?.getNotifications?.()).then((ns) => ns?.forEach((n) => n.close())).catch(() => {}); } catch { /* 없음 */ } };
+document.addEventListener('visibilitychange', () => { if (!document.hidden) clearShownNotifs(); });
 function closeNotif() { S.notifOpen = false; $('#notif')?.remove(); }
 function toggleNotif() { if (S.notifOpen) { closeNotif(); renderChrome(); return; } S.notifOpen = true; renderNotif(); renderChrome(); }
 function renderNotif() {
