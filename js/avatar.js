@@ -3,7 +3,7 @@
 const HEAD = {
   listener: { m: ['.....HHHHHH.....', '...HHHHHHHHHH...', '..HHHHhHHHhHHH..', '.HHHHHHHHHHHHHH.', '.HHHHhHHHHhHHHH.', 'HHHHHHHHHHHHHHHH', 'HHHSSHHSSHHSSHHH',
     'HHSSSSSSSSSSSSHH', 'HHSSESSSSSSESSHH', 'HHSSESSSSSSESSHH', 'HHSBBSSSSSSBBSHH', 'HH.SSSSSSSSSS.HH', 'HH..MMMMMMMM..HH', 'HH.MmMMmMMmMMM.H', 'H.MMmMMmMMmMMMM.', '..SMMMMMMMMMMMS.'],
-  p: { H: '#3b3036', h: '#5a4a52', S: '#f7e3dc', B: '#f0a8b2', E: '#1a1416', M: '#eadbc4', m: '#d8c4a6' } },
+  p: { H: '#3b3036', h: '#5a4a52', S: '#f7e3dc', B: '#f0a8b2', E: '#1a1416', M: '#f6b8c6', m: '#eb9cb0' } },   // 리스너: 분홍 니트
   writer: { m: ['....hHH.HHh.....', '...HHHHHHHHHH...', '..HhHHHhHHHhHH..', '.HHHHHHHHHHHHHH.', '.HhHHhHHHhHHhHH.', 'HHHHHHHHHHHHHHHH', 'HHHSSHHSSHHSSHHH',
     '.HSSSSSSSSSSSSH.', '.HSSESSSSSSESSH.', '.HSSESSSSSSESSH.', '..SBBSSSSSSBBS..', '...SSSSSSSSSS...', '....KKKKKKKK....', '...KkKKkKKkKKK..', '..KKkKKkKKkKKKK.', '..SKKKKKKKKKKKS.'],
   p: { H: '#5a4136', h: '#7d5d4c', S: '#f7e3dc', B: '#f0a8b2', E: '#1a1416', K: '#8a5a3c', k: '#a8744f' } },

@@ -897,3 +897,10 @@ html[data-theme="ops-dark"] .w-hl { background: linear-gradient(transparent 62%,
 .w-row.open .w-text { font-size: 17px; }
 .w-star { font-weight: 600; color: color-mix(in srgb, var(--dot-1) 70%, var(--text)); }
 .w-meta .av { margin-right: 2px; }
+/* 좁은 폰에서 댓글 상자가 화면 밖으로 밀려나지 않게: 상자·줄이 내용보다 좁아질 수 있게 하고, 시각 줄은 넘치면 줄임 */
+.c-box { min-width: 0; max-width: 100%; }
+.c-box .cm { grid-template-columns: minmax(0, 1fr) auto; }
+.c-box .cm-meta { min-width: 0; overflow: hidden; white-space: nowrap; }
+.c-box .c-new .btn { flex: none; }
+.ag-list, .ag-wrap { min-width: 0; }
+@media (max-width: 600px) { .ag-thread { margin-left: 0; } .c-box .cm-act { gap: 0; } }

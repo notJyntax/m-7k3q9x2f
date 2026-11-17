@@ -2,6 +2,10 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-q', date: '11/17', title: '폰 댓글 상자·프로필', items: [
+    ['fix', '폰: 아젠다 댓글 상자가 화면 밖으로 밀려 Comment 버튼이 잘리던 것'],
+    ['change', '리스너 프로필 윗옷을 분홍 니트로'],
+  ] },
   { id: '2026-11-17-p', date: '11/17', title: '프로필·commit 화면', items: [
     ['new', '글쓴이 표시를 픽셀 캐릭터 프로필(얼굴+상체)로'],
     ['change', 'Received·Sent by me: 왼쪽 프로필 + 큰 글, 아래 한 줄에 번호·시각·상태'],
