@@ -21,19 +21,19 @@ const PA = { O: '#8a7f71', T: '#3e3832', P: '#c99f98', E: '#c8c86a', L: '#d9d0c2
 
 export function createRoom({ left = 'girl' } = {}) {
   const S = 3, LW = 200, LH = 110, FY = 100;
-  const CX = 32, CY = 40, CW = 120, CH = 68;   // 보이는 부분(배경을 잘라 캐릭터가 크게 보이게): x 32~152, y 40~108
+  // 보이는 부분(배경을 잘라 캐릭터가 크게 보이게). wide = 폰(x 32~152), tight = PC 사이드바처럼 좁은 곳(x 48~136, 캐릭터·고양이 중심)
+  const VIEWS = { wide: [32, 40, 120, 68], tight: [48, 56, 88, 50] };
+  let [CX, CY, CW, CH] = VIEWS.wide, view = 'wide';
   const canvas = document.createElement('canvas');
-  canvas.width = CW * S; canvas.height = CH * S; canvas.className = 'room-cv'; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Mini room');
+  canvas.width = CW * S; canvas.height = CH * S; canvas.style.aspectRatio = `${CW} / ${CH}`; canvas.className = 'room-cv'; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Mini room');
   const cx = canvas.getContext('2d'); cx.imageSmoothingEnabled = false;
   const me = left === 'girl' ? { m: GIRL, p: PG } : { m: BOY, p: PB }, them = left === 'girl' ? { m: BOY, p: PB } : { m: GIRL, p: PG };
   const A = { x: 71, y: FY - 21 }, B = { x: 89, y: FY - 21 };
-  const bub = { me: '', them: '' };
-  const mood = { me: '', them: '' };   // 각자 고른 상태 이모지 → 표정·소품·자세 (app.js 가 넣어 준다)   // 말풍선: 각자 자기 것만 쓴다 (app.js 가 넣어 준다)
-  const st = { blink: false, bob: 0, cur: 1, busy: false, away: false, hearts: [], spk: 0, blush: false, hop: 0, lean: 0, ecg: 0, plane: null, fish: null, t: 0, night: null };
-  const cat0 = { y: FY - 6, lvl: 'floor', tl: 'floor', wait: 0, jump: null, then: null, hop: 0, heart: false };
-  const cats = [{ ...cat0, m: TUX, p: PT, bk: 'K', x: 35, t: 35, dir: 1, sleep: true }, { ...cat0, m: TAB, p: PA, bk: 'O', x: 134, t: 134, dir: -1, sleep: false, wait: 20 }];
-  // 고양이가 갈 수 있는 곳: 바닥·소파 등받이 위(말풍선과 안 겹치게)·책상 위 (y = 고양이 맨 윗줄)
-  const LV = { floor: { y: FY - 6, min: 34, max: 136 }, sofa: { y: 56, min: 56, max: 104 }, desk: { y: 63, min: 126, max: 136 } };
+  const mood = { me: '', them: '' };   // 각자 고른 상태 이모지 → 표정·소품 (app.js 가 넣어 준다)
+  // 평소에는 가만히: 들썩임·깜박임·걷기 없음. 움직이는 것은 보낸 동작(Kiss·Hug·Pat)뿐
+  const st = { cur: 1, busy: false, away: false, hearts: [], la: 0, lb: 0, blushA: false, blushB: false, happy: null, hand: null, spk: null, night: null };
+  // 고양이 둘은 사람 오른쪽 바닥에 나란히 앉아 있다 (사람 쪽을 본다)
+  const cats = [{ m: TUX, p: PT, x: 107, y: FY - 6, dir: -1 }, { m: TAB, p: PA, x: 120, y: FY - 6, dir: -1 }];
   const R = (x, y, w, h, c, a = 1) => { cx.globalAlpha = a; cx.fillStyle = c; cx.fillRect(x * S, y * S, w * S, h * S); cx.globalAlpha = 1; };
   const spr = (map, pal, x, y, o = {}) => { const w = map[0].length; cx.globalAlpha = o.a ?? 1; map.forEach((row, r) => { for (let c = 0; c < w; c++) { let k = row[o.flip ? w - 1 - c : c]; if (k === '.') continue; if (o.blink && k === 'E' && r === o.er) k = o.bk; const col = o.blush && k === 'B' ? '#ff7f9a' : pal[k]; if (!col) continue; cx.fillStyle = col; cx.fillRect((x + c) * S, (y + r) * S, S, S); } }); cx.globalAlpha = 1; };
   // 테두리: 어두운 배경에서도 검은 고양이가 보이게, 그림 둘레에 1칸 옅은 선
@@ -80,32 +80,16 @@ export function createRoom({ left = 'girl' } = {}) {
     // 고양이 방석
     R(33, 98, 19, 6, T.p2); box(33, 98, 19, 6, T.l2);
   }
-  // 말풍선: 흰 픽셀 상자 + 머리 쪽 꼬리. 왼쪽 사람은 왼쪽으로, 오른쪽 사람은 오른쪽으로 펼쳐서 서로 겹치지 않게
-  const boxes = { me: null };
-  function bubble(text, headX, headY, side) {
-    if (side === 'left') boxes.me = null;
-    if (!text) return;
-    cx.font = `500 ${6 * S}px Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif`;
-    const tw = Math.ceil(cx.measureText(text).width / S), w = Math.min(CW / 2 - 4, tw + 6), h = 10;
-    let x = side === 'left' ? headX + 3 - w : headX - 3; x = Math.max(CX + 2, Math.min(CX + CW - w - 2, x));
-    const y = headY - h - 3;
-    R(x + 1, y, w - 2, h, T.l2); R(x, y + 1, w, h - 2, T.l2); R(x + 1, y + 1, w - 2, h - 2, T.pn);   // 모서리가 둥근 상자(테두리)
-    const tx = side === 'left' ? x + w - 5 : x + 3; R(tx, y + h - 1, 2, 1, T.pn); R(tx + (side === 'left' ? 1 : 0), y + h, 1, 2, T.l2); R(tx + (side === 'left' ? 0 : 1), y + h, 1, 1, T.pn);   // 꼬리
-    cx.save(); cx.beginPath(); cx.rect((x + 2) * S, (y + 1) * S, (w - 4) * S, (h - 2) * S); cx.clip();
-    cx.fillStyle = T.tx; cx.textBaseline = 'middle'; cx.fillText(text, (x + 3) * S, (y + h / 2 + 0.3) * S); cx.restore();
-    if (side === 'left') boxes.me = { x, y, w, h };
-  }
-
   // ── 상태 이모지 → 표정·소품·자세 (16×21 캐릭터 위에 덧그린다. 눈은 4·11번째 칸, 8·9번째 줄) ──
   const NOTE = ['..XX', '..X.', 'XXX.', 'XX..'], PUFF = ['.XX.', 'XXXX', '.XX.'], VEIN = ['X.X', '.X.', 'X.X'];
-  const pose = (md) => ({ slump: ['😮‍💨', '🤒', '😢'].includes(md) ? 1 : 0, jit: md === '😰' ? ((st.t >> 1) & 1) : 0, hop: md === '😄' && st.t % 14 < 2 ? 2 : 0, blush: ['😄', '😌', '🤒'].includes(md) });
+  const pose = (md) => ({ slump: ['😮‍💨', '🤒', '😢'].includes(md) ? 1 : 0, blush: ['😄', '😌', '🤒'].includes(md) });
   function face(md, pal, x, y, side) {
     if (!md) return;
     const P = (c, r, col, a = 1) => R(x + c, y + r, 1, 1, col, a), E = pal.E, Sk = pal.S, out = side === 'left' ? -1 : 1;
     const clr = () => [4, 11].forEach((c) => { P(c, 8, Sk); P(c, 9, Sk); });
     const eyes = (pts) => { clr(); pts.forEach(([c, r]) => { P(c, r, E); P(15 - c, r, E); }); };
     const mouth = (col) => { P(7, 11, col); P(8, 11, col); };
-    const t = st.t;
+    const t = 4;   // 소품(눈물·김·음표)은 움직이지 않는 한 장면으로
     switch (md) {
       case '🙂': mouth('#d08a92'); break;
       case '😄': eyes([[3, 9], [4, 8], [5, 8], [6, 9]]); mouth('#b2475b'); break;
@@ -122,106 +106,68 @@ export function createRoom({ left = 'girl' } = {}) {
       case '☕': eyes([[3, 8], [4, 9], [5, 9], [6, 8]]); { const mx = side === 'left' ? 1 : 10; R(x + mx, y + 14, 4, 3, '#f4f1ec'); R(x + mx + 1, y + 14, 2, 1, '#6b4a3a'); P(side === 'left' ? 0 : 14, 15, '#f4f1ec'); const ph = (t >> 2) % 4; P(mx + 1 + (ph & 1), 12 - ph, T.sub, 0.7); P(mx + 2 - (ph & 1), 10 - ph, T.sub, 0.5); } break;
     }
   }
+  // 받는 사람 얼굴: 눈을 감고 웃는다 (‿ ‿)
+  const happyEyes = (pal, x, y) => { [4, 11].forEach((c) => { R(x + c, y + 8, 1, 2, pal.S); }); [[3, 8], [4, 9], [5, 9], [6, 8]].forEach(([c, r]) => { R(x + c, y + r, 1, 1, pal.E); R(x + 15 - c, y + r, 1, 1, pal.E); }); };
+  const HAND = ['.XX.', 'XXXX', 'XXXX'];
   function draw() {
     if (!canvas.isConnected) return;
     cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, canvas.width, canvas.height); cx.setTransform(1, 0, 0, 1, -CX * S, -CY * S); room();
-    if (st.fish !== null) mono(FISH, '#7fd3ff', st.fish, FY + 1);
-    const catDraw = (k) => { const y = k.y - (k.hop ? 2 : 0); sil(k.m, k.x, y, k.dir < 0, T.mu, 0.55); spr(k.m, k.p, k.x, y, { flip: k.dir < 0, blink: k.sleep, er: 4, bk: k.bk }); if (k.heart) mono(HEART, '#ff7aa8', k.x + 5, y - 8, 0.95); else if (k.sleep) mono(ZZ, T.mu, k.x + 11, y - 6, 0.8); };
-    const up = (k) => k.y < LV.floor.y - 4;
-    cats.filter(up).forEach(catDraw);   // 소파·책상 위 고양이는 사람 뒤에
     const pa = pose(mood.me), pb = st.away ? pose('') : pose(mood.them);
-    const ax = A.x + st.lean - pa.jit, bx = B.x - st.lean + pb.jit;
-    const ay = A.y + (st.bob && !st.busy ? 1 : 0) - (st.hop ? 2 : 0) + pa.slump - pa.hop, by = B.y + (!st.bob && !st.busy ? 1 : 0) - (st.hop && !st.away ? 2 : 0) + pb.slump - pb.hop;
-    spr(me.m, me.p, ax, ay, { blink: st.blink, er: 8, bk: 'S', blush: st.blush || pa.blush });
-    if (!st.blink) face(mood.me, me.p, ax, ay, 'left');
-    spr(them.m, them.p, bx, by, { blink: st.blink || st.away, er: 8, bk: 'S', blush: st.blush || pb.blush, a: st.away ? 0.5 : 1 });
-    if (!st.blink && !st.away) face(mood.them, them.p, bx, by, 'right');
+    const ax = A.x + st.la, bx = B.x - st.lb, ay = A.y + pa.slump, by = B.y + pb.slump;
+    spr(me.m, me.p, ax, ay, { blush: st.blushA || pa.blush });
+    if (st.happy === 'A') happyEyes(me.p, ax, ay); else face(mood.me, me.p, ax, ay, 'left');
+    spr(them.m, them.p, bx, by, { blink: st.away, er: 8, bk: 'S', blush: st.blushB || pb.blush, a: st.away ? 0.5 : 1 });
+    if (st.happy === 'B') happyEyes(them.p, bx, by); else if (!st.away) face(mood.them, them.p, bx, by, 'right');
     if (st.away) mono(ZZ, T.mu, B.x + 16, B.y - 6);
-    bubble(bub.me, A.x + 8, ay - 3, 'left'); bubble(st.away ? '' : bub.them, B.x + 8, by - 3, 'right');
-    cats.filter((k) => !up(k)).forEach(catDraw);
-    if (st.plane) mono(st.plane.flip ? PLANE.map((r) => [...r].reverse().join('')) : PLANE, T.tx, st.plane.x, st.plane.y);
-    if (st.spk) { spark(A.x, A.y - 7, '#ffd6a8'); spark(B.x + 10, B.y - 7, '#ffd08a'); }
+    for (const k of cats) { sil(k.m, k.x, k.y, k.dir < 0, T.mu, 0.55); spr(k.m, k.p, k.x, k.y, { flip: k.dir < 0 }); }
+    if (st.hand) { sil(HAND, st.hand.x, st.hand.y, false, st.hand.ol, 0.9); mono(HAND, st.hand.c, st.hand.x, st.hand.y); }
+    if (st.spk) spark(st.spk.x, st.spk.y, '#ffd6a8');
     st.hearts.forEach((hh) => mono(HEART, '#ff7aa8', hh.x, hh.y, hh.a ?? 1));
   }
-
-  // ── 고양이: 스스로 정해서 돌아다닌다 (걷기·앉아 쉬기·소파/책상에 뛰어오르기·방석에서 자기·사람에게 가서 비비기·서로 따라다니기)
-  // 누가 힘든 상태(😢 😰 🤒 😮‍💨)면 그 사람 옆에 가서 자주 붙어 있는다
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  function plan(k) {
-    const go = (lvl, x, then = null, wait = 0) => { k.tl = lvl; k.t = Math.round(x); k.then = then; k.wait = Math.round(wait); };
-    const blue = ['😢', '😰', '🤒', '😮‍💨'], who = blue.includes(mood.them) && !st.away ? 'them' : blue.includes(mood.me) ? 'me' : null;
-    const r = Math.random(), other = cats.find((c) => c !== k);
-    if (who && r < 0.5) return go('floor', who === 'me' ? A.x - 14 : B.x + 15, Math.random() < 0.5 ? 'sleep' : 'love', rnd(30, 70));
-    if (r < 0.28) return go('floor', rnd(34, 136), null, rnd(10, 50));
-    if (r < 0.40) return go(k.lvl, k.x, null, rnd(30, 90));
-    if (r < 0.55) return go('sofa', rnd(58, 102), Math.random() < 0.5 ? 'sleep' : null, rnd(40, 100));
-    if (r < 0.64) return go('desk', rnd(126, 136), Math.random() < 0.3 ? 'sleep' : null, rnd(40, 80));
-    if (r < 0.74) return go('floor', 35, 'sleep', 10);
-    if (r < 0.87) return go('floor', Math.random() < 0.5 ? A.x - 14 : B.x + 15, 'love', 15);
-    return go(other.lvl, other.x + (Math.random() < 0.5 ? -15 : 15), null, rnd(10, 30));
-  }
-  function catTick(k) {
-    if (k.hop) return;
-    if (k.jump) { const j = k.jump; j.i++; const p = j.i / j.n; k.x = Math.round(j.x0 + (j.x1 - j.x0) * p); k.y = Math.round(j.y0 + (j.y1 - j.y0) * p - Math.sin(Math.PI * p) * 10); if (j.i >= j.n) { k.x = j.x1; k.y = j.y1; k.lvl = j.lvl; k.jump = null; } return; }
-    if (k.sleep) { if (Math.random() < 0.003) { k.sleep = false; k.wait = Math.round(rnd(10, 30)); } return; }
-    const L = LV[k.tl], tx = Math.max(L.min, Math.min(L.max, k.t));
-    if (k.tl !== k.lvl) {   // 다른 높이로: 가까이 걸어간 다음 폴짝
-      const C = LV[k.lvl], near = Math.max(C.min, Math.min(C.max, tx));
-      if (Math.abs(tx - k.x) > 26 && Math.abs(near - k.x) > 1) { k.dir = Math.sign(near - k.x); k.x += k.dir; return; }
-      k.dir = Math.sign(tx - k.x) || k.dir; k.jump = { x0: k.x, y0: k.y, x1: tx, y1: L.y, i: 0, n: 8, lvl: k.tl }; return;
-    }
-    if (Math.abs(k.x - tx) >= 1) { if (st.t % 2) return; k.dir = Math.sign(tx - k.x); k.x += k.dir; return; }   // 느긋하게 걷기
-    if (k.wait > 0) { k.wait--; return; }
-    if (k.then === 'sleep') { k.then = null; k.sleep = true; return; }
-    if (k.then === 'love') { k.then = null; k.heart = true; k.wait = 15; k.dir = (k.x < 96 ? 1 : -1); setTimeout(() => { k.heart = false; }, 1500); return; }
-    plan(k);
-  }
-  // 한 개의 타이머로: 0.1초마다 고양이가 움직이고, 0.65초마다 숨 쉬듯 들썩, 3.4초마다 눈 깜박
-  const timer = setInterval(() => {
-    st.t += 1;
-    if (st.t % 7 === 0) { st.bob ^= 1; st.cur ^= 1; }
-    if (st.t % 34 === 0 && !st.busy) { st.blink = true; setTimeout(() => { st.blink = false; draw(); }, 140); }
-    for (const k of cats) catTick(k);
-    draw();
-  }, 100);
+  // 1초마다: 배경 시계·커서만 (캐릭터·고양이는 그대로)
+  const timer = setInterval(() => { st.cur ^= 1; draw(); }, 1000);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const awake = () => cats.forEach((k) => { k.sleep = false; k.wait = 0; });
-  async function lean(on) { if (on) for (st.lean = 0; st.lean < 3; st.lean++) { draw(); await sleep(60); } else for (; st.lean > 0; st.lean--) { draw(); await sleep(60); } }
+  // fromThem = 상대가 보낸 것 (오른쪽 사람 → 왼쪽 사람). 내가 보낸 것은 왼쪽(나) → 오른쪽(상대)
+  const roles = (fromThem) => (fromThem ? { snd: 'B', rcv: 'A' } : { snd: 'A', rcv: 'B' });
+  const setLean = (who, v) => { if (who === 'A') st.la = v; else st.lb = v; };
+  const blush = (who, v) => { if (who === 'A') st.blushA = v; else st.blushB = v; };
+  const headOf = (who) => (who === 'A' ? { x: A.x + st.la, y: A.y } : { x: B.x - st.lb, y: B.y });
+  async function leanTo(who, to) { const cur = who === 'A' ? st.la : st.lb, d = Math.sign(to - cur); for (let v = cur; v !== to; v += d) { setLean(who, v + d); draw(); await sleep(60); } }
   return {
     canvas,
-    charge(p) { st.spk = p > 0 ? 1 : 0; draw(); },
-    async hug(lv) {
-      if (st.busy || st.away) return; st.busy = true; awake(); await lean(true);
-      st.blush = true; st.spk = 1; cats.forEach((k) => { k.heart = true; }); st.hearts = [...Array(lv)].map((_, i) => ({ x: 86 - lv * 3 + i * 6, y: B.y - 10 })); draw();
-      await sleep(1500); st.hearts = []; st.blush = false; st.spk = 0; cats.forEach((k) => { k.heart = false; }); await lean(false); st.busy = false; draw();
+    // Kiss: 보낸 사람이 기울여 볼에 쪽 → 받는 사람 볼 옆에서 하트가 떠오르고, 받는 사람은 눈을 감고 볼이 빨개진다
+    async kiss(fromThem = false) {
+      if (st.busy || st.away) return; st.busy = true; const { snd, rcv } = roles(fromThem);
+      await leanTo(snd, 3); blush(rcv, true); st.happy = rcv;
+      const h0 = headOf(rcv), hx = rcv === 'B' ? h0.x + 1 : h0.x + 10;
+      for (let i = 0; i <= 11; i++) { st.hearts = [{ x: hx, y: h0.y + 8 - i * 2, a: Math.min(1, 1.6 - i / 8) }]; draw(); await sleep(80); }
+      st.hearts = []; await sleep(250); st.happy = null; blush(rcv, false); await leanTo(snd, 0); st.busy = false; draw();
     },
-    async kiss() {
-      if (st.busy || st.away) return; st.busy = true; await lean(true); st.blush = true;
-      for (let y = B.y - 2; y >= B.y - 24; y -= 2) { st.hearts = [{ x: 87, y, a: Math.min(1, (y - B.y + 28) / 14) }]; draw(); await sleep(70); }
-      st.hearts = []; st.blush = false; await lean(false); st.busy = false; draw();
+    // Hug: 둘이 서로 기울여 꼭 붙고, 둘 다 볼이 빨개지며 머리 위로 하트 셋이 하나씩
+    async hug(fromThem = false) {
+      if (st.busy || st.away) return; st.busy = true; const { snd, rcv } = roles(fromThem);
+      await leanTo(snd, 3); await leanTo(rcv, 2); blush('A', true); blush('B', true); st.happy = rcv;
+      const mid = Math.round((A.x + st.la + B.x - st.lb) / 2) + 6;
+      for (let i = 0; i < 3; i++) { st.hearts = [...st.hearts, { x: mid - 7 + i * 6, y: A.y - 8 - (i % 2) * 2 }]; draw(); await sleep(260); }
+      await sleep(700); st.hearts = []; st.happy = null; blush('A', false); blush('B', false); await leanTo(rcv, 0); await leanTo(snd, 0); st.busy = false; draw();
     },
-    async plane(fromThem = false) {
-      if (st.busy) return; st.busy = true; awake(); const x0 = fromThem ? B.x + 2 : A.x + 12, x1 = fromThem ? A.x + 10 : B.x + 2;
-      for (let i = 0; i <= 28; i++) { const t = i / 28; st.plane = { x: Math.round(x0 + (x1 - x0) * t), y: Math.round(A.y + 4 - Math.sin(t * Math.PI) * 18), flip: fromThem }; cats[1].t = st.plane.x; cats[1].tl = 'floor'; cats[1].wait = 0; cats[1].then = null; draw(); await sleep(40); }
-      st.plane = null; if (!st.away) { st.spk = 1; draw(); await sleep(500); st.spk = 0; } st.busy = false; draw();
+    // Pat (쓰담쓰담): 보낸 사람이 손을 뻗어 받는 사람 머리 위를 좌우로 세 번 쓰다듬는다. 받는 사람은 눈을 감고 웃는다
+    async pat(fromThem = false) {
+      if (st.busy || st.away) return; st.busy = true; const { snd, rcv } = roles(fromThem);
+      await leanTo(snd, 2); st.happy = rcv; blush(rcv, true);
+      const pal = snd === 'A' ? me.p : them.p, h0 = headOf(rcv), path = [3, 5, 7, 9, 7, 5, 3, 5, 7, 9, 7, 5, 3, 5, 7, 9, 7, 5];
+      for (const dx of path) { st.hand = { x: h0.x + dx, y: h0.y - 2 + (dx === 3 || dx === 9 ? 1 : 0), c: pal.S, ol: pal.F }; draw(); await sleep(70); }
+      st.hand = null; st.spk = { x: h0.x + 4, y: h0.y - 7 }; draw(); await sleep(450);
+      st.spk = null; st.happy = null; blush(rcv, false); await leanTo(snd, 0); st.busy = false; draw();
     },
-    async beat(times) {   // times: 두드린 시각들(ms, 첫 번째가 0) — 그 박자 그대로 책상 모니터에 심전도, 다 같이 폴짝
-      if (st.busy || !times.length) return; st.busy = true; awake(); const t1 = performance.now();
-      for (const t of times) { const w = t - (performance.now() - t1); if (w > 0) await sleep(w); st.ecg = 1; st.hop = 1; cats.forEach((k) => { k.hop = 1; }); st.blush = true; draw(); await sleep(110); st.ecg = 0; st.hop = 0; cats.forEach((k) => { k.hop = 0; }); st.blush = false; draw(); }
-      st.busy = false;
-    },
-    async fish() {
-      if (st.fish !== null) return; awake(); st.fish = 60 + Math.floor(Math.random() * 60); cats[0].t = st.fish - 15; cats[1].t = st.fish + 5; cats.forEach((k) => { k.tl = 'floor'; k.wait = 0; k.then = null; }); draw();
-      await sleep(2600); cats.forEach((k) => { k.heart = true; }); st.fish = null; draw(); await sleep(1300); cats.forEach((k) => { k.heart = false; }); draw();
-    },
+    setView(v) { if (!VIEWS[v] || v === view) return; view = v; [CX, CY, CW, CH] = VIEWS[v]; canvas.width = CW * S; canvas.height = CH * S; canvas.style.aspectRatio = `${CW} / ${CH}`; cx.imageSmoothingEnabled = false; draw(); },
     setAway(v) { st.away = !!v; draw(); },
     setMoods(meEmoji, themEmoji) { mood.me = meEmoji || ''; mood.them = themEmoji || ''; draw(); },
-    setBubbles(meText, themText) { bub.me = meText || ''; bub.them = themText || ''; draw(); },
-    // 누른 곳이 내 캐릭터(또는 내 말풍선)인가 — 내 말풍선만 고칠 수 있게
-    isMine(ev) {
+    // 누른 곳이 내 캐릭터인가 / 상대 캐릭터인가
+    hit(ev) {
       const r = canvas.getBoundingClientRect(), x = CX + (ev.clientX - r.left) / r.width * CW, y = CY + (ev.clientY - r.top) / r.height * CH;
-      const inMe = x >= A.x && x <= A.x + 16 && y >= A.y - 2 && y <= A.y + 21, b = boxes.me;
-      return inMe || !!(b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h + 2);
+      const inY = y >= A.y - 3 && y <= A.y + 22;
+      return inY && x >= A.x - 1 && x <= A.x + 16 ? 'me' : inY && x >= B.x && x <= B.x + 17 ? 'them' : null;
     },
     destroy() { clearInterval(timer); },
   };

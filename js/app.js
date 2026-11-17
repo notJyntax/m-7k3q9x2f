@@ -650,10 +650,12 @@ function renderMood() {
     moodChip(they, { name: '1', me: false, isNew, title: 'Status 1', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
 }
 // ───────── Room: 두 사람(픽셀 캐릭터)과 고양이 두 마리가 사는 작은 방. Status 바로 위, 기본은 접혀 있다 ─────────
-// 내 캐릭터가 왼쪽 (작성자 = 남자, 리스너 = 여자). 표정·소품은 각자의 상태 이모지, 말풍선은 상태 한마디를 그대로 쓴다.
-// 동작(Hug·Kiss·Plane·Beat·Snack)은 내 상태 문서(me_역할)에 act 로 덧붙여 보낸다: 이모지·한마디·시각은 그대로 두므로 "Status changed" 알림은 가지 않는다.
+// 내 캐릭터가 왼쪽 (작성자 = 남자, 리스너 = 여자). 표정·소품은 각자의 상태 이모지. 평소에는 모두 가만히 있다.
+// 내 캐릭터를 누르면 상태 설정, 상대 캐릭터를 누르면 Kiss·Hug·Pat 을 보낸다.
+// 동작은 내 상태 문서(me_역할)에 act 로 덧붙여 보낸다: 이모지·한마디·시각은 그대로 두므로 "Status changed" 알림은 가지 않는다.
 // 앱을 열 때마다, 앱을 내렸다 올 때마다 다시 접힌다 (옆 사람이 보지 않게).
-const ROOM_ACTS = { hug: 'Heartbeat received', kiss: 'Keepalive OK', plane: 'Ping received', beat: 'Pulse pattern received' };   // 받았을 때 토스트 (서버 알림처럼)
+const ROOM_ACTS = { kiss: 'Keepalive OK', hug: 'Heartbeat received', pat: 'Health check passed' };   // 받았을 때 토스트 (서버 알림처럼)
+const ROOM_MENU = [['kiss', '💋', 'Kiss'], ['hug', '🫂', 'Hug'], ['pat', '🤚', 'Pat']];
 const actOf = (role) => sd('me_' + role).act || null;
 function sendAct(k, extra = {}) {
   if (!S.store || !S.canWrite) return;
@@ -672,8 +674,7 @@ const theirAway = () => { if (!S.cloud) return false; const on = Number(sd('me_'
 document.addEventListener('visibilitychange', () => { if (!document.hidden) touchPresence(); });
 function playAct(a, fromThem) {
   const r = S.room?.room; if (!r || !a) return;
-  if (a.k === 'hug') r.hug(clamp(Number(a.lv) || 1, 1, 5)); else if (a.k === 'kiss') r.kiss(); else if (a.k === 'plane') r.plane(fromThem);
-  else if (a.k === 'beat' && Array.isArray(a.beats)) r.beat(a.beats.slice(0, 24).map(Number)); else if (a.k === 'fish') r.fish();
+  if (ROOM_ACTS[a.k]) r[a.k](fromThem);
 }
 // 상대가 보낸 새 동작: 방이 펼쳐져 있으면 바로 보여 주고, 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 준다 (처음 열 때 받은 옛 동작은 다시 틀지 않는다)
 function checkTheirAct() {
@@ -688,24 +689,20 @@ function ensureRoom() {
   if (S.room && S.room.role !== S.role) { S.room.room.destroy(); S.room = null; }
   if (S.room) return S.room;
   const room = createRoom({ left: isWriter() ? 'boy' : 'girl' });
-  const msg = h('p', { class: 'room-msg', text: 'tap yourself to set status' });
-  const say = (t, act = true) => { msg.textContent = t; if (act && S.room) S.room.actMsgAt = Date.now(); };
-  const ib = (e, label, on) => h('button', { type: 'button', class: 'btn small ic', title: label, 'aria-label': label, on }, e);
-  // Hug: 꾹 누른 만큼 1~5단계
-  let t0 = 0, tick = 0;
-  const pct = () => Math.min(100, Math.round((performance.now() - t0) / 30));
-  const hugUp = () => { if (!t0) return; clearInterval(tick); const lv = clamp(Math.ceil(pct() / 20), 1, 5); t0 = 0; room.charge(0); room.hug(lv); sendAct('hug', { lv }); say(`hug lv.${lv} sent`); };
-  const hug = ib('🫂', 'Hug (hold)', { pointerdown: (e) => { e.preventDefault(); t0 = performance.now(); tick = setInterval(() => { const p = pct(), n = Math.round(p / 10); room.charge(p); say(`[${'█'.repeat(n)}${'░'.repeat(10 - n)}] ${p}%`); }, 50); }, pointerup: hugUp, pointerleave: hugUp, pointercancel: hugUp });
-  // Beat: 2.5초 동안 두드린 박자 그대로
-  let taps = [];
-  const beat = ib('💓', 'Beat (tap a rhythm)', { pointerdown: (e) => { e.preventDefault(); if (!taps.length) { say('tap your rhythm… 2.5s'); setTimeout(() => { const s0 = taps[0], beats = taps.map((x) => Math.round(x - s0)); taps = []; room.beat(beats); sendAct('beat', { beats }); say(`beat ×${beats.length} sent`); }, 2500); } taps.push(performance.now()); } });
-  const one = (e, label, k, fn, done) => ib(e, label, { click: () => { fn(); sendAct(k); say(done); } });
-  room.canvas.addEventListener('click', (e) => { if (room.isMine(e) && S.canWrite) openMood(); });
+  // 상대 캐릭터를 누르면 작은 메뉴(⋯ 메뉴와 같은 모양): Kiss · Hug · Pat
+  const actMenu = (ev) => {
+    ev.stopPropagation(); closeMenu();
+    const m = h('div', { id: 'more-menu', class: 'more-menu', role: 'menu' }, ROOM_MENU.map(([k, e, label]) => h('button', { type: 'button', role: 'menuitem', class: 'mi', on: { click: (x) => { x.stopPropagation(); closeMenu(); room[k](false); sendAct(k); } } }, h('span', { class: 'mi-e', text: e }), h('span', { text: label }))));
+    document.body.append(m);
+    const mw = m.offsetWidth, mh = m.offsetHeight;
+    m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, ev.clientX - mw / 2)) + 'px';
+    m.style.top = (ev.clientY + 10 + mh > innerHeight - 8 ? Math.max(8, ev.clientY - mh - 10) : ev.clientY + 10) + 'px';
+    m.querySelector('.mi')?.focus();
+  };
+  room.canvas.addEventListener('click', (e) => { const w = room.hit(e); if (!S.canWrite) return; if (w === 'me') openMood(); else if (w === 'them') actMenu(e); });
   room.canvas.style.cursor = 'pointer';
-  const el = h('div', { class: 'mroom' }, room.canvas,
-    h('div', { class: 'row room-act' }, hug, one('💋', 'Kiss', 'kiss', () => room.kiss(), 'kiss sent'), one('✈️', 'Paper plane', 'plane', () => room.plane(), 'paper plane sent'), beat, one('🐟', 'Snack for the cats', 'fish', () => room.fish(), 'snack for the cats')),
-    msg);
-  S.room = { room, el, role: S.role, say, msg };
+  const el = h('div', { class: 'mroom' }, room.canvas);
+  S.room = { room, el, role: S.role };
   return S.room;
 }
 function roomBlock() {
@@ -716,10 +713,8 @@ function roomBlock() {
     icon(open ? 'chevU' : 'chevD'), h('span', { class: 'ml', text: 'Room' }), !open && S.roomPending ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
   if (!open) return h('div', { class: 'rwrap closed' }, hd);
   const { room, el } = ensureRoom(), me = moodDoc(roleName()), they = moodDoc(otherRole());
-  const away = theirAway(); room.setMoods(me.emoji, they.emoji); room.setBubbles(me.text || '', they.text || ''); room.setAway(away);
-  // 안내 줄: 동작 중 문구가 아니면 상대의 자리 비움(마지막 접속)을 보여 준다
-  const on = Number(sd('me_' + otherRole()).online) || 0, def = away ? `1 away · last seen ${on ? short(on) + ' ago' : '–'}` : 'tap yourself to set status';
-  if (!S.room.actMsgAt || Date.now() - S.room.actMsgAt > 4000) S.room.say(def);
+  room.setView(matchMedia('(min-width: 760px)').matches ? 'tight' : 'wide');   // PC 는 사이드바가 좁아서 캐릭터 쪽을 더 가까이
+  room.setMoods(me.emoji, they.emoji); room.setAway(theirAway());
   return h('div', { class: 'rwrap' }, hd, el);
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.roomOpen) { S.roomOpen = false; renderMood(); } });

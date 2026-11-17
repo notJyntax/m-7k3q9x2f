@@ -191,9 +191,6 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .rwrap.closed { padding-bottom: 6px; }
 .mroom { display: flex; flex-direction: column; gap: 8px; }
 .room-cv { display: block; width: 100%; height: auto; aspect-ratio: 120 / 68; image-rendering: pixelated; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
-.room-act { display: flex; gap: 4px; }
-.room-act .btn.ic { flex: 1 1 0; width: auto; padding: 0; justify-content: center; font-size: 13px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
-.room-msg { margin: 0; min-height: 16px; font: 11px var(--mono); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mchip { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; border: 1px solid transparent; background: transparent; color: var(--text); border-radius: var(--r); padding: 5px 6px; cursor: pointer; position: relative; }
 .mchip:hover { background: var(--panel2); }
 .mav { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--panel2); border: 1.5px solid var(--line2); position: relative; }
@@ -582,6 +579,7 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 .more-menu .mi { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .more-menu .mi:hover, .more-menu .mi:focus-visible { background: var(--panel2); outline: 0; }
 .more-menu .mi.danger { color: var(--crit); }
+.more-menu .mi .mi-e { width: 16px; text-align: center; font-size: 14px; line-height: 1; }   /* Room 메뉴의 이모지 (아이콘 자리와 같은 폭) */
 .more-menu .mi .cnt { margin-left: auto; }
 @media (pointer: coarse) { .more-menu .mi { padding: 11px 12px; font-size: 14px; } }
 .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); background: var(--hi); color: var(--bg); padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; max-width: 90vw; z-index: 45; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }

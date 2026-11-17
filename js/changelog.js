@@ -2,6 +2,12 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-b', date: '11/17', title: 'Room 단순하게', items: [
+    ['change', 'Room: 말풍선을 없애고 캐릭터·고양이는 가만히 (고양이 둘은 나란히)'],
+    ['change', '상대 캐릭터를 누르면 Kiss · Hug · Pat (쓰담쓰담), 아래 버튼 줄은 없앰'],
+    ['new', '받으면 상대 화면에서도 같은 장면, 알림은 System · Keepalive OK 처럼'],
+    ['change', 'PC 에서는 캐릭터 쪽을 더 가까이 (더 크게)'],
+  ] },
   { id: '2026-11-17-a', date: '11/17', title: 'Room·폰 화면·모두 읽음', items: [
     ['new', 'Room: 두 사람과 고양이 두 마리가 사는 도트 방 (PC 왼쪽 아래 · 폰 맨 위)'],
     ['new', '상태 이모지 → 표정·소품, 한마디 → 말풍선. 내 캐릭터를 누르면 상태 설정'],
