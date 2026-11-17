@@ -2,8 +2,18 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-k', date: '11/17', title: '날짜·Uptime 도구·접기', items: [
+    ['change', '맨 위 오른쪽 날짜에 달력 아이콘'],
+    ['change', 'Uptime: 도구는 버튼을 눌렀을 때만 켜짐 (다시 누르면 꺼짐)'],
+    ['change', 'Update history 기본으로 접힘, 누르면 펼침'],
+    ['change', 'Received·Sent by me 같은 모양 (머리줄에 상태·답글 버튼)'],
+    ['fix', 'Wins: 글을 눌렀을 때 내용이 두 번 보이던 것'],
+    ['fix', '탭을 옮기면 열려 있던 자랑·답글 칸이 닫히게'],
+    ['change', 'Syslog·Entry·Changes·Weekly Agenda·Uptime 제목에도 아이콘'],
+    ['change', '알림: 새 자랑은 Syslog · New win, 박수는 Syslog · Ack received'],
+  ] },
   { id: '2026-11-17-j', date: '11/17', title: '새 화면 구성·Wins', items: [
-    ['new', '맨 위 인사 줄 (Good afternoon! · 한마디 · 날짜·시각)'],
+    ['new', '맨 위 인사 줄 (Good afternoon! · 한마디 · 날짜)'],
     ['new', 'Syslog 맨 위 Wins: 자랑만 쓰는 칸 (👏 박수·댓글)'],
     ['change', 'Inbox·Send 같은 모양: Commit 아래 Received·Sent by me'],
     ['change', '공유 로그 댓글은 Received 칸에 on shared log 로'],

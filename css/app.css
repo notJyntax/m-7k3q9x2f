@@ -69,10 +69,10 @@ html[data-theme="ops-excel"] body { font-size: 14px; letter-spacing: 0; }
 html[data-theme="ops-excel"] .view { background-color: #fff; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 100% 22px, 88px 100%; }
 /* 제목줄: 엑셀 초록 */
 html[data-theme="ops-excel"] .top { background: var(--accent); border-bottom: 0; color: #fff; }
-html[data-theme="ops-excel"] .top .greet-t b, html[data-theme="ops-excel"] .top .greet-t span, html[data-theme="ops-excel"] .top .greet-clock, html[data-theme="ops-excel"] .top .crumb, html[data-theme="ops-excel"] .top .crumb b, html[data-theme="ops-excel"] .top .brand b, html[data-theme="ops-excel"] .top .btn.ghost { color: #fff; }
+html[data-theme="ops-excel"] .top .greet-t b, html[data-theme="ops-excel"] .top .greet-t span, html[data-theme="ops-excel"] .top .greet-date, html[data-theme="ops-excel"] .top .greet-date .ico, html[data-theme="ops-excel"] .top .crumb, html[data-theme="ops-excel"] .top .crumb b, html[data-theme="ops-excel"] .top .brand b, html[data-theme="ops-excel"] .top .btn.ghost { color: #fff; }
 html[data-theme="ops-excel"] .top .btn.ghost:hover { background: rgba(255, 255, 255, .16); color: #fff; }
 html[data-theme="ops-excel"] .top .live { background: rgba(255, 255, 255, .92); }
-html[data-theme="ops-excel"] .top .greet-ic { background: rgba(255, 255, 255, .18); color: #fff; }
+html[data-theme="ops-excel"] .top .greet-ic, html[data-theme="ops-excel"] .top .greet-date { background: rgba(255, 255, 255, .18); border-color: transparent; color: #fff; }
 html[data-theme="ops-excel"] .top .mode, html[data-theme="ops-excel"] .top .env { background: rgba(255, 255, 255, .18); color: #fff; }
 html[data-theme="ops-excel"] .btn.refresh.has-update::after { border-color: var(--accent); }
 /* 사이드 메뉴: 시트 탭처럼 — 선택된 항목은 흰 바탕에 초록 왼쪽 선 */
@@ -157,7 +157,8 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .greet-t { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
 .greet-t b { font-weight: 600; font-size: 14.5px; color: var(--hi); }
 .greet-t span { font-size: 12.5px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; }
-.greet-clock { margin-left: auto; font-size: 12px; color: var(--sub); white-space: nowrap; flex: none; }
+.greet-date { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--panel); font-size: 12.5px; color: var(--text); white-space: nowrap; }
+.greet-date .ico { width: 15px; height: 15px; stroke-width: 2.2; color: var(--sub); }
 /* 카드 제목·구역 제목 아이콘: 색 없이 진한 선 */
 .card h3.h-ic { display: flex; align-items: center; gap: 8px; }
 .card h3.h-ic > .ico { width: 16px; height: 16px; flex: none; stroke-width: 2.4; color: var(--text); }
@@ -463,7 +464,7 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 .pl-in { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
 .pl-body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
 .pl-scene { position: relative; width: 168px; aspect-ratio: 4 / 3; touch-action: none; cursor: none; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); user-select: none; -webkit-user-select: none; }
-.pl.ro .pl-scene { cursor: default; }
+.pl.ro .pl-scene, .pl:not(.tool) .pl-scene { cursor: default; }
 .pl-cv { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .pl-scene::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, .16) 2px 3px); }
 html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-scene::after { background: repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, .035) 2px 3px); }   /* 밝은 테마는 화면 줄무늬를 옅게 */
@@ -760,7 +761,7 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
   .top { padding: env(safe-area-inset-top, 0px) 12px 0; gap: 6px; }
   .top .brand { display: flex; }
   .crumb, .env { display: none; }
-  .top .brand b, .greet-ic, .greet-t span, .greet-clock { display: none; }
+  .top .brand b, .greet-ic, .greet-t span, .greet-date { display: none; }
   .greet { gap: 6px; }
   .mood { flex-direction: row; align-items: center; padding: 6px 10px; border-right: 0; border-top: 0; border-bottom: 1px solid var(--line); gap: 4px; }
   .mood .mchip { flex: 1 1 0; padding: 3px 4px; }
@@ -812,3 +813,18 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 
 /* ───────── 13. 접근성·움직임 ───────── */
 @media (prefers-reduced-motion: reduce) { .ln.tailnew, .jump, .mchip .ndot { animation: none; } .boot-log, .btn { transition: none; } }
+
+/* 접는 카드 제목 줄 (Update history) */
+.fold-h { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
+.fold-h h3 { margin: 0; }
+.fold-h .cm-n { font: 500 11px var(--mono); color: var(--mute); }
+.fold-h > .ico { margin-left: auto; width: 16px; height: 16px; color: var(--sub); }
+.win-t.full { -webkit-line-clamp: unset; display: block; }
+.ih .ih-reply { margin-left: auto; width: 28px; height: 28px; padding: 0; display: inline-grid; place-items: center; color: var(--accent); }
+.ih .ih-reply .ico { width: 16px; height: 16px; }
+/* Wins 펼침: 댓글 칸 옆(아래쪽 맞춤)에 메뉴·Close */
+.win-open { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 10px; }
+.win-open > .row { flex-wrap: nowrap; }
+html[data-theme="ops-excel"] .card h3.h-ic > .ico { color: var(--accent); }
+html[data-theme="ops-excel"] .card.cm-col { border-top-color: var(--warn); }
+html[data-theme="ops-excel"] .card.cm-col.cm-out { border-top-color: var(--accent); }

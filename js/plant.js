@@ -9,6 +9,7 @@ const KINDS = ['water', 'light', 'feed'];
 const NAME = { water: 'moisture', light: 'light', feed: 'nutrients' };
 const TOOL_KIND = { water: 'water', sun: 'light', feed: 'feed' };
 const DONE_WORD = { water: 'watered', light: 'sunlight', feed: 'nutrients' };
+const HINT0 = '# pick a tool: 1 water · 2 sun · 3 feed';
 const HINTS = { water: '# hold the can over the pot to sprinkle', sun: '# hold the sun above the plant', feed: '# hold the dropper over the soil' };
 const CAN = ['.....HHHH.......', '....H....H......', '.BBBBBBBBB....SS', 'HBLLBBBBBB...SS.', 'HBLBBBBBBBSSSS..', 'HBBBBBBBBBS.....', '.BBBBBBBBB......', '.DDDDDDDDD......', '..DDDDDDD.......'];
 const SUN = ['.....Y.....', '..Y.....Y..', '....YYY....', '...YLLYY...', 'Y.YYLYYYY.Y', '...YYYYY...', '....YYY....', '..Y.....Y..', '.....Y.....'];
@@ -36,15 +37,15 @@ export function createGarden({ onCare, icon }) {
   const scene = h('div', { class: 'pl-scene' }, cv);
   const cells = {}, vals = {};
   const stat = (k) => { cells[k] = h('div', { class: 'pl-cells' }); vals[k] = h('em', { text: '0%' }); return h('div', { class: 'pl-stat' }, h('span', { text: NAME[k] }), cells[k], vals[k]); };
-  const meta = h('div', { class: 'pl-meta' }), today = h('div', { class: 'pl-today' }), log = h('div', { class: 'pl-log' }), hint = h('div', { class: 'pl-hint', text: HINTS.water });
-  const ops = Object.keys(HINTS).map((t, i) => h('button', { type: 'button', class: 'op' + (i ? '' : ' on'), 'data-tool': t, on: { click: () => pick(t) } }, h('kbd', { text: String(i + 1) }), t));
+  const meta = h('div', { class: 'pl-meta' }), today = h('div', { class: 'pl-today' }), log = h('div', { class: 'pl-log' }), hint = h('div', { class: 'pl-hint', text: HINT0 });
+  const ops = Object.keys(HINTS).map((t, i) => h('button', { type: 'button', class: 'op', 'aria-pressed': 'false', 'data-tool': t, on: { click: () => pick(t) } }, h('kbd', { text: String(i + 1) }), t));
   const who = [0, 1].map((u) => h('span', { class: 'pl-who u' + u }, h('i'), String(u)));
   // 접기: 이 기기에서만 기억 (접으면 제목 줄에 단계·나이만)
   const FOLD = 'svcmon.plant.fold';
   let folded = false; try { folded = localStorage.getItem(FOLD) === '1'; } catch { /* 없음 */ }
   const sum = h('span', { class: 'pl-sum' }), chev = h('span', { class: 'pl-chev' });
   const setFold = (v) => { folded = v; el.classList.toggle('folded', v); hd.setAttribute('aria-expanded', String(!v)); hd.title = v ? 'Show uptime' : 'Hide uptime'; chev.replaceChildren(icon ? icon(v ? 'chevD' : 'chevU') : (v ? '+' : '−')); try { localStorage.setItem(FOLD, v ? '1' : '0'); } catch { /* 없음 */ } };
-  const hd = h('button', { type: 'button', class: 'pl-hd', on: { click: () => setFold(!folded) } }, chev, h('h3', { text: 'Uptime' }), h('span', { class: 'sp' }), sum, ...who);
+  const hd = h('button', { type: 'button', class: 'pl-hd', on: { click: () => setFold(!folded) } }, chev, h('h3', { class: 'h-ic' }, icon ? icon('leaf') : null, 'Uptime'), h('span', { class: 'sp' }), sum, ...who);
   const el = h('div', { class: 'pl' },
     hd,
     h('div', { class: 'pl-term' },
@@ -58,7 +59,7 @@ export function createGarden({ onCare, icon }) {
 
   let M = { stage: 0, age: 0, wilting: false, mine: { water: 0, light: 0, feed: 0 }, theirs: { water: 0, light: 0, feed: 0 }, log: [], canWrite: false };
   const amb = { i: 0, n: 0, hold: 0, gap: 20 };   // 타자 로그 상태
-  const st = { tool: 'water', down: false, ptr: null, pend: { water: 0, light: 0, feed: 0 }, drops: [], pops: [], glow: 0, rays: 0, wet: 0, ok: null, tick: 0 };
+  const st = { tool: null, down: false, ptr: null, pend: { water: 0, light: 0, feed: 0 }, drops: [], pops: [], glow: 0, rays: 0, wet: 0, ok: null, tick: 0 };
   let T = null, Tt = 0;   // 색은 터미널 창 안(항상 어두움)에서 읽는다
   const tok = () => { const cs = getComputedStyle(cv), g = (n, f) => cs.getPropertyValue(n).trim() || f; return { sky: g('--pl-sky', '') || g('--bg', '#0b0d10'), ol: g('--pl-ol', ''), bg: g('--bg', '#0b0d10'), l2: g('--line2', '#2c323c'), ln: g('--line', '#232830'), ok: g('--ok', '#3ecf8e'), warn: g('--warn', '#f5b84d'), ac: g('--accent', '#5b9dff'), crit: g('--crit', '#ff6b6b'), tx: g('--text', '#e6e8ec') }; };
   const P = (x, y, c, a = 1) => { cx.globalAlpha = a; cx.fillStyle = c; cx.fillRect(Math.round(x) * S, Math.round(y) * S, S, S); cx.globalAlpha = 1; };
@@ -101,7 +102,7 @@ export function createGarden({ onCare, icon }) {
     st.pops.forEach((t) => { cx.globalAlpha = t.a; cx.fillStyle = T.ac; cx.fillText(t.s, Math.round(t.x), Math.round(t.y)); cx.globalAlpha = 1; });
     if (!st.ok && amb.s) { const txt = amb.s.slice(0, Math.floor(amb.n)); cx.globalAlpha = 0.8; cx.fillStyle = T.bg; cx.fillRect(4, 4, cx.measureText(amb.s).width + 8, 14); cx.globalAlpha = 1; cx.fillStyle = T.tx; cx.fillText(txt + (amb.n < amb.s.length || st.tick % 16 < 8 ? '_' : ''), 8, 7); }
     if (st.ok) { const L = st.ok, txt = L.s.slice(0, Math.floor(L.n)); cx.globalAlpha = 0.85; cx.fillStyle = T.bg; cx.fillRect(4, 4, cx.measureText(L.s).width + 8, 14); cx.globalAlpha = 1; cx.fillStyle = T.ok; cx.fillText(txt.slice(0, 6), 8, 7); cx.fillStyle = T.tx; cx.fillText(txt.slice(6), 8 + cx.measureText(txt.slice(0, 6)).width, 7); }
-    if (st.ptr && M.canWrite) {   // 손가락·커서 자리에 지금 든 도구
+    if (st.ptr && M.canWrite && st.tool) {   // 손가락·커서 자리에 지금 든 도구
       if (st.tool === 'water') spr2(CAN, { H: '#3b6fd1', B: T.ac, L: '#a9c8ff', D: '#3b6fd1', S: T.ac }, st.ptr.x, st.ptr.y + (st.down ? 2 : 0), 15, 2);
       if (st.tool === 'sun') spr2(SUN, { Y: T.warn, L: '#fff3c4' }, st.ptr.x, st.ptr.y, 5, 4);
       if (st.tool === 'feed') spr2(DROPPER, { R: st.down ? '#d65a5a' : T.crit, W: '#cfe3f0', L: T.ok }, st.ptr.x, st.ptr.y, 3, st.down ? 7 : 8);
@@ -132,10 +133,11 @@ export function createGarden({ onCare, icon }) {
     log.replaceChildren(...(M.log.length ? M.log.slice(0, 6).map((l) => h('div', null, h('span', { class: 't', text: hm(l.ts) }), h('span', { class: 'u' + l.who, text: String(l.who) }), h('span', { text: DONE_WORD[l.k] || l.k }), h('span', { class: 'g', text: `+${l.n * 10}%` })))
       : [h('div', { class: 'pl-empty', text: '# no care yet today' })]));
   }
-  const pick = (t) => { st.tool = t; ops.forEach((o) => o.classList.toggle('on', o.dataset.tool === t)); hint.textContent = HINTS[t]; };
+  // 도구는 처음엔 아무것도 안 든 상태. 버튼(또는 1·2·3)을 누르면 들고, 같은 버튼을 다시 누르면 내려놓는다
+  const pick = (t) => { st.tool = st.tool === t ? null : t; ops.forEach((o) => { const on = o.dataset.tool === st.tool; o.classList.toggle('on', on); o.setAttribute('aria-pressed', String(on)); }); hint.textContent = st.tool ? HINTS[st.tool] : HINT0; el.classList.toggle('tool', !!st.tool); };
   const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height }; };
   const overPot = () => st.ptr && Math.abs(st.ptr.x - PX * S) < 34 && st.ptr.y < 30 * S;
-  scene.addEventListener('pointerdown', (e) => { if (!M.canWrite) return; e.preventDefault(); try { scene.setPointerCapture(e.pointerId); } catch { /* 없음 */ } st.ptr = pos(e); st.down = true; });
+  scene.addEventListener('pointerdown', (e) => { if (!M.canWrite || !st.tool) return; e.preventDefault(); try { scene.setPointerCapture(e.pointerId); } catch { /* 없음 */ } st.ptr = pos(e); st.down = true; });
   scene.addEventListener('pointermove', (e) => { st.ptr = pos(e); });
   const up = () => {
     if (!st.down) return; st.down = false;

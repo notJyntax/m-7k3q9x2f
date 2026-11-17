@@ -76,8 +76,9 @@ function weekDays() {
 
 // ───────── UI 부품 ─────────
 // 카드 제목 왼쪽 아이콘(색 없이 진한 선). 제목마다 정해 둔 아이콘, 없으면 아이콘 없이
-const CARD_ICON = { 'Weekly report': 'chart', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'more', Engine: 'more', Welcome: 'sun', Wins: 'star' };
-const cardTitle = (title) => h('h3', { class: CARD_ICON[title] ? 'h-ic' : null }, CARD_ICON[title] ? icon(CARD_ICON[title]) : null, title);
+const CARD_ICON = { 'Weekly report': 'chart', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'more', Engine: 'more', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
+const cardIc = (title) => CARD_ICON[title] || (/ Log$/.test(title) ? 'note' : null);   // 날짜가 붙는 제목('11/17 Log')도
+const cardTitle = (title) => h('h3', { class: 'h-ic' }, cardIc(title) ? icon(cardIc(title)) : null, title);
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? cardTitle(title) : null, ...kids);
 // 구역 제목 줄: 아이콘 · 이름 · 개수 · 선
 const secHead = (ic, label, n) => h('div', { class: 'sec-h' }, icon(ic), h('span', { class: 'sec-l', text: label }), n != null ? h('span', { class: 'sec-n', text: String(n) }) : null, h('span', { class: 'sec-ln' }));
@@ -137,6 +138,7 @@ Object.assign(ICONS, {
   chart: '<path d="M5 19V9M12 19V5M19 19v-7"/>',
   hist: '<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/>',
   spark: '<path d="M12 3v5M12 16v5M3 12h5M16 12h5"/>',
+  leaf: '<path d="M5 19c0-8 5-13 14-14 0 9-5 14-14 14z"/><path d="M5 19l7-7"/>',
   chat: '<path d="M5 5h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4V6a1 1 0 0 1 1-1z"/>',
 });
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
@@ -353,7 +355,7 @@ function viewLogin() {
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); go(); } };
   email.addEventListener('keydown', onKey); pw.addEventListener('keydown', onKey);
-  return h('div', { class: 'page' }, h('section', { class: 'card login' }, h('h3', { text: 'Sign in' }),
+  return h('div', { class: 'page' }, h('section', { class: 'card login' }, cardTitle('Sign in'),
     email, pw, h('label', { class: 'opt' }, show, h('span', { text: 'Show password' })), msg,
     h('div', { class: 'row' }, btn('Try sandbox', () => boot({ sandbox: true }), 'small'), h('span', { class: 'sp' }), btn('Sign in', go, 'primary'))));
 }
@@ -400,7 +402,7 @@ function refresh() {
 }
 // 열어 둔 것(답글·새 아젠다·메모 입력칸, 아젠다 댓글, 펼친 로그·Syslog 글, 업데이트 내역, 해결된 아젠다·승인 내역 목록, 달력 기간 선택)은 다른 탭으로 옮겨 갈 때 모두 접는다. 시간으로는 접지 않는다.
 function collapseAll() {
-  S.replyOpen?.clear(); S.agOpen?.clear(); S.open?.clear(); S.sys?.open.clear();
+  S.replyOpen?.clear(); S.agOpen?.clear(); S.open?.clear(); S.sys?.open.clear(); if (S.sys) { S.sys.winOpen = null; S.sys.winsShow = false; S.sys.winsAll = false; } S.uhOpen = false;
   S.clOpen = {}; S.agHist = false; S.planHist = false;
   if (S.cal) { S.cal.end = null; S.cal.range = false; }
 }
@@ -568,13 +570,13 @@ function logoMark() {
   t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 512 512"><defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lg-bg1)"/><stop offset="1" style="stop-color:var(--lg-bg2)"/></linearGradient><linearGradient id="lg-gl" gradientUnits="userSpaceOnUse" x1="126" y1="206" x2="376" y2="372"><stop offset="0" style="stop-color:var(--lg-g1)"/><stop offset="1" style="stop-color:var(--lg-g2)"/></linearGradient><clipPath id="lg-c"><rect width="512" height="512" rx="115"/></clipPath></defs><rect width="512" height="512" rx="115" fill="url(#lg-bg)"/><g clip-path="url(#lg-c)"><path d="M0 0H512V150C380 205 160 120 0 190Z" style="fill:var(--lg-sheen)"/></g><rect x="7" y="7" width="498" height="498" rx="108" fill="none" stroke-width="14" style="stroke:var(--lg-line)"/><g fill="none" stroke="url(#lg-gl)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"><path d="M126 206 232 286 126 366"/><path d="M268 372H376"/></g><circle cx="392" cy="136" r="62" fill-opacity=".28" style="fill:var(--lg-dot)"/><circle cx="392" cy="136" r="40" stroke-width="12" style="fill:var(--lg-dot);stroke:var(--lg-ring)"/></svg></span>';
   return t.content.firstChild;
 }
-// 상단 인사: 해 아이콘 · Good afternoon! · 짧은 한마디 / 오른쪽 날짜·현재 시각 (1분마다 갱신)
+// 상단 인사: 해 아이콘 · Good afternoon! · 짧은 한마디 / 오른쪽 달력 아이콘 + 날짜 (시각 없음, 30초마다 갱신)
 const GREET_LINES = ['Small steps still count.', 'One thing at a time.', "You're doing fine.", 'Breathe. Then begin.', 'Good things take time.', 'Be kind to yourself today.', 'Slow is still forward.'];
 const greetWord = (h0 = new Date().getHours()) => (h0 >= 5 && h0 < 12 ? 'Good morning!' : h0 >= 12 && h0 < 18 ? 'Good afternoon!' : h0 >= 18 && h0 < 22 ? 'Good evening!' : 'Good night!');
-const greetClock = () => { const d = new Date(); return `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${hm(d.getTime())}`; };
+const greetClock = () => new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 function greetBlock() {
   const line = GREET_LINES[Math.floor(Date.now() / 864e5) % GREET_LINES.length];
-  return h('div', { class: 'greet' }, h('span', { class: 'greet-ic' }, icon('sun')), h('div', { class: 'greet-t' }, h('b', { text: greetWord() }), h('span', { text: line })), h('span', { class: 'greet-clock mono', text: greetClock() }));
+  return h('div', { class: 'greet' }, h('span', { class: 'greet-ic' }, icon('sun')), h('div', { class: 'greet-t' }, h('b', { text: greetWord() }), h('span', { text: line })), h('span', { class: 'greet-date' }, icon('calendar'), h('span', { class: 'greet-clock', text: greetClock() })));
 }
 setInterval(() => { const c = document.querySelector('.greet-clock'), w = document.querySelector('.greet-t b'); if (c) c.textContent = greetClock(); if (w) w.textContent = greetWord(); }, 30000);
 function renderChrome() {
@@ -1028,21 +1030,22 @@ function commitThread(c, view) {
   const send = act(async () => { if (await sendField(box, (t) => S.store.set('commit_replies', 'cr_' + uid(), { commitId: c.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) { S.replyOpen.delete('cr-' + c.id); renderView(); } });
   onEnter(box, send);
   const list = commitReplies(c.id);
-  if (view !== 'in' && !list.length) return null;
+  const open = view === 'in' && S.replyOpen?.has('cr-' + c.id);   // 답글 칸은 머리줄의 ↩ 를 눌렀을 때만
+  if (!list.length && !open) return null;
   return h('div', { class: 'sl-thread rv-thread' },
     list.map((r) => cmtRow({ time: hm(r.ts), by: `by ${r.by === me ? '0' : '1'}`, them: r.by !== me, text: r.text, edited: r.editedAt, like: likeBtn(r, { commitId: c.id }, me),
       onEdit: r.by === me ? () => editText({ title: 'Edit reply', text: r.text, max: 200, onSave: (t) => S.store.patch('commit_replies', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: r.by === me ? () => S.store.del('commit_replies', r.id) : null })),
-    view === 'in' ? replyArea('cr-' + c.id, box, send, 'Reply', 'Send', true) : null);
+    open ? replyArea('cr-' + c.id, box, send, 'Reply', 'Send', true) : null);
 }
 // view: 'in' = 내가 받은 commit(확인·하트·답글), 'out' = 내가 보낸 commit(상태·예약 취소·삭제·상대의 답글)
-function commitItem(c, view) {
-  const me = roleName(), sender = c.by || 'listener', now = Date.now(), co = { ...c, by: sender };
-  const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: (view === 'out' ? 'sent ' : 'commit ') + (c.sha || String(c.id || '').slice(-7)) }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }),
-    view === 'out' ? (c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(sender === 'listener' ? 'deployed ✓' : 'read ✓', 'ok') : badge('delivered')) : null);
-  const ackLabel = sender === 'listener' ? 'Deployed ✓' : 'Got it';
-  // commit 메시지 자체에는 좋아요·삭제가 없다 (답글의 좋아요는 그대로). 받은 쪽은 확인 버튼(+보관), 보낸 쪽은 아직 도착 전(예약)일 때만 보내기 취소.
-  const actions = view === 'in'
-    ? h('div', { class: 'row' }, c.ack ? badge((sender === 'listener' ? 'deployed ✓ ' : 'read ✓ ') + hm(c.ackAt), 'ok') : btn(ackLabel, act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary'), h('span', { class: 'sp' }), sender === 'listener' ? keepBtn(c.text, c.id) : null)
+function commitItem(c, view) {   // 받은 것·보낸 것 같은 모양: 머리줄(commit sha · 시각 · 상태 배지) → 내용 → (필요할 때만) 버튼 줄 → 답글
+  const sender = c.by || 'listener', now = Date.now();
+  const done = sender === 'listener' ? 'deployed ✓' : 'read ✓';
+  const status = c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(`${done} ${hm(c.ackAt)}`, 'ok') : view === 'out' ? badge('delivered') : null;
+  const replyBtn = view === 'in' && !S.replyOpen?.has('cr-' + c.id) ? h('button', { type: 'button', class: 'btn ghost small ic ih-reply', title: 'Reply', 'aria-label': 'Reply', on: { click: () => { (S.replyOpen ??= new Set()).add('cr-' + c.id); renderView(); document.getElementById('cr-' + c.id)?.focus(); } } }, icon('reply')) : null;
+  const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'commit ' + (c.sha || String(c.id || '').slice(-7)) }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }), status, replyBtn);
+  const keep = view === 'in' && sender === 'listener' ? keepBtn(c.text, c.id) : null;
+  const actions = view === 'in' ? (!c.ack || keep ? h('div', { class: 'row' }, !c.ack ? btn(sender === 'listener' ? 'Deployed ✓' : 'Got it', act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary') : null, h('span', { class: 'sp' }), keep) : null)
     : c.deliverAt > now ? h('div', { class: 'row' }, h('span', { class: 'sp' }), btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small')) : null;
   return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
 }
@@ -1067,7 +1070,7 @@ function commitPanel() {
   const got = rows('commits').filter((c) => !isMine(c) && (c.deliverAt || c.ts) <= now).map((c) => [c.deliverAt || c.ts, commitItem(c, 'in')]);
   const sent = rows('commits').filter(isMine).map((c) => [c.deliverAt || c.ts, commitItem(c, 'out')]);
   const revs = [...rows('lines')].map((ln) => [ln, rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts)]).filter(([, rv]) => rv.length)
-    .map(([ln, rv]) => [rv[rv.length - 1].ts, h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'ih' }, badge('on shared log'), h('span', { class: 'sub', text: hm(rv[rv.length - 1].ts) })), h('div', { class: 'mono sl-line', text: ln.text }), rv.map((r) => reviewRow(ln, r, me)))]);
+    .map(([ln, rv]) => [rv[rv.length - 1].ts, h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'shared log' }), h('span', { class: 'sub', text: hm(rv[rv.length - 1].ts) })), h('div', { class: 'mono sl-line', text: ln.text }), rv.map((r) => reviewRow(ln, r, me)))]);
   (wr ? got : sent).push(...revs);
   const list = (a) => a.sort((x, y) => y[0] - x[0]).map(([, el]) => el);
   const send = act(async () => {
@@ -1209,7 +1212,7 @@ function planChangesCard() {
   const title = (l) => h('b', { class: 'pc-t' }, catIcon(kindOf(l)), planText(l));
   // 가로로 길고 세로가 짧은 띠: 변경이 없으면 한 줄, 있으면 그 줄들만 아래에 이어 붙는다
   const status = needs.length ? `${needs.length} to review` : mine.length ? `${mine.length} waiting for approval` : 'nothing to review';
-  const head = h('div', { class: 'pc-head' }, h('h3', { text: 'Changes' }), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
+  const head = h('div', { class: 'pc-head' }, cardTitle('Changes'), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
     done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
   const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
     needs.map((l) => h('div', { class: 'prow need' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
@@ -1274,7 +1277,7 @@ function agendaCard() {
       isOpen ? thread(a, kind === 'open') : null);
   };
   return h('section', { class: 'card agenda' },
-    h('h3', { text: 'Weekly Agenda' }),
+    cardTitle('Weekly Agenda'),
     open.length ? h('div', { class: 'ag-list' }, open.map((a) => item(a, 'open'))) : empty('No agenda yet'),
     replyArea('ag-new', input, add, 'New agenda', 'Add'),
     solved.length ? [
@@ -1378,7 +1381,13 @@ const clFold = (e, history) => {
 const updatesCard = () => { const un = clUnread(); const list = un.length ? un.slice(0, 3) : CHANGELOG.slice(0, 1);
   return card('Updates', ...list.map((e) => clFold(e, false)), un.length > 1 ? h('div', { class: 'row' }, btn('Confirm all', act(() => clConfirm(un.map((e) => e.id))), 'small')) : null); };
 // 내역(history)에는 읽은 업데이트만 — 안 읽은 것은 위의 Updates 카드에 있다. 읽음 처리하면 내역으로 옮겨 간다.
-const updateHistoryCard = () => { const read = CHANGELOG.filter((e) => clAcked().has(e.id)); return card('Update history', ...(read.length ? read.map((e) => clFold(e, true)) : [empty('아직 읽은 업데이트가 없어요')])); };
+// Update history: 기본은 접혀 있고 제목 줄을 누르면 펼친다 (탭을 옮기면 다시 접힘)
+const updateHistoryCard = () => {
+  const read = CHANGELOG.filter((e) => clAcked().has(e.id)), open = !!S.uhOpen;
+  const head = h('button', { type: 'button', class: 'fold-h', 'aria-expanded': String(open), on: { click: () => { S.uhOpen = !open; renderView(); } } },
+    cardTitle('Update history'), h('span', { class: 'cm-n', text: String(read.length) }), icon(open ? 'chevU' : 'chevD'));
+  return h('section', { class: 'card' + (open ? '' : ' folded') }, head, ...(open ? (read.length ? read.map((e) => clFold(e, true)) : [empty('아직 읽은 업데이트가 없어요')]) : []));
+};
 function viewSettingsW() {
   const st = sd('status'), m = meta();
   const sw = (label, checked, fn, sub) => h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked, on: { change: act((e) => fn(e.target.checked)) } }), h('span', {}, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
@@ -1597,7 +1606,7 @@ function sysRow(p, kept) {
 }
 function sysDetail(p, kept) {
   const mine = p.by === roleName(), sev = sysSev(p);
-  return [h('h3', { text: 'Entry' }),
+  return [cardTitle('Entry'),
     h('div', { class: 'sl-dmeta' }, h('span', { text: mdhm(p.ts) }), h('span', { text: `user.${sev}` }), h('span', { class: mine ? '' : 'them', text: `by ${mine ? '0' : '1'}` }), p.editedAt ? h('span', { class: 'b-ed', text: '[edited]' }) : null),
     h('p', { class: 'sl-text sl-dtext', text: p.text }),
     sysBody(p, kept)];
@@ -1657,21 +1666,20 @@ function winCard(p, st) {
   const fresh = !mine && p.ts > (S.sysSince ?? Infinity) && !st.read.has(p.id);
   const toggle = () => { st.winOpen = open ? null : p.id; st.read.add(p.id); renderView(); };
   return h('div', { class: 'win' + (open ? ' on' : '') + (fresh ? ' fresh' : ''), 'data-pid': p.id, role: 'button', tabindex: '0', on: { click: toggle, keydown: (e) => { if (e.key === 'Enter') toggle(); } } },
-    h('p', { class: 'win-t' + (st.mask && !open ? ' mask' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
+    h('p', { class: 'win-t' + (st.mask && !open ? ' mask' : '') + (open ? ' full' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
     h('div', { class: 'win-f' }, h('span', { class: 'sub mono', text: `by ${mine ? '0' : '1'} · ${dayKey(p.ts) === dayKey() ? hm(p.ts) : mdhm(p.ts).split(' ')[0]}` }), newTag(fresh), h('span', { class: 'sp' }),
       h('button', { type: 'button', class: 'win-b' + (myClap ? ' on' : ''), title: myClap ? 'Undo clap' : 'Clap', 'aria-pressed': String(myClap), on: { click: act(async (e) => { e.stopPropagation(); await S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: myClap ? '' : '👏', ts: Date.now() }); }) } }, '👏', h('span', { text: cl.length || '' })),
       h('span', { class: 'win-b ro' }, '💬', h('span', { text: nC || '' }))));
 }
-function winDetail(p) {
+function winDetail(p) {   // 카드에 이미 글이 보이므로 여기엔 글을 다시 쓰지 않는다: 메뉴·닫기·댓글만
   const mine = p.by === roleName();
   return h('div', { class: 'win-open' },
-    h('div', { class: 'row' }, h('span', { class: 'sub mono', text: `${mdhm(p.ts)} · by ${mine ? '0' : '1'}${p.editedAt ? ' · edited' : ''}` }), h('span', { class: 'sp' }),
+    sysThread(p.id, true),
+    h('div', { class: 'row' }, h('span', { class: 'sp' }),
       mine ? moreMenu([
         { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit win', text: p.text, max: 300, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
         { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { sysState().winOpen = null; await S.store.del('posts', p.id); }) }] }) }]) : null,
-      btn('Close', () => { sysState().winOpen = null; renderView(); }, 'small quiet')),
-    h('p', { class: 'msgtext', text: p.text }),
-    sysThread(p.id, true));
+      btn('Close', () => { sysState().winOpen = null; renderView(); }, 'small quiet')));
 }
 function winsStrip(st) {
   const me = roleName(), all = wins();
@@ -1705,9 +1713,9 @@ function viewSyslog() {
   const listBox = h('div', { class: 'sl-list' }, listRows());
   const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
   const wide = sysWide(), sel = wide ? all.find((p) => st.open.has(p.id)) : null;
-  const detail = !wide ? null : h('section', { class: 'card sl-detail' }, sel ? sysDetail(sel, kept.has(sel.id)) : [h('h3', { text: 'Entry' }), empty('목록에서 글을 누르면 여기에 열려요')]);
+  const detail = !wide ? null : h('section', { class: 'card sl-detail' }, sel ? sysDetail(sel, kept.has(sel.id)) : [cardTitle('Entry'), empty('목록에서 글을 누르면 여기에 열려요')]);
   return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, winsStrip(st), h('section', { class: 'card syslog' },
-    h('div', { class: 'row sl-head' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sl-hact' },
+    h('div', { class: 'row sl-head' }, cardTitle('Syslog'), h('span', { class: 'sl-hact' },
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
       tglBtn(st.mask ? 'eyeOff' : 'eye', st.mask ? 'Mask on (hide text) · tap to show' : 'Mask off · tap to hide text', st.mask, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); renderView(); }),
       tglBtn(syslogMuted() ? 'bellOff' : 'bell', syslogMuted() ? 'Notify off for Syslog · tap to turn on' : 'Notify on for Syslog · tap to turn off', !syslogMuted(), act(() => S.store.set('shared', 'syslog_mute_' + me, { muted: !syslogMuted(), ts: Date.now() }))))),
