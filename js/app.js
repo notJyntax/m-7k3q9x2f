@@ -1578,10 +1578,10 @@ function likeBtn(c, scope, me) {
     on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, icon(mine ? 'heartOn' : 'heart'));
   return h('span', { class: 'lk-wrap', 'data-newlike': fresh ? '1' : '0' }, heart, h('span', { class: 'lk-n', title: ls.length ? `${ls.length} liked` : '', text: ls.length || '' }));
 }
-function sysThread(id, canAdd, opt = {}) {   // opt: Wins 댓글처럼 입력칸 글·버튼 이름을 바꿀 때 (ph, label, send)
+function sysThread(id, canAdd, opt = {}) {   // opt.inline: 글 아래 댓글 상자(c-box) 안 — 입력칸이 늘 보이고 버튼 하나(Comment)
   const me = roleName(), all = sysComments(id), top = all.filter((c) => !c.parentId), kids = (pid) => all.filter((c) => c.parentId === pid);
   S.replyOpen ??= new Set();
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: opt.ph || 'comment', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: opt.inline ? 'Write a comment…' : 'comment', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
   const send = act(async () => { if (await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() }))) { S.replyOpen.delete('sc-' + id); renderView(); } });
   onEnter(box, send);
   // 댓글 한 줄 (답댓글이면 isReply: 한 단계만이라 더 답할 수 없다). 답글 쓰기는 줄 오른쪽의 ↩ 아이콘으로 입력칸을 연다.
@@ -1598,7 +1598,7 @@ function sysThread(id, canAdd, opt = {}) {   // opt: Wins 댓글처럼 입력칸
   };
   return h('div', { class: 'sl-thread rv-thread' },
     top.map((c) => { const ks = kids(c.id), rbx = replyBox(c); return ks.length || rbx ? h('div', { class: 'cm-grp' }, row(c, false), h('div', { class: 'cm-kids' }, ks.map((k) => row(k, true)), rbx)) : row(c, false); }),
-    canAdd ? replyArea('sc-' + id, box, send, opt.label || 'Comment', opt.send || 'Send') : null);
+    canAdd ? (opt.inline ? h('div', { class: 'row c-new' }, box, btn('Comment', send, 'small dark txt')) : replyArea('sc-' + id, box, send, opt.label || 'Comment', opt.send || 'Send')) : null);
 }
 function sysRow(p, kept) {
   const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me;
@@ -1630,7 +1630,7 @@ function sysBody(p, kept) {
   const title = (p.text || '').split('\n')[0].slice(0, 90);
   const keepBtn2 = btn(kept ? 'Unkeep' : 'Keep', act(async () => { if (kept) { for (const x of keeps().filter((x) => x.kind === 'syslog' && x.from === p.id)) await S.store.del('@', x.id); } else await S.store.set('@', 'keep_' + uid(), { type: 'keep', kind: 'syslog', ts: Date.now(), text: title, from: p.id }); }), 'small quiet');
   return h('div', { class: 'sl-body' },
-    sysThread(p.id, true),
+    h('div', { class: 'c-box' }, sysThread(p.id, true, { inline: true })),
     h('div', { class: 'sl-act' }, keepBtn2,
       mine ? moreMenu([
         { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit entry', text: p.text, max: SYS_MAX, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
@@ -1694,9 +1694,7 @@ function winRow(p, st) {
       { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit win', text: p.text, max: 300, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
       { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { st.winOpen = null; await S.store.del('posts', p.id); }) }] }) }])) : null));
   if (!open) return h('div', { class: 'w-row' + (fresh ? ' fresh' : '') }, line);
-  return h('div', { class: 'w-row open' }, line, h('div', { class: 'w-body' },
-    h('div', { class: 'w-bh' }, icon('comment'), `Comments ${nC || ''}`.trim()),
-    sysThread(p.id, true, { ph: '축하 한마디', label: 'Comment', send: 'Reply' })));
+  return h('div', { class: 'w-row open' }, line, h('div', { class: 'c-box w-cbox' }, sysThread(p.id, true, { inline: true })));
 }
 function winsView(st) {
   const me = roleName(), all = wins();

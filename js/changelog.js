@@ -2,6 +2,11 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-n', date: '11/17', title: '글꼴·댓글 상자', items: [
+    ['change', '라벨·시각·개수·배지 같은 안내 글자는 일반 글꼴로'],
+    ['change', '로그 줄·명령줄·커밋 번호만 터미널 글꼴'],
+    ['change', '글 아래 댓글은 둥근 회색 상자 안에, 입력칸과 Comment 버튼은 상자 맨 아래'],
+  ] },
   { id: '2026-11-17-m', date: '11/17', title: '도트 막대·작은 아이콘', items: [
     ['change', '앱의 모든 막대를 반투명 네모 도트로'],
     ['change', '수치 이름·줄 머리(moisture, CPU, pass 등) 앞에 작은 아이콘'],
