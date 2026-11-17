@@ -2,6 +2,14 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-j', date: '11/17', title: '새 화면 구성·Wins', items: [
+    ['new', '맨 위 인사 줄 (Good afternoon! · 한마디 · 날짜·시각)'],
+    ['new', 'Syslog 맨 위 Wins: 자랑만 쓰는 칸 (👏 박수·댓글)'],
+    ['change', 'Inbox·Send 같은 모양: Commit 아래 Received·Sent by me'],
+    ['change', '공유 로그 댓글은 Received 칸에 on shared log 로'],
+    ['change', '카드 제목마다 선 아이콘'],
+    ['new', 'Uptime: 그림 위 로그 한 줄, 다음 단계까지 남은 날 막대'],
+  ] },
   { id: '2026-11-17-i', date: '11/17', title: 'Uptime 새 디자인', items: [
     ['change', 'Uptime: 화분은 진행 막대(함께 키운 만큼 참), 꽃은 둥근 꽃잎 데이지'],
     ['change', 'Uptime: 밝은 테마에서는 그림 바탕을 옅은 회색으로 (흰 꽃잎이 잘 보이게)'],

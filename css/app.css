@@ -69,9 +69,10 @@ html[data-theme="ops-excel"] body { font-size: 14px; letter-spacing: 0; }
 html[data-theme="ops-excel"] .view { background-color: #fff; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 100% 22px, 88px 100%; }
 /* 제목줄: 엑셀 초록 */
 html[data-theme="ops-excel"] .top { background: var(--accent); border-bottom: 0; color: #fff; }
-html[data-theme="ops-excel"] .top .crumb, html[data-theme="ops-excel"] .top .crumb b, html[data-theme="ops-excel"] .top .brand b, html[data-theme="ops-excel"] .top .btn.ghost { color: #fff; }
+html[data-theme="ops-excel"] .top .greet-t b, html[data-theme="ops-excel"] .top .greet-t span, html[data-theme="ops-excel"] .top .greet-clock, html[data-theme="ops-excel"] .top .crumb, html[data-theme="ops-excel"] .top .crumb b, html[data-theme="ops-excel"] .top .brand b, html[data-theme="ops-excel"] .top .btn.ghost { color: #fff; }
 html[data-theme="ops-excel"] .top .btn.ghost:hover { background: rgba(255, 255, 255, .16); color: #fff; }
 html[data-theme="ops-excel"] .top .live { background: rgba(255, 255, 255, .92); }
+html[data-theme="ops-excel"] .top .greet-ic { background: rgba(255, 255, 255, .18); color: #fff; }
 html[data-theme="ops-excel"] .top .mode, html[data-theme="ops-excel"] .top .env { background: rgba(255, 255, 255, .18); color: #fff; }
 html[data-theme="ops-excel"] .btn.refresh.has-update::after { border-color: var(--accent); }
 /* 사이드 메뉴: 시트 탭처럼 — 선택된 항목은 흰 바탕에 초록 왼쪽 선 */
@@ -149,6 +150,52 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .crumb { font: 12.5px var(--mono); color: var(--sub); white-space: nowrap; }
 .crumb b { color: var(--text); font-weight: 500; }
 .top .right { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+/* 상단 인사 줄: 해 아이콘 · 인사 · 한마디 / 날짜·시각 */
+.greet { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.greet-ic { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--panel2); color: var(--text); }
+.greet-ic .ico { width: 17px; height: 17px; stroke-width: 2.4; }
+.greet-t { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.greet-t b { font-weight: 600; font-size: 14.5px; color: var(--hi); }
+.greet-t span { font-size: 12.5px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; }
+.greet-clock { margin-left: auto; font-size: 12px; color: var(--sub); white-space: nowrap; flex: none; }
+/* 카드 제목·구역 제목 아이콘: 색 없이 진한 선 */
+.card h3.h-ic { display: flex; align-items: center; gap: 8px; }
+.card h3.h-ic > .ico { width: 16px; height: 16px; flex: none; stroke-width: 2.4; color: var(--text); }
+.sec-h { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.sec-h > .ico { width: 15px; height: 15px; flex: none; stroke-width: 2.4; }
+.sec-h .sec-n { font-weight: 500; color: var(--mute); }
+.sec-h .sec-ln { flex: 1; height: 1px; background: var(--line); }
+/* commit 화면: 작성칸 + Received(노랑)·Sent by me(파랑) 두 칸, 높이 맞춤 */
+.cm-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.cm-pair { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: stretch; }
+@media (min-width: 900px) { .cm-pair { grid-template-columns: 1fr 1fr; } }
+.card.cm-col { border-top: 3px solid var(--warn); }
+.card.cm-col.cm-out { border-top-color: var(--accent); }
+.cm-col h3 .cm-n { margin-left: auto; font: 500 11px var(--mono); color: var(--mute); letter-spacing: 0; }
+.cm-col .sl-line { font-size: 12px; color: var(--sub); }
+/* Wins 띠 (Syslog 맨 위, 전체 폭 카드) */
+.wins-h { display: flex; align-items: center; gap: 12px; }
+.wins-h h3 { flex: 1; min-width: 0; margin: 0; }
+.wins.folded { flex-direction: row; align-items: center; gap: 12px; }
+.wins.folded .wins-h { flex: none; }
+.wins.folded .wins-h h3 { flex: none; }
+.win-last { flex: 1; min-width: 0; font-size: 12.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win-link { border: 0; background: none; padding: 0; font: 500 12px var(--sans); color: var(--accent); cursor: pointer; white-space: nowrap; }
+.win-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 899px) { .win-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; } .win-grid .win { flex: 0 0 78%; scroll-snap-align: start; } }
+.win { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel2); cursor: pointer; min-width: 0; }
+.win:hover { border-color: var(--line2); }
+.win.on { border-color: var(--accent); }
+.win.fresh { box-shadow: inset 3px 0 0 var(--accent); }
+.win-t { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.win-t.mask { font: 12px var(--mono); color: var(--mute); }
+.win-f { display: flex; align-items: center; gap: 6px; margin-top: auto; font-size: 11.5px; white-space: nowrap; }
+.win-b { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid var(--line); border-radius: 99px; background: var(--panel); font: 500 11.5px var(--mono); color: var(--sub); cursor: pointer; }
+.win-b.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.win-b.ro { cursor: inherit; }
+.win-open { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.win-open .msgtext { margin: 0; }
+.win-cmp input { flex: 1; min-width: 0; }
 .live, .mode, .env { font: 500 11.5px var(--mono); padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
 .live { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; }
 .live::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
@@ -427,7 +474,13 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 .pl-cells s { height: 9px; border-radius: 2px; background: var(--line2); text-decoration: none; opacity: .55; }
 .pl-cells s.u0, .pl-cells s.u1 { opacity: 1; } .pl-cells s.u0 { background: var(--accent); } .pl-cells s.u1 { background: var(--warn); }
 .pl-cells i { width: 1px; height: 13px; background: var(--line2); justify-self: center; }
-.pl-meta { color: var(--mute); font-size: 11px; } .pl-meta b { color: var(--text); font-weight: 500; } .pl-wilt { color: var(--warn); }
+.pl-meta { color: var(--mute); font-size: 11px; display: flex; flex-direction: column; gap: 6px; } .pl-meta b { color: var(--text); font-weight: 500; } .pl-wilt { color: var(--warn); }
+.pl-next { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font: 10.5px var(--mono); }
+.pl-next .lb { letter-spacing: .06em; text-transform: uppercase; }
+.pl-nbar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+.pl-nbar s { height: 6px; border-radius: 1px; background: var(--line); }
+.pl-nbar s.on { background: var(--ok); }
+.pl-next .lf { color: var(--text); }
 .pl-today { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
 .pl-today .lb { font: 500 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
 .pl-tr { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
@@ -707,6 +760,8 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
   .top { padding: env(safe-area-inset-top, 0px) 12px 0; gap: 6px; }
   .top .brand { display: flex; }
   .crumb, .env { display: none; }
+  .top .brand b, .greet-ic, .greet-t span, .greet-clock { display: none; }
+  .greet { gap: 6px; }
   .mood { flex-direction: row; align-items: center; padding: 6px 10px; border-right: 0; border-top: 0; border-bottom: 1px solid var(--line); gap: 4px; }
   .mood .mchip { flex: 1 1 0; padding: 3px 4px; }
   .mood .mfold { flex: none; padding: 4px; }

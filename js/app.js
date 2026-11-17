@@ -75,7 +75,12 @@ function weekDays() {
 }
 
 // ───────── UI 부품 ─────────
-const card = (title, ...kids) => h('section', { class: 'card' }, title ? h('h3', { text: title }) : null, ...kids);
+// 카드 제목 왼쪽 아이콘(색 없이 진한 선). 제목마다 정해 둔 아이콘, 없으면 아이콘 없이
+const CARD_ICON = { 'Weekly report': 'chart', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'more', Engine: 'more', Welcome: 'sun', Wins: 'star' };
+const cardTitle = (title) => h('h3', { class: CARD_ICON[title] ? 'h-ic' : null }, CARD_ICON[title] ? icon(CARD_ICON[title]) : null, title);
+const card = (title, ...kids) => h('section', { class: 'card' }, title ? cardTitle(title) : null, ...kids);
+// 구역 제목 줄: 아이콘 · 이름 · 개수 · 선
+const secHead = (ic, label, n) => h('div', { class: 'sec-h' }, icon(ic), h('span', { class: 'sec-l', text: label }), n != null ? h('span', { class: 'sec-n', text: String(n) }) : null, h('span', { class: 'sec-ln' }));
 const badge = (t, c = '') => h('span', { class: 'badge ' + c, text: t });
 // 버튼은 기능별로 색을 달리한다 (굵기 X): 보내기·추가=파랑, 해결·확인=초록, 삭제·중단=빨강, 보관=노랑, 설정 켜고 끄기=상태만 색, 나머지(취소·닫기·이동)=회색
 const BTN_KIND = [['k-del', /^(Delete|Reject|Unshare|Clear|Cancel scheduled|Abort|Exit sandbox|Sign out|Turn off)/], ['k-ok', /^(Resolve|Approve|Deployed|I hear you|Confirm)/], ['k-keep', /^(⭐ )?(Keep|Unkeep)/], ['k-go', /^(Add|Post|Send|Reply|Commit|Run|Share|Save|Sign in|Try sandbox|Turn on)/], ['k-nt', /^(Cancel|Close|Not now|Exit|Hide|OK$)/]];
@@ -124,6 +129,16 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
 const TAB_ICON = { console: 'tConsole', dash: 'tDash', inbox: 'tInbox', syslog: 'tSyslog', plan: 'tPlan', report: 'tReport', archive: 'tArchive', settings: 'tSettings', overview: 'tOverview', queue: 'tQueue', send: 'tSend' };
 const PHONE_TABS = 5;   // 폰 하단 탭바에 바로 보이는 탭 수. 나머지는 More 안에
 const ICON_OF = { Edit: 'edit', Delete: 'trash', Keep: 'keep', '⭐ Keep': 'keep', Unkeep: 'keepOn', Resolve: 'resolve', Share: 'share', 'Share log': 'share', Unshare: 'unshare', Copy: 'copy', Reply: 'reply', Comment: 'comment', Approve: 'approve', Reject: 'reject', More: 'more', '<': 'chevL', '>': 'chevR', '×': 'close', '↻': 'refresh', '?': 'help' };
+Object.assign(ICONS, {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>',
+  star: '<path d="M12 4l2.4 5 5.6.8-4 3.9 1 5.5L12 16.6 7 19.2l1-5.5-4-3.9 5.6-.8z"/>',
+  arrowIn: '<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
+  arrowOut: '<path d="M12 20V9"/><path d="M7 14l5-5 5 5"/><path d="M5 4h14"/>',
+  chart: '<path d="M5 19V9M12 19V5M19 19v-7"/>',
+  hist: '<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/>',
+  spark: '<path d="M12 3v5M12 16v5M3 12h5M16 12h5"/>',
+  chat: '<path d="M5 5h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4V6a1 1 0 0 1 1-1z"/>',
+});
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
 // 아이콘이 될 수 없는(글자가 필요한) 버튼은 앞에 작은 아이콘을 붙인다
 const LEAD = [[/^Add$/, 'plus'], [/^(Post|Send|Commit)$/, 'send'], [/^Today$/, 'calendar'], [/^See$/, 'eye'], [/^(Confirm all|Mark all read)$/, 'checks'], [/^(Show|Hide) resolved/, 'resolve'], [/^(Save|Got it|OK)$/, 'check'], [/^Range$/, 'range'], [/^Reply$/, 'reply'], [/^Comment$/, 'comment'], [/^New agenda$/, 'plus'], [/^Memo$/, 'note'], [/^Refresh$/, 'refresh']];
@@ -553,6 +568,15 @@ function logoMark() {
   t.innerHTML = '<span class="logo" aria-hidden="true"><svg viewBox="0 0 512 512"><defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lg-bg1)"/><stop offset="1" style="stop-color:var(--lg-bg2)"/></linearGradient><linearGradient id="lg-gl" gradientUnits="userSpaceOnUse" x1="126" y1="206" x2="376" y2="372"><stop offset="0" style="stop-color:var(--lg-g1)"/><stop offset="1" style="stop-color:var(--lg-g2)"/></linearGradient><clipPath id="lg-c"><rect width="512" height="512" rx="115"/></clipPath></defs><rect width="512" height="512" rx="115" fill="url(#lg-bg)"/><g clip-path="url(#lg-c)"><path d="M0 0H512V150C380 205 160 120 0 190Z" style="fill:var(--lg-sheen)"/></g><rect x="7" y="7" width="498" height="498" rx="108" fill="none" stroke-width="14" style="stroke:var(--lg-line)"/><g fill="none" stroke="url(#lg-gl)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"><path d="M126 206 232 286 126 366"/><path d="M268 372H376"/></g><circle cx="392" cy="136" r="62" fill-opacity=".28" style="fill:var(--lg-dot)"/><circle cx="392" cy="136" r="40" stroke-width="12" style="fill:var(--lg-dot);stroke:var(--lg-ring)"/></svg></span>';
   return t.content.firstChild;
 }
+// 상단 인사: 해 아이콘 · Good afternoon! · 짧은 한마디 / 오른쪽 날짜·현재 시각 (1분마다 갱신)
+const GREET_LINES = ['Small steps still count.', 'One thing at a time.', "You're doing fine.", 'Breathe. Then begin.', 'Good things take time.', 'Be kind to yourself today.', 'Slow is still forward.'];
+const greetWord = (h0 = new Date().getHours()) => (h0 >= 5 && h0 < 12 ? 'Good morning!' : h0 >= 12 && h0 < 18 ? 'Good afternoon!' : h0 >= 18 && h0 < 22 ? 'Good evening!' : 'Good night!');
+const greetClock = () => { const d = new Date(); return `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${hm(d.getTime())}`; };
+function greetBlock() {
+  const line = GREET_LINES[Math.floor(Date.now() / 864e5) % GREET_LINES.length];
+  return h('div', { class: 'greet' }, h('span', { class: 'greet-ic' }, icon('sun')), h('div', { class: 'greet-t' }, h('b', { text: greetWord() }), h('span', { text: line })), h('span', { class: 'greet-clock mono', text: greetClock() }));
+}
+setInterval(() => { const c = document.querySelector('.greet-clock'), w = document.querySelector('.greet-t b'); if (c) c.textContent = greetClock(); if (w) w.textContent = greetWord(); }, 30000);
 function renderChrome() {
   const top = $('#top'), tabs = $('#tabs'), dock = $('#dock');
   if (!top) return;
@@ -575,9 +599,7 @@ function renderChrome() {
   // 상단바: (폰) 로고·이름 / (PC) 경로 prod-api-02 / 탭 이름 · 상태 pill · 모드 · 오른쪽 아이콘
   top.replaceChildren(
     h('div', { class: 'brand' }, logoMark(), h('b', { text: 'Monitor' })),
-    h('span', { class: 'crumb' }, h('b', { text: 'prod-api-02' }), S.store ? ` / ${curLabel.toLowerCase()}` : ''),
-    S.store ? h('span', { class: 'live ' + lvl, title: L.STATUS_TEXT[lvl], text: { green: 'healthy', yellow: 'degraded', red: 'outage' }[lvl] }) : null,
-    S.store ? h('span', { class: 'mode', text: S.sandbox ? 'sandbox' : S.cloud ? 'shared' : 'local' }) : null,
+    greetBlock(),
     h('div', { class: 'right' },
       S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small ic bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, icon('inbox'), notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
       S.store ? notifyBtn() : null,
@@ -1024,7 +1046,6 @@ function commitItem(c, view) {
     : c.deliverAt > now ? h('div', { class: 'row' }, h('span', { class: 'sp' }), btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small')) : null;
   return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
 }
-const commitComposer = (id, title, extra) => card(title, h('textarea', { id, rows: 2, maxLength: 200, placeholder: 'commit message' }), extra);
 // 공유 로그의 리뷰 코멘트 한 줄(리스너가 쓰고 작성자가 읽는다): 답글 줄과 같은 모양(시각·작성자·내용, 오른쪽 고정 버튼 칸)
 function reviewRow(ln, r, role) {
   const mine = role === 'listener';
@@ -1039,20 +1060,32 @@ function reviewThread(ln, r) {
       onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
     null);   // 리뷰 댓글에는 답글을 새로 쓰는 기능이 없다 (이미 있는 답글은 그대로 보인다)
 }
+// commit 화면(작성자 Inbox·리스너 Send 공통): 맨 위 작성칸, 아래 왼쪽 Received(노랑)·오른쪽 Sent by me(파랑). 공유 로그 리뷰 댓글은 'on shared log' 로 같은 칸에 섞인다.
+function commitPanel() {
+  const wr = isWriter(), me = roleName(), now = Date.now(), dnd = wr && sd('status').dnd;
+  const isMine = (c) => (c.by || 'listener') === me;
+  const got = rows('commits').filter((c) => !isMine(c) && (c.deliverAt || c.ts) <= now).map((c) => [c.deliverAt || c.ts, commitItem(c, 'in')]);
+  const sent = rows('commits').filter(isMine).map((c) => [c.deliverAt || c.ts, commitItem(c, 'out')]);
+  const revs = [...rows('lines')].map((ln) => [ln, rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts)]).filter(([, rv]) => rv.length)
+    .map(([ln, rv]) => [rv[rv.length - 1].ts, h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'ih' }, badge('on shared log'), h('span', { class: 'sub', text: hm(rv[rv.length - 1].ts) })), h('div', { class: 'mono sl-line', text: ln.text }), rv.map((r) => reviewRow(ln, r, me)))]);
+  (wr ? got : sent).push(...revs);
+  const list = (a) => a.sort((x, y) => y[0] - x[0]).map(([, el]) => el);
+  const send = act(async () => {
+    const ta = $('#cm-text'); if (!ta.value.trim()) return toast('메시지를 적어주세요');
+    const deliverAt = wr ? Date.now() : whenTs($('#cm-when').value);
+    await sendField(ta, (t) => S.store.set('commits', 'cm_' + uid(), { by: me, ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
+  });
+  const col = (cls, title, ic, items, emptyText) => h('section', { class: 'card cm-col ' + cls }, h('h3', { class: 'h-ic' }, icon(ic), title, h('span', { class: 'cm-n', text: String(items.length) })), items.length ? items : empty(emptyText));
+  return h('div', { class: 'cm-panel span-all' },
+    card('Commit', h('textarea', { id: 'cm-text', rows: 2, maxLength: 200, placeholder: 'commit message' }),
+      h('div', { class: 'row' }, wr ? null : h('select', { id: 'cm-when' }, [['now', '지금'], ['1h', '1시간 뒤'], ['3h', '3시간 뒤'], ['tomorrow', '내일 아침 9시'], ['sat', '주말 아침 10시']].map(([v, t]) => h('option', { value: v, text: t }))), h('span', { class: 'sp' }), btn('Commit', send, 'primary'))),
+    h('div', { class: 'cm-pair' },
+      col('cm-in', 'Received', 'arrowIn', dnd ? [note('Do not disturb 가 켜져 있어요. 도착한 메시지는 끌 때까지 숨겨져요.')] : list(got), '받은 메시지 없음'),
+      col('cm-out', 'Sent by me', 'arrowOut', list(sent), '보낸 메시지 없음')));
+}
 function viewInbox() {
-  const now = Date.now(), dnd = sd('status').dnd;
-  const cm = rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now).sort((a, b) => b.deliverAt - a.deliverAt);
-  const lines = [...rows('lines')].sort((a, b) => b.ts - a.ts).map((ln) => [ln, rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts)]).filter(([, rv]) => rv.length);
   const kp = keeps();
-  return h('div', { class: 'grid' }, checkinCardW(), updatesCard(),
-    card('Commits', dnd ? note('Do not disturb 가 켜져 있어요. 도착한 메시지는 끌 때까지 숨겨져요.')
-      : cm.length ? cm.map((c) => commitItem(c, 'in')) : empty('새 커밋 없음')),
-    commitComposer('wcm-text', 'Send commit', h('div', { class: 'row' }, btn('Commit', act(async () => {
-      if (!$('#wcm-text').value.trim()) return toast('메시지를 적어주세요');
-      await sendField($('#wcm-text'), (t) => S.store.set('commits', 'cm_' + uid(), { by: 'writer', ts: Date.now(), day: dayKey(), deliverAt: Date.now(), text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
-    }), 'primary'))),
-    rows('commits').some((c) => c.by === 'writer') ? card('Sent', ...rows('commits').filter((c) => c.by === 'writer').sort((a, b) => b.ts - a.ts).map((c) => commitItem(c, 'out'))) : null,
-    card('Code review', lines.length ? lines.map(([ln, rv]) => h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'mono', text: ln.text }), rv.map((r) => reviewRow(ln, r, 'writer')))) : empty('리뷰 댓글 없음')),
+  return h('div', { class: 'grid' }, commitPanel(), checkinCardW(), updatesCard(),
     card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), h('span', { class: 'sp' }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => S.store.del('@', k.id)) }])))) : empty('아직 없음'),
       kp.some((k) => k.kind === 'learned') ? h('div', { class: 'learned' }, h('b', { text: 'Learned today' }), kp.filter((k) => k.kind === 'learned').slice(0, 7).map((k) => h('p', { class: 'msgtext', text: `${k.day} · ${k.text}` }))) : null),
     updateHistoryCard());
@@ -1481,19 +1514,7 @@ function whenTs(v) {
   return now;
 }
 function viewSend() {
-  const mine = [...rows('commits')].filter((c) => (c.by || 'listener') === 'listener').sort((a, b) => b.deliverAt - a.deliverAt);
-  const got = rows('commits').filter((c) => c.by === 'writer').sort((a, b) => b.ts - a.ts);
-  return h('div', { class: 'grid' },
-    card('Commit',
-      h('textarea', { id: 'cm-text', rows: 2, maxLength: 200, placeholder: 'commit message' }),
-      h('div', { class: 'row' }, h('select', { id: 'cm-when' }, [['now', '지금'], ['1h', '1시간 뒤'], ['3h', '3시간 뒤'], ['tomorrow', '내일 아침 9시'], ['sat', '주말 아침 10시']].map(([v, t]) => h('option', { value: v, text: t }))),
-        btn('Commit', act(async () => {
-          if (!$('#cm-text').value.trim()) return toast('메시지를 적어주세요');
-          const deliverAt = whenTs($('#cm-when').value);
-          await sendField($('#cm-text'), (t) => S.store.set('commits', 'cm_' + uid(), { by: 'listener', ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
-        }), 'primary'))),
-    card('Received', got.length ? got.map((c) => commitItem(c, 'in')) : empty('받은 메시지 없음')),
-    card('Sent', mine.length ? mine.map((c) => commitItem(c, 'out')) : empty('보낸 메시지 없음')));
+  return h('div', { class: 'grid' }, commitPanel());
 }
 function viewPlan() {
   return h('div', { class: 'grid' }, planChangesCard(), agendaCard(), calendarCard());
@@ -1627,10 +1648,53 @@ function composeBar() {
   if (sysWide()) return composeForm().el;
   return h('div', { class: 'sl-compose' }, h('button', { type: 'button', class: 'tc-box tc-open', on: { click: () => openComposeModal() } }, h('span', { class: 'tc-gut', text: '>' }), h('span', { class: 'tc-ph', text: 'new entry…' })));
 }
+// ───────── Wins: Syslog 맨 위 자랑 띠 ─────────
+// 자랑 글은 posts 에 kind:'win' 으로 저장한다(서버 규칙 그대로). 👏 는 post_reactions(글마다 한 사람 하나), 댓글은 Syslog 댓글과 같다.
+const wins = () => posts().filter((p) => p.kind === 'win').sort((a, b) => b.ts - a.ts);
+const claps = (id) => rows('post_reactions').filter((r) => r.postId === id && r.emoji === '👏');
+function winCard(p, st) {
+  const me = roleName(), mine = p.by === me, open = st.winOpen === p.id, cl = claps(p.id), myClap = cl.some((r) => r.by === me), nC = sysComments(p.id).filter((c) => !c.ack).length;
+  const fresh = !mine && p.ts > (S.sysSince ?? Infinity) && !st.read.has(p.id);
+  const toggle = () => { st.winOpen = open ? null : p.id; st.read.add(p.id); renderView(); };
+  return h('div', { class: 'win' + (open ? ' on' : '') + (fresh ? ' fresh' : ''), 'data-pid': p.id, role: 'button', tabindex: '0', on: { click: toggle, keydown: (e) => { if (e.key === 'Enter') toggle(); } } },
+    h('p', { class: 'win-t' + (st.mask && !open ? ' mask' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
+    h('div', { class: 'win-f' }, h('span', { class: 'sub mono', text: `by ${mine ? '0' : '1'} · ${dayKey(p.ts) === dayKey() ? hm(p.ts) : mdhm(p.ts).split(' ')[0]}` }), newTag(fresh), h('span', { class: 'sp' }),
+      h('button', { type: 'button', class: 'win-b' + (myClap ? ' on' : ''), title: myClap ? 'Undo clap' : 'Clap', 'aria-pressed': String(myClap), on: { click: act(async (e) => { e.stopPropagation(); await S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: myClap ? '' : '👏', ts: Date.now() }); }) } }, '👏', h('span', { text: cl.length || '' })),
+      h('span', { class: 'win-b ro' }, '💬', h('span', { text: nC || '' }))));
+}
+function winDetail(p) {
+  const mine = p.by === roleName();
+  return h('div', { class: 'win-open' },
+    h('div', { class: 'row' }, h('span', { class: 'sub mono', text: `${mdhm(p.ts)} · by ${mine ? '0' : '1'}${p.editedAt ? ' · edited' : ''}` }), h('span', { class: 'sp' }),
+      mine ? moreMenu([
+        { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit win', text: p.text, max: 300, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
+        { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { sysState().winOpen = null; await S.store.del('posts', p.id); }) }] }) }]) : null,
+      btn('Close', () => { sysState().winOpen = null; renderView(); }, 'small quiet')),
+    h('p', { class: 'msgtext', text: p.text }),
+    sysThread(p.id, true));
+}
+function winsStrip(st) {
+  const me = roleName(), all = wins();
+  const folded = st.open.size > 0 && !st.winsShow;   // 로그 글을 펼친 동안에는 한 줄로 접힌다
+  const tgl = (label, fn) => h('button', { type: 'button', class: 'win-link', text: label, on: { click: fn } });
+  const head = (...extra) => h('div', { class: 'wins-h' }, h('h3', { class: 'h-ic' }, icon('star'), 'Wins', h('span', { class: 'cm-n', text: String(all.length) })), ...extra);
+  if (folded) return h('section', { class: 'card span-all wins folded' }, head(), all[0] ? h('span', { class: 'win-last', text: st.mask ? maskText(all[0].id) : all[0].text }) : null, tgl('show', () => { st.winsShow = true; renderView(); }));
+  const box = h('input', { type: 'text', id: 'win-text', maxLength: 300, placeholder: 'share a win…', autocomplete: 'off', enterkeyhint: 'send' });
+  const post = act(async () => { if (await sendField(box, (t) => S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), kind: 'win' }))) toast('올렸어요 👏'); });
+  onEnter(box, post);
+  const list = st.winsAll ? all : all.slice(0, 3), sel = all.find((p) => p.id === st.winOpen);
+  return h('section', { class: 'card span-all wins' },
+    head(
+      st.open.size ? tgl('hide', () => { st.winsShow = false; renderView(); }) : null,
+      all.length > 3 ? tgl(st.winsAll ? 'less' : 'see all', () => { st.winsAll = !st.winsAll; renderView(); }) : null),
+    list.length ? h('div', { class: 'win-grid' }, list.map((p) => winCard(p, st))) : h('p', { class: 'empty', text: '아직 자랑이 없어요. 오늘 잘한 걸 하나 적어 보세요.' }),
+    sel ? winDetail(sel) : null,
+    h('div', { class: 'row win-cmp' }, box, btn('Post', post, 'small primary')));
+}
 function viewSyslog() {
   const st = sysState(), me = roleName();
   const kept = new Set(keeps().filter((k) => k.kind === 'syslog').map((k) => k.from));
-  const all = posts();
+  const all = posts().filter((p) => p.kind !== 'win');
   const FILTERS = [['all', 'All', () => all.length], ['kept', 'Kept', () => all.filter((p) => kept.has(p.id)).length]];
   const listRows = () => {
     let list = all.slice().sort((a, b) => b.ts - a.ts);
@@ -1642,7 +1706,7 @@ function viewSyslog() {
   const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
   const wide = sysWide(), sel = wide ? all.find((p) => st.open.has(p.id)) : null;
   const detail = !wide ? null : h('section', { class: 'card sl-detail' }, sel ? sysDetail(sel, kept.has(sel.id)) : [h('h3', { text: 'Entry' }), empty('목록에서 글을 누르면 여기에 열려요')]);
-  return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, h('section', { class: 'card syslog' },
+  return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, winsStrip(st), h('section', { class: 'card syslog' },
     h('div', { class: 'row sl-head' }, h('h3', { text: 'Syslog' }), h('span', { class: 'sl-hact' },
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
       tglBtn(st.mask ? 'eyeOff' : 'eye', st.mask ? 'Mask on (hide text) · tap to show' : 'Mask off · tap to hide text', st.mask, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); renderView(); }),

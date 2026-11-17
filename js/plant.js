@@ -16,6 +16,17 @@ const DROPPER = ['..RRR..', '..RRR..', '...R...', '..WWW..', '..WLW..', '..WLW..
 // 데이지(둥근 꽃잎 8장 — 물방울 모양, 꽃잎 사이 틈). W 흰 꽃잎 · w 꽃잎 안쪽 크림 · Y 노란 가운데 · h 하이라이트 · d 그늘
 const DAISY = ['......W......', '.W...WWW...W.', '..WW.WWW.WW..', '..WW..W..WW..', '....W.w.W....', '.WW..hYY..WW.', 'WWWWwYYYwWWWW', '.WW..YYd..WW.', '....W.w.W....', '..WW..W..WW..', '..WW.WWW.WW..', '.W...WWW...W.', '......W......'];
 const DCOL = { W: '#ffffff', w: '#efe7d6', Y: '#f5c542', h: '#ffe7a3', d: '#d9a12b' };
+// 그림 위에 한 줄씩 타자로 찍히는 로그(A안). 상태에 맞는 줄을 돌아가며 보여 준다. 26자 이내.
+function ambientLines(M) {
+  const L = [];
+  if (M.wilting) L.push('> warn: soil dry 2d', '> wilt detected, need care');
+  const both = KINDS.every((k) => M.mine[k] >= HALF) && KINDS.every((k) => M.theirs[k] >= HALF);
+  if (both) L.push('> sync ok: 0+1 done', '> growth job queued');
+  else if (KINDS.every((k) => M.mine[k] >= HALF)) L.push('> waiting for 1...');
+  else if (KINDS.every((k) => M.theirs[k] >= HALF)) L.push('> 1 done, waiting for 0');
+  L.push(M.stage >= 4 ? '> bloom stable' : `> root depth +0.${2 + (M.age % 7)}mm`, '> photosynth ok', `> chlorophyll ${90 + (M.age % 9)}%`, `> uptime ${M.age}d, stage ${M.stage}/4`);
+  return L;
+}
 const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
 export function createGarden({ onCare, icon }) {
@@ -46,6 +57,7 @@ export function createGarden({ onCare, icon }) {
   setFold(folded);
 
   let M = { stage: 0, age: 0, wilting: false, mine: { water: 0, light: 0, feed: 0 }, theirs: { water: 0, light: 0, feed: 0 }, log: [], canWrite: false };
+  const amb = { i: 0, n: 0, hold: 0, gap: 20 };   // 타자 로그 상태
   const st = { tool: 'water', down: false, ptr: null, pend: { water: 0, light: 0, feed: 0 }, drops: [], pops: [], glow: 0, rays: 0, wet: 0, ok: null, tick: 0 };
   let T = null, Tt = 0;   // 색은 터미널 창 안(항상 어두움)에서 읽는다
   const tok = () => { const cs = getComputedStyle(cv), g = (n, f) => cs.getPropertyValue(n).trim() || f; return { sky: g('--pl-sky', '') || g('--bg', '#0b0d10'), ol: g('--pl-ol', ''), bg: g('--bg', '#0b0d10'), l2: g('--line2', '#2c323c'), ln: g('--line', '#232830'), ok: g('--ok', '#3ecf8e'), warn: g('--warn', '#f5b84d'), ac: g('--accent', '#5b9dff'), crit: g('--crit', '#ff6b6b'), tx: g('--text', '#e6e8ec') }; };
@@ -87,6 +99,7 @@ export function createGarden({ onCare, icon }) {
     st.drops.forEach((d) => { cx.fillStyle = d.c || '#8fd0ff'; cx.fillRect(Math.round(d.x), Math.round(d.y), 2, d.c ? 2 : 3); });
     cx.font = '500 10px "JetBrains Mono", ui-monospace, monospace'; cx.textBaseline = 'top';
     st.pops.forEach((t) => { cx.globalAlpha = t.a; cx.fillStyle = T.ac; cx.fillText(t.s, Math.round(t.x), Math.round(t.y)); cx.globalAlpha = 1; });
+    if (!st.ok && amb.s) { const txt = amb.s.slice(0, Math.floor(amb.n)); cx.globalAlpha = 0.8; cx.fillStyle = T.bg; cx.fillRect(4, 4, cx.measureText(amb.s).width + 8, 14); cx.globalAlpha = 1; cx.fillStyle = T.tx; cx.fillText(txt + (amb.n < amb.s.length || st.tick % 16 < 8 ? '_' : ''), 8, 7); }
     if (st.ok) { const L = st.ok, txt = L.s.slice(0, Math.floor(L.n)); cx.globalAlpha = 0.85; cx.fillStyle = T.bg; cx.fillRect(4, 4, cx.measureText(L.s).width + 8, 14); cx.globalAlpha = 1; cx.fillStyle = T.ok; cx.fillText(txt.slice(0, 6), 8, 7); cx.fillStyle = T.tx; cx.fillText(txt.slice(6), 8 + cx.measureText(txt.slice(0, 6)).width, 7); }
     if (st.ptr && M.canWrite) {   // 손가락·커서 자리에 지금 든 도구
       if (st.tool === 'water') spr2(CAN, { H: '#3b6fd1', B: T.ac, L: '#a9c8ff', D: '#3b6fd1', S: T.ac }, st.ptr.x, st.ptr.y + (st.down ? 2 : 0), 15, 2);
@@ -103,8 +116,13 @@ export function createGarden({ onCare, icon }) {
     }
     const doneMe = KINDS.every((k) => mine(k) >= HALF), doneThem = KINDS.every((k) => M.theirs[k] >= HALF);
     who[0].classList.toggle('on', doneMe); who[1].classList.toggle('on', doneThem);
-    const next = [2, 5, 9, 14].find((n) => n > M.age);
-    meta.replaceChildren(...['uptime ', h('b', { text: M.age + 'd' }), ' · stage ', h('b', { text: M.stage + '/4' }), next ? ` · next in ${next - M.age}d` : ' · bloom', M.wilting ? h('span', { class: 'pl-wilt', text: ' · wilting' }) : ''].filter((x) => x !== ''));
+    const TH = [0, 2, 5, 9, 14], next = TH.find((n) => n > M.age), prev = next ? TH[TH.indexOf(next) - 1] : 14;
+    const pct = next ? (M.age - prev) / (next - prev) : 1, SEG = 10, fill = Math.round(pct * SEG);
+    meta.replaceChildren(
+      h('div', { class: 'pl-m1' }, ...['uptime ', h('b', { text: M.age + 'd' }), ' · stage ', h('b', { text: M.stage + '/4' }), M.wilting ? h('span', { class: 'pl-wilt', text: ' · wilting' }) : ''].filter((x) => x !== '')),
+      h('div', { class: 'pl-next' }, h('span', { class: 'lb', text: next ? `next ${M.stage + 1}/4` : 'bloom' }),
+        h('span', { class: 'pl-nbar' }, ...Array.from({ length: SEG }, (_, i) => h('s', { class: i < fill ? 'on' : '' }))),
+        h('span', { class: 'lf', text: next ? `${next - M.age}d left` : 'done' })));
     // 오늘: 사람마다 한 줄. 다 했으면 done, 아니면 남은 것(water·light·feed)을 배지로
     const row = (u, done, left) => h('div', { class: 'pl-tr' }, h('span', { class: `k u${u}${done ? ' on' : ''}`, text: String(u) }),
       done ? h('span', { class: 'badge ok', text: 'done' }) : [h('span', { class: 'nd', text: 'needs' }), ...left.map((k) => h('span', { class: 'badge warn', text: k }))]);
@@ -142,6 +160,9 @@ export function createGarden({ onCare, icon }) {
     st.pops.forEach((t) => { t.y -= 1.4; t.a -= 0.04; }); st.pops = st.pops.filter((t) => t.a > 0);
     if (st.glow > 0) st.glow--; if (st.wet > 0) st.wet--;
     if (st.ok) { st.ok.n += 1.5; if (--st.ok.life <= 0) st.ok = null; }
+    else if (amb.gap > 0) { if (--amb.gap === 0) { const L = ambientLines(M); amb.s = L[amb.i++ % L.length]; amb.n = 0; amb.hold = 70; } }
+    else if (amb.s && amb.n < amb.s.length) amb.n += 0.5;
+    else if (amb.s && --amb.hold <= 0) { amb.s = null; amb.gap = 30; }
     draw();
   }, 50);
   return {
