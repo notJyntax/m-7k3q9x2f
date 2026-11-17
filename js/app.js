@@ -139,6 +139,12 @@ Object.assign(ICONS, {
   hist: '<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/>',
   spark: '<path d="M12 3v5M12 16v5M3 12h5M16 12h5"/>',
   leaf: '<path d="M5 19c0-8 5-13 14-14 0 9-5 14-14 14z"/><path d="M5 19l7-7"/>',
+  drop: '<path d="M12 3.5c3 4 5.5 7 5.5 10a5.5 5.5 0 0 1-11 0c0-3 2.5-6 5.5-10z"/>',
+  flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/>',
+  cpu: '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/>',
+  layers: '<path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/>',
+  disk: '<ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6"/><path d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/>',
+  alert: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',
   chat: '<path d="M5 5h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4V6a1 1 0 0 1 1-1z"/>',
 });
 const icon = (name) => { const t = document.createElement('template'); t.innerHTML = `<svg class="ico${name === 'keepOn' ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; return t.content.firstChild; };   // 고정 문자열만 사용
@@ -187,23 +193,25 @@ function onEnter(el, fn, { shift = false } = {}) {
 }
 const empty = (t) => h('p', { class: 'empty', text: t });
 const note = (t) => h('p', { class: 'note', text: t });
+const MH_ICON = { CPU: 'cpu', CACHE: 'layers', DISK: 'disk' };   // 막대 이름 앞 작은 아이콘
+const mhName = (name) => h('b', {}, MH_ICON[name] ? icon(MH_ICON[name]) : null, name);
 const meter = (name, v, fixed) => h('div', { class: 'meter' },
-  h('div', { class: 'mh' }, h('b', { text: name }), h('span', { class: 'pct', text: v + '%' })),
-  h('div', { class: 'bar' }, h('i', { class: fixed || (v >= 75 ? 'crit' : v >= 40 ? 'warn' : 'ok'), style: `width:${v}%` })));
+  h('div', { class: 'mh' }, mhName(name), h('span', { class: 'pct', text: v + '%' })),
+  h('div', { class: 'bar' }, h('i', { class: fixed || (v >= 75 ? 'crit' : v >= 40 ? 'warn' : 'ok'), style: `--p:${v}%` })));
 // CPU 하나로 힘든 로그를 합치고, 막대 안을 색으로 나눈다: 짜증·화(Irritation) · 피로·불안(Fatigue). 좋은 말은 CPU가 아니라 바로 아래 Positive 막대에 쌓는다.
 const LOAD_PARTS = [['Irritation', 'irr'], ['Fatigue', 'fat']];
 const stackMeter = (name, a, b) => {
   const vals = [a | 0, b | 0], sumv = vals[0] + vals[1], total = clamp(sumv), k = sumv > 100 ? 100 / sumv : 1;
   return h('div', { class: 'meter stack' },
-    h('div', { class: 'mh' }, h('b', { text: name }), h('span', { class: 'pct', text: total + '%' })),
-    h('div', { class: 'bar stackbar' }, LOAD_PARTS.map(([label, cls], i) => h('i', { class: 'seg ' + cls, style: `width:${vals[i] * k}%`, title: `${label} ${vals[i]}` }))),
+    h('div', { class: 'mh' }, mhName(name), h('span', { class: 'pct', text: total + '%' })),
+    h('div', { class: 'bar stackbar' }, LOAD_PARTS.map(([label, cls], i) => h('i', { class: 'seg ' + cls, style: `--p:${vals[i] * k}%`, title: `${label} ${vals[i]}` }))),
     h('div', { class: 'legend' }, LOAD_PARTS.map(([label, cls], i) => h('span', { class: 'lg' }, h('i', { class: 'sw2 ' + cls }), `${label} ${vals[i]}`))));
 };
 // 좋은 말 막대(CACHE = 좋은 일을 빠르게 꺼내 쓰도록 쌓아 둔 것): 많을수록 좋은 거라서 높아도 빨갛게 바뀌지 않고 항상 초록이다.
 const GOOD_LABEL = 'CACHE';
 const goodMeter = (v) => h('div', { class: 'meter' },
-  h('div', { class: 'mh' }, h('b', { text: GOOD_LABEL }), h('span', { class: 'pct', text: clamp(v | 0) + '%' })),
-  h('div', { class: 'bar' }, h('i', { class: 'ok', style: `width:${clamp(v | 0)}%` })));
+  h('div', { class: 'mh' }, mhName(GOOD_LABEL), h('span', { class: 'pct', text: clamp(v | 0) + '%' })),
+  h('div', { class: 'bar' }, h('i', { class: 'ok', style: `--p:${clamp(v | 0)}%` })));
 const statusPill = (level) => h('div', { class: 'status ' + level }, h('span', { class: 'dot' }), h('b', { text: L.STATUS_TEXT[level] }));
 
 function errText(e) {
@@ -730,7 +738,7 @@ function renderView() {
     if (S.updateReady) banners.push(h('div', { class: 'banner warn upd' }, h('span', { text: '앱이 업데이트됐어요. 새로고침해 주세요.' }), btn('Refresh', doRefresh, 'small primary')));   // 열려 있던 앱에 새 버전을 알린다
     if (isWriter() && S.tab !== 'inbox' && pendingCheckin()) banners.push(h('div', { class: 'banner warn' }, h('span', { text: '상대가 무슨 일 있는지 물어봤어요.' }), btn('Reply', () => openCheckinReply(pendingCheckin()), 'small primary')));
     if (!S.canWrite) banners.push(h('div', { class: 'banner warn', text: '읽기 전용이에요. 쓰려면 소유자가 "편집 가능(Contributor)"으로 초대해야 해요.' }));
-    if (clUnread().length) banners.push(h('div', { class: 'banner' }, h('span', { text: `What's new · ${clUnread().length} updates` }), h('span', { class: 'row' }, btn('See', () => go(isWriter() ? 'inbox' : 'overview'), 'small'), btn('Confirm all', () => clConfirm(CHANGELOG.map((e) => e.id)), 'small quiet'))));
+    if (clUnread().length) banners.push(h('div', { class: 'banner' }, h('span', { text: `What's new · ${clUnread().length} update${clUnread().length === 1 ? '' : 's'}` }), h('span', { class: 'row' }, btn('See', seeUpdates, 'small'), btn('Confirm all', () => clConfirm(CHANGELOG.map((e) => e.id)), 'small quiet'))));
     if (S.sandbox) banners.push(h('div', { class: 'banner', text: '체험 모드: 이 기기에만 저장되고 상대에게 전달되지 않아요.' }, btn('Exit', () => boot(), 'small')));
     else if (!S.cloud) banners.push(h('div', { class: 'banner', text: '혼자 쓰는 모드: 공유 저장소에 연결되지 않아 이 기기에만 저장돼요.' }));
     else if (S.push === 'need-install') banners.push(h('div', { class: 'banner', text: '홈 화면에 추가하면 앱이 꺼져 있어도 알림을 받을 수 있어요.' }, btn('How to', openInstall, 'small')));
@@ -959,7 +967,7 @@ const agoEn = (ts) => { const m = Math.floor((Date.now() - ts) / 60000); return 
 // ───────── 대시보드: 단순하게 — 상태 한 줄, 미터 셋(CPU·Cache·Disk), 오늘 개수 한 줄 ─────────
 // 상태 블록(작성자 Dashboard · 리스너 Overview 공용): 상태 히어로 한 장(색 점·문구·오늘 개수) + 수치 타일 셋(CPU·CACHE·DISK)
 function statusBlock(m, sub, extra) {
-  const counts = m.PASS != null ? h('div', { class: 'ds-line' }, [['o', m.PASS, 'pass'], ['w', m.WARN, 'warn'], ['e', (m.ERROR | 0) + (m.FATAL | 0), 'error']].map(([c, n, t]) => h('span', {}, h('b', { class: c, text: n | 0 }), t))) : null;
+  const counts = m.PASS != null ? h('div', { class: 'ds-line' }, [['o', m.PASS, 'pass', 'check'], ['w', m.WARN, 'warn', 'alert'], ['e', (m.ERROR | 0) + (m.FATAL | 0), 'error', 'x']].map(([c, n, t, ic]) => h('span', {}, h('b', { class: c, text: n | 0 }), h('em', { class: 'ds-k' }, icon(ic), t)))) : null;
   return [h('section', { class: 'card ds-card' },
     h('div', { class: 'ds-hero st-' + m.level }, h('span', { class: 'ds-dot' }), h('div', {}, h('p', { class: 'ds-t', text: L.STATUS_TEXT[m.level] }), h('p', { class: 'ds-s' }, sub, extra ? [' ', extra] : null)), counts)),
   h('div', { class: 'tiles' }, h('div', { class: 'tile' }, stackMeter('CPU', m.cpu, m.mem)), h('div', { class: 'tile' }, goodMeter(m.pos)), h('div', { class: 'tile' }, meter('DISK', m.disk | 0, 'disk')))];
@@ -1350,7 +1358,7 @@ function reportCard() {
     const w = n ? Math.max(6, Math.round(Math.min(n, FULL) / FULL * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
     const txt = n ? `${n} incident${n === 1 ? '' : 's'}` + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0 incidents' : fut ? '' : '–';   // 사고 = ERROR + FATAL
     return h('div', { class: 'rp3-r' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
-      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }), h('span', { class: 'rp3-l', title: 'logs written that day', text: r ? `${logsOf(r)} ${logsOf(r) === 1 ? 'log' : 'logs'}` : '' }));
+      h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `--p:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }), h('span', { class: 'rp3-l', title: 'logs written that day', text: r ? `${logsOf(r)} ${logsOf(r) === 1 ? 'log' : 'logs'}` : '' }));
   }));
   const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
   const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + `${totalLogs} logs · Week of ${fmtMD(weekKey())}` }), bars,
@@ -1378,8 +1386,13 @@ const clFold = (e, history) => {
         h('span', { class: 'cl-ico', 'aria-hidden': 'true', text: acked ? '✓' : '' }), h('span', { text: 'read' }))),
     open ? clItems(e) : null);
 };
+// What's new 의 See: Updates 카드가 있는 탭으로 가서 그 카드로 바로 내려가고 잠깐 테두리로 표시한다
+function seeUpdates() {
+  go(isWriter() ? 'inbox' : 'overview');
+  requestAnimationFrame(() => { const el = document.getElementById('updates-card'); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1800); });
+}
 const updatesCard = () => { const un = clUnread(); const list = un.length ? un.slice(0, 3) : CHANGELOG.slice(0, 1);
-  return card('Updates', ...list.map((e) => clFold(e, false)), un.length > 1 ? h('div', { class: 'row' }, btn('Confirm all', act(() => clConfirm(un.map((e) => e.id))), 'small')) : null); };
+  return Object.assign(card('Updates', ...list.map((e) => clFold(e, false)), un.length > 1 ? h('div', { class: 'row' }, btn('Confirm all', act(() => clConfirm(un.map((e) => e.id))), 'small')) : null), { id: 'updates-card' }); };
 // 내역(history)에는 읽은 업데이트만 — 안 읽은 것은 위의 Updates 카드에 있다. 읽음 처리하면 내역으로 옮겨 간다.
 // Update history: 기본은 접혀 있고 제목 줄을 누르면 펼친다 (탭을 옮기면 다시 접힘)
 const updateHistoryCard = () => {
@@ -1542,7 +1555,7 @@ const newTag = (on) => (on ? h('span', { class: 'new-tag', text: 'new' }) : null
 const sysLikes = (cid) => rows('comment_likes').filter((l) => l.commentId === cid && l.on);
 const sysVotes = (id) => rows('post_votes').filter((v) => v.postId === id && v.option != null);
 const newSyslog = () => posts().filter((p) => p.by !== roleName() && p.ts > seenAt('syslog')).length + rows('post_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('syslog')).length + rows('comment_likes').filter((l) => l.on && l.postId && l.by !== roleName() && l.ts > seenAt('syslog')).length;
-const sysState = () => (S.sys ??= { view: 'log', filter: 'all', q: '', open: new Set(), read: new Set(), mask: lsGet('svcmon.sys.mask', true) });
+const sysState = () => (S.sys ??= { view: 'wins', filter: 'all', q: '', open: new Set(), read: new Set(), mask: lsGet('svcmon.sys.mask', true) });
 // 목록의 글은 암호문처럼 보이고(msg=U2FsdGVkX1…), 누른 글만 진짜 내용으로 펼쳐진다. 한 번에 하나만 펼치고, 일정 시간이 지나거나 앱을 벗어나면 다시 가려진다.
 // 암호문처럼 보이는 글자는 글 id 로만 만든다. 글 내용과 상관이 없어서 내용이나 길이가 새지 않고, 새로고침해도 같은 글은 같은 모양이다.
 function maskText(id) {
@@ -1677,14 +1690,13 @@ function winRow(p, st) {
     h('span', { class: 'w-who ' + (mine ? 'u0' : 'u1'), text: mine ? '0' : '1' }),
     h('div', { class: 'w-main' }, h('p', { class: 'w-text' + (st.mask && !open ? ' mask' : '') + (open ? ' full' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
       h('span', { class: 'w-meta' }, winWhen(p.ts), p.editedAt ? ' · edited' : '', nC ? ` · ${nC} comment${nC > 1 ? 's' : ''}` : '', newTag(fresh))),
-    clapBtn(p));
+    h('span', { class: 'w-acts' }, clapBtn(p), open && mine ? h('span', { on: { click: (e) => e.stopPropagation() } }, moreMenu([
+      { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit win', text: p.text, max: 300, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
+      { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { st.winOpen = null; await S.store.del('posts', p.id); }) }] }) }])) : null));
   if (!open) return h('div', { class: 'w-row' + (fresh ? ' fresh' : '') }, line);
   return h('div', { class: 'w-row open' }, line, h('div', { class: 'w-body' },
-    sysThread(p.id, true, { ph: '축하 한마디', label: 'Comment', send: 'Reply' }),
-    h('div', { class: 'sl-act' }, h('span', { class: 'sp' }),
-      mine ? moreMenu([
-        { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit win', text: p.text, max: 300, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
-        { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { st.winOpen = null; await S.store.del('posts', p.id); }) }] }) }]) : null)));
+    h('div', { class: 'w-bh' }, icon('comment'), `Comments ${nC || ''}`.trim()),
+    sysThread(p.id, true, { ph: '축하 한마디', label: 'Comment', send: 'Reply' })));
 }
 function winsView(st) {
   const me = roleName(), all = wins();
@@ -1692,14 +1704,14 @@ function winsView(st) {
   const post = act(async () => { if (await sendField(box, (t) => S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), kind: 'win' }))) toast('올렸어요 👏'); });
   onEnter(box, post);
   return [
-    h('section', { class: 'card span-all' }, h('div', { class: 'wins-h' }, h('h3', { class: 'h-ic' }, icon('star'), 'Wins'), h('span', { class: 'sub', text: '자랑만 적는 곳' })),
+    h('section', { class: 'card span-all' }, cardTitle('Wins'),
       h('div', { class: 'row win-cmp' }, box, btn('Post', post, 'primary'))),
     h('section', { class: 'card span-all w-list' }, all.length ? all.map((p) => winRow(p, st)) : empty('아직 자랑이 없어요. 오늘 잘한 걸 하나 적어 보세요.')),
   ];
 }
 function sysSeg(st, nLog, nWin) {
-  const b = (v, ic, label, n) => h('button', { type: 'button', class: 'seg-b' + (st.view === v ? ' on' : ''), 'aria-pressed': String(st.view === v), on: { click: () => { if (st.view === v) return; st.view = v; st.open.clear(); st.winOpen = null; renderView(); } } }, icon(ic), label, h('i', { text: String(n) }));
-  return h('div', { class: 'seg span-all', role: 'group', 'aria-label': 'Syslog view' }, b('log', 'tSyslog', 'Log', nLog), b('wins', 'star', 'Wins', nWin));
+  const b = (v, ic, label, n) => h('button', { type: 'button', class: 'vseg-b' + (st.view === v ? ' on' : ''), 'aria-pressed': String(st.view === v), on: { click: () => { if (st.view === v) return; st.view = v; st.open.clear(); st.winOpen = null; renderView(); } } }, icon(ic), label, h('i', { text: String(n) }));
+  return h('div', { class: 'vseg span-all', role: 'group', 'aria-label': 'Syslog view' }, b('wins', 'star', 'Wins', nWin), b('log', 'tSyslog', 'Log', nLog));   // Wins 가 먼저(기본 화면)
 }
 function viewSyslog() {
   const st = sysState(), me = roleName();

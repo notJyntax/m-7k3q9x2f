@@ -2,6 +2,13 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-m', date: '11/17', title: '도트 막대·작은 아이콘', items: [
+    ['change', '앱의 모든 막대를 반투명 네모 도트로'],
+    ['change', '수치 이름·줄 머리(moisture, CPU, pass 등) 앞에 작은 아이콘'],
+    ['change', 'Syslog 는 Wins 가 먼저'],
+    ['change', 'Wins 펼친 글: 댓글은 아래 옅은 상자 안에'],
+    ['fix', "What's new 의 See: Updates 칸으로 바로 이동"],
+  ] },
   { id: '2026-11-17-l', date: '11/17', title: 'Wins 따로 보기', items: [
     ['change', 'Syslog 맨 위 Log | Wins 버튼으로 화면 바꾸기'],
     ['change', 'Wins 화면: 위에 쓰는 칸, 아래 자랑 목록 (누가·언제·👏 수)'],

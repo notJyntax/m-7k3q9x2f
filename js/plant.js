@@ -7,6 +7,7 @@ import { h } from './util.js';
 const S = 4, W = 48, H = 36, PX = 24, HALF = 5;
 const KINDS = ['water', 'light', 'feed'];
 const NAME = { water: 'moisture', light: 'light', feed: 'nutrients' };
+const NAME_IC = { water: 'drop', light: 'sun', feed: 'flask' };   // 수치 이름 앞 작은 아이콘
 const TOOL_KIND = { water: 'water', sun: 'light', feed: 'feed' };
 const DONE_WORD = { water: 'watered', light: 'sunlight', feed: 'nutrients' };
 const HINT0 = '# pick a tool: 1 water · 2 sun · 3 feed';
@@ -31,12 +32,13 @@ function ambientLines(M) {
 const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
 export function createGarden({ onCare, icon }) {
+  const ic = (n) => (icon ? icon(n) : null);
   const cv = h('canvas', { class: 'pl-cv', role: 'img', 'aria-label': 'Daisy' });
   cv.width = W * S; cv.height = H * S;
   const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
   const scene = h('div', { class: 'pl-scene' }, cv);
   const cells = {}, vals = {};
-  const stat = (k) => { cells[k] = h('div', { class: 'pl-cells' }); vals[k] = h('em', { text: '0%' }); return h('div', { class: 'pl-stat' }, h('span', { text: NAME[k] }), cells[k], vals[k]); };
+  const stat = (k) => { cells[k] = h('div', { class: 'pl-cells' }); vals[k] = h('em', { text: '0%' }); return h('div', { class: 'pl-stat' }, h('span', { class: 'pl-k' }, ic(NAME_IC[k]), NAME[k]), cells[k], vals[k]); };
   const meta = h('div', { class: 'pl-meta' }), today = h('div', { class: 'pl-today' }), log = h('div', { class: 'pl-log' }), hint = h('div', { class: 'pl-hint', text: HINT0 });
   const ops = Object.keys(HINTS).map((t, i) => h('button', { type: 'button', class: 'op', 'aria-pressed': 'false', 'data-tool': t, on: { click: () => pick(t) } }, h('kbd', { text: String(i + 1) }), t));
   const who = [0, 1].map((u) => h('span', { class: 'pl-who u' + u }, h('i'), String(u)));
@@ -120,14 +122,14 @@ export function createGarden({ onCare, icon }) {
     const TH = [0, 2, 5, 9, 14], next = TH.find((n) => n > M.age), prev = next ? TH[TH.indexOf(next) - 1] : 14;
     const pct = next ? (M.age - prev) / (next - prev) : 1, SEG = 10, fill = Math.round(pct * SEG);
     meta.replaceChildren(
-      h('div', { class: 'pl-m1' }, ...['uptime ', h('b', { text: M.age + 'd' }), ' · stage ', h('b', { text: M.stage + '/4' }), M.wilting ? h('span', { class: 'pl-wilt', text: ' · wilting' }) : ''].filter((x) => x !== '')),
-      h('div', { class: 'pl-next' }, h('span', { class: 'lb', text: next ? `next ${M.stage + 1}/4` : 'bloom' }),
+      h('div', { class: 'pl-m1' }, ic('clock'), ...['uptime ', h('b', { text: M.age + 'd' }), ' · stage ', h('b', { text: M.stage + '/4' }), M.wilting ? h('span', { class: 'pl-wilt', text: ' · wilting' }) : ''].filter((x) => x !== '')),
+      h('div', { class: 'pl-next' }, h('span', { class: 'lb' }, ic('arrowOut'), next ? `next ${M.stage + 1}/4` : 'bloom'),
         h('span', { class: 'pl-nbar' }, ...Array.from({ length: SEG }, (_, i) => h('s', { class: i < fill ? 'on' : '' }))),
         h('span', { class: 'lf', text: next ? `${next - M.age}d left` : 'done' })));
     // 오늘: 사람마다 한 줄. 다 했으면 done, 아니면 남은 것(water·light·feed)을 배지로
     const row = (u, done, left) => h('div', { class: 'pl-tr' }, h('span', { class: `k u${u}${done ? ' on' : ''}`, text: String(u) }),
       done ? h('span', { class: 'badge ok', text: 'done' }) : [h('span', { class: 'nd', text: 'needs' }), ...left.map((k) => h('span', { class: 'badge warn', text: k }))]);
-    today.replaceChildren(h('span', { class: 'lb', text: doneMe && doneThem ? 'today · all 100% → growing' : 'today' }),
+    today.replaceChildren(h('span', { class: 'lb' }, ic('calendar'), doneMe && doneThem ? 'today · all 100% → growing' : 'today' ),
       row(0, doneMe, KINDS.filter((k) => mine(k) < HALF)), row(1, doneThem, KINDS.filter((k) => M.theirs[k] < HALF)));
     sum.textContent = `stage ${M.stage}/4 · ${M.age}d${M.wilting ? ' · wilting' : ''}`;
     log.replaceChildren(...(M.log.length ? M.log.slice(0, 6).map((l) => h('div', null, h('span', { class: 't', text: hm(l.ts) }), h('span', { class: 'u' + l.who, text: String(l.who) }), h('span', { text: DONE_WORD[l.k] || l.k }), h('span', { class: 'g', text: `+${l.n * 10}%` })))
