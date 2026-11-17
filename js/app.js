@@ -7,6 +7,7 @@ import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 import { CHANGELOG } from './changelog.js';
 import { createGarden } from './plant.js';
+import { avatar } from './avatar.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
@@ -1015,9 +1016,11 @@ const reviewReplies = (rid) => rows('review_replies').filter((c) => c.reviewId =
 // 댓글 한 줄(공용): 윗줄 = 시각·작성자·new/edited 표시(항상 여기) + 오른쪽 고정 칸(하트 | ⋯), 아랫줄 = 내용 전체 폭. 좁은 화면에서도 칸 위치가 줄마다 같다.
 // 버튼이 없는 칸에도 같은 버튼을 투명하게 깔아 둔다: 어떤 테마·화면 폭에서도 빈 칸과 채워진 칸의 너비가 같아서 하트 위치가 줄마다 같다
 const cmGhost = (label) => { const g = btn(label, () => {}, 'small quiet' + (label === 'More' ? ' more' : '')); g.classList.add('cm-ghost'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1; return g; };
+const partnerRole = () => (isWriter() ? 'listener' : 'writer');
+const faceOf = (them, size) => avatar(them ? partnerRole() : roleName(), them ? '1' : '0', size);   // 작성자 표시 = 예전 픽셀 캐릭터 얼굴
 function cmtRow({ cls = '', time, by, them, text, edited, isNew, like, extra, onEdit, onDel }) {
   return h('div', { class: 'cm ' + (them ? 'them' : 'me') + (cls ? ' ' + cls : '') },
-    h('div', { class: 'cm-meta' }, h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || (like?.dataset?.newlike === '1' ? newTag(true) : null)),
+    h('div', { class: 'cm-meta' }, faceOf(them, 18), h('span', { class: 'cm-t', text: time }), h('span', { class: 'cm-by sr' + (them ? ' them' : ''), text: by }), edited ? h('span', { class: 'b-ed', text: 'edited' }) : null, isNew || (like?.dataset?.newlike === '1' ? newTag(true) : null)),
     h('div', { class: 'cm-act' }, h('span', { class: 'cm-slot like' }, like || null), extra !== undefined ? h('span', { class: 'cm-slot xtra' }, extra || null) : null, h('span', { class: 'cm-slot more' }, onEdit || onDel ? moreMenu([onEdit ? { label: 'Edit', icon: 'edit', fn: onEdit } : null, onDel ? { label: 'Delete', icon: 'trash', danger: true, fn: act(onDel) } : null].filter(Boolean)) : cmGhost('More'))),
     h('div', { class: 'cm-text', text }));
 }
@@ -1034,28 +1037,27 @@ const commitReplies = (id) => rows('commit_replies').filter((r) => r.commitId ==
 // 답글은 commit 을 받은 쪽(view 'in')만 쓴다. 보낸 쪽(view 'out')은 받은 사람의 답글을 읽기만 한다 (재답장 없음)
 function commitThread(c, view) {
   const me = roleName();
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'reply', id: 'cr-' + c.id, enterkeyhint: 'send', autocomplete: 'off' });
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'Write a reply…', id: 'cr-' + c.id, enterkeyhint: 'send', autocomplete: 'off' });
   const send = act(async () => { if (await sendField(box, (t) => S.store.set('commit_replies', 'cr_' + uid(), { commitId: c.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) { S.replyOpen.delete('cr-' + c.id); renderView(); } });
   onEnter(box, send);
   const list = commitReplies(c.id);
-  const open = view === 'in' && S.replyOpen?.has('cr-' + c.id);   // 답글 칸은 머리줄의 ↩ 를 눌렀을 때만
+  const open = view === 'in' && (list.length > 0 || S.replyOpen?.has('cr-' + c.id));   // 받은 쪽: 답글이 있거나 ↩ 를 누르면 상자 맨 아래 입력칸
   if (!list.length && !open) return null;
-  return h('div', { class: 'sl-thread rv-thread' },
-    list.map((r) => cmtRow({ time: hm(r.ts), by: `by ${r.by === me ? '0' : '1'}`, them: r.by !== me, text: r.text, edited: r.editedAt, like: likeBtn(r, { commitId: c.id }, me),
-      onEdit: r.by === me ? () => editText({ title: 'Edit reply', text: r.text, max: 200, onSave: (t) => S.store.patch('commit_replies', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: r.by === me ? () => S.store.del('commit_replies', r.id) : null })),
-    open ? replyArea('cr-' + c.id, box, send, 'Reply', 'Send', true) : null);
+  return h('div', { class: 'c-box' }, list.length ? h('div', { class: 'sl-thread' }, list.map((r) => cmtRow({ time: hm(r.ts), by: `by ${r.by === me ? '0' : '1'}`, them: r.by !== me, text: r.text, edited: r.editedAt, like: likeBtn(r, { commitId: c.id }, me),
+      onEdit: r.by === me ? () => editText({ title: 'Edit reply', text: r.text, max: 200, onSave: (t) => S.store.patch('commit_replies', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: r.by === me ? () => S.store.del('commit_replies', r.id) : null }))) : null,
+    open ? h('div', { class: 'row c-new' }, box, btn('Reply', send, 'small dark txt')) : null);
 }
 // view: 'in' = 내가 받은 commit(확인·하트·답글), 'out' = 내가 보낸 commit(상태·예약 취소·삭제·상대의 답글)
 function commitItem(c, view) {   // 받은 것·보낸 것 같은 모양: 머리줄(commit sha · 시각 · 상태 배지) → 내용 → (필요할 때만) 버튼 줄 → 답글
   const sender = c.by || 'listener', now = Date.now();
   const done = sender === 'listener' ? 'deployed ✓' : 'read ✓';
   const status = c.deliverAt > now ? badge('Scheduled ' + mdhm(c.deliverAt)) : c.ack ? badge(`${done} ${hm(c.ackAt)}`, 'ok') : view === 'out' ? badge('delivered') : null;
-  const replyBtn = view === 'in' && !S.replyOpen?.has('cr-' + c.id) ? h('button', { type: 'button', class: 'btn ghost small ic ih-reply', title: 'Reply', 'aria-label': 'Reply', on: { click: () => { (S.replyOpen ??= new Set()).add('cr-' + c.id); renderView(); document.getElementById('cr-' + c.id)?.focus(); } } }, icon('reply')) : null;
-  const head = h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'commit ' + (c.sha || String(c.id || '').slice(-7)) }), h('span', { class: 'sub', text: hm(c.deliverAt || c.ts) }), status, replyBtn);
+  const replyBtn = view === 'in' && !S.replyOpen?.has('cr-' + c.id) && !commitReplies(c.id).length ? h('button', { type: 'button', class: 'btn ghost small ic ih-reply', title: 'Reply', 'aria-label': 'Reply', on: { click: () => { (S.replyOpen ??= new Set()).add('cr-' + c.id); renderView(); document.getElementById('cr-' + c.id)?.focus(); } } }, icon('reply')) : null;
+  const head = h('div', { class: 'ih' }, faceOf(sender !== roleName(), 22), h('span', { class: 'sha', text: c.sha || String(c.id || '').slice(-7) }), h('span', { class: 'sub', text: '· ' + hm(c.deliverAt || c.ts) }), h('span', { class: 'sp' }), status, replyBtn);
   const keep = view === 'in' && sender === 'listener' ? keepBtn(c.text, c.id) : null;
   const actions = view === 'in' ? (!c.ack || keep ? h('div', { class: 'row' }, !c.ack ? btn(sender === 'listener' ? 'Deployed ✓' : 'Got it', act(() => S.store.patch('commits', c.id, { ack: true, ackAt: Date.now() })), 'small primary') : null, h('span', { class: 'sp' }), keep) : null)
     : c.deliverAt > now ? h('div', { class: 'row' }, h('span', { class: 'sp' }), btn('Cancel scheduled', act(() => S.store.del('commits', c.id)), 'small')) : null;
-  return h('div', { class: 'item', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
+  return h('div', { class: 'item cm-card', 'data-cid': c.id }, head, h('p', { class: 'msgtext', text: c.text }), actions, commitThread(c, view));
 }
 // 공유 로그의 리뷰 코멘트 한 줄(리스너가 쓰고 작성자가 읽는다): 답글 줄과 같은 모양(시각·작성자·내용, 오른쪽 고정 버튼 칸)
 function reviewRow(ln, r, role) {
@@ -1078,7 +1080,7 @@ function commitPanel() {
   const got = rows('commits').filter((c) => !isMine(c) && (c.deliverAt || c.ts) <= now).map((c) => [c.deliverAt || c.ts, commitItem(c, 'in')]);
   const sent = rows('commits').filter(isMine).map((c) => [c.deliverAt || c.ts, commitItem(c, 'out')]);
   const revs = [...rows('lines')].map((ln) => [ln, rows('reviews').filter((r) => r.lineId === ln.id).sort((a, b) => a.ts - b.ts)]).filter(([, rv]) => rv.length)
-    .map(([ln, rv]) => [rv[rv.length - 1].ts, h('div', { class: 'item', 'data-lid': ln.id }, h('div', { class: 'ih' }, h('span', { class: 'sha', text: 'shared log' }), h('span', { class: 'sub', text: hm(rv[rv.length - 1].ts) })), h('div', { class: 'mono sl-line', text: ln.text }), rv.map((r) => reviewRow(ln, r, me)))]);
+    .map(([ln, rv]) => [rv[rv.length - 1].ts, h('div', { class: 'item cm-card', 'data-lid': ln.id }, h('div', { class: 'ih' }, faceOf(me !== 'listener', 22), h('span', { class: 'sub', text: `shared log · ${hm(rv[rv.length - 1].ts)}` })), h('div', { class: 'mono sl-line', text: ln.text }), h('div', { class: 'c-box' }, h('div', { class: 'sl-thread' }, rv.map((r) => reviewRow(ln, r, me)))))]);
   (wr ? got : sent).push(...revs);
   const list = (a) => a.sort((x, y) => y[0] - x[0]).map(([, el]) => el);
   const send = act(async () => {
@@ -1086,7 +1088,7 @@ function commitPanel() {
     const deliverAt = wr ? Date.now() : whenTs($('#cm-when').value);
     await sendField(ta, (t) => S.store.set('commits', 'cm_' + uid(), { by: me, ts: Date.now(), day: dayKey(), deliverAt, text: t, sha: uid().slice(-7), ack: false, ackAt: null }));
   });
-  const col = (cls, title, ic, items, emptyText) => h('section', { class: 'card cm-col ' + cls }, h('h3', { class: 'h-ic' }, icon(ic), title, h('span', { class: 'cm-n', text: String(items.length) })), items.length ? items : empty(emptyText));
+  const col = (cls, title, ic, items, emptyText) => h('section', { class: 'cm-col ' + cls }, h('h3', { class: 'h-ic' }, icon(ic), title, h('span', { class: 'cm-chip', text: String(items.length) })), items.length ? items : empty(emptyText));
   return h('div', { class: 'cm-panel span-all' },
     card('Commit', h('textarea', { id: 'cm-text', rows: 2, maxLength: 200, placeholder: 'commit message' }),
       h('div', { class: 'row' }, wr ? null : h('select', { id: 'cm-when' }, [['now', '지금'], ['1h', '1시간 뒤'], ['3h', '3시간 뒤'], ['tomorrow', '내일 아침 9시'], ['sat', '주말 아침 10시']].map(([v, t]) => h('option', { value: v, text: t }))), h('span', { class: 'sp' }), btn('Commit', send, 'primary'))),
@@ -1261,14 +1263,14 @@ function agendaCard() {
   // 댓글: 작성자·리스너 둘 다 달 수 있다. 내 댓글만 지울 수 있다.
   const thread = (a, canAdd) => {
     const list = agComments(a.id);
-    const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment', id: 'agc-' + a.id, enterkeyhint: 'send', autocomplete: 'off' });
+    const box = h('input', { type: 'text', maxLength: 120, placeholder: 'Write a comment…', id: 'agc-' + a.id, enterkeyhint: 'send', autocomplete: 'off' });
     const send = act(async () => { if (await sendField(box, (t) => addAgComment(a, t))) { S.replyOpen?.delete('agc-' + a.id); renderView(); } });
     onEnter(box, send);
-    return h('div', { class: 'ag-thread' },
-      list.length ? list.map((c) => cmtRow({ time: mdhm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(c.by !== me && c.ts > (S.planSince ?? Infinity)), like: likeBtn(c, { agendaId: a.id }, me),
-        onEdit: c.by === me ? () => editText({ title: 'Edit comment', text: c.text, max: 200, onSave: (t) => S.store.patch('agenda_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('agenda_comments', c.id) : null }))
-        : h('p', { class: 'empty', text: 'No comments yet' }),
-      canAdd ? replyArea('agc-' + a.id, box, send) : null);
+    return h('div', { class: 'c-box ag-thread' },
+      list.length ? h('div', { class: 'sl-thread' }, list.map((c) => cmtRow({ time: mdhm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(c.by !== me && c.ts > (S.planSince ?? Infinity)), like: likeBtn(c, { agendaId: a.id }, me),
+        onEdit: c.by === me ? () => editText({ title: 'Edit comment', text: c.text, max: 200, onSave: (t) => S.store.patch('agenda_comments', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('agenda_comments', c.id) : null })))
+        : canAdd ? null : h('p', { class: 'empty', text: 'No comments yet' }),
+      canAdd ? h('div', { class: 'row c-new' }, box, btn('Comment', send, 'small dark txt')) : null);
   };
   // 댓글 버튼(말풍선 아이콘 + 개수): 개수가 있든 없든 버튼 폭이 같아야 옆의 Resolve·Edit·Delete 위치가 줄마다 같다 (개수 자리를 항상 비워 둔다)
   const cmtBtn = (n, fn, on) => { const b = btn('Comment', fn, 'small quiet cm-open' + (on ? ' on' : '')); b.setAttribute('aria-label', 'Comments'); b.append(h('span', { class: 'cm-n', text: n ? String(n) : '' })); return b; };
@@ -1687,7 +1689,7 @@ function winRow(p, st) {
   const nC = sysComments(p.id).filter((c) => !c.ack).length;
   const toggle = () => { st.winOpen = open ? null : p.id; st.read.add(p.id); renderView(); };
   const line = h('div', { class: 'w-line', role: 'button', tabindex: '0', 'aria-expanded': String(open), on: { click: toggle, keydown: (e) => { if (e.key === 'Enter') toggle(); } } },
-    h('span', { class: 'w-who ' + (mine ? 'u0' : 'u1'), text: mine ? '0' : '1' }),
+    faceOf(!mine, 28),
     h('div', { class: 'w-main' }, h('p', { class: 'w-text' + (st.mask && !open ? ' mask' : '') + (open ? ' full' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
       h('span', { class: 'w-meta' }, winWhen(p.ts), p.editedAt ? ' · edited' : '', nC ? ` · ${nC} comment${nC > 1 ? 's' : ''}` : '', newTag(fresh))),
     h('span', { class: 'w-acts' }, clapBtn(p), open && mine ? h('span', { on: { click: (e) => e.stopPropagation() } }, moreMenu([
