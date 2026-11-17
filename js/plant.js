@@ -13,7 +13,9 @@ const HINTS = { water: '# hold the can over the pot to sprinkle', sun: '# hold t
 const CAN = ['.....HHHH.......', '....H....H......', '.BBBBBBBBB....SS', 'HBLLBBBBBB...SS.', 'HBLBBBBBBBSSSS..', 'HBBBBBBBBBS.....', '.BBBBBBBBB......', '.DDDDDDDDD......', '..DDDDDDD.......'];
 const SUN = ['.....Y.....', '..Y.....Y..', '....YYY....', '...YLLYY...', 'Y.YYLYYYY.Y', '...YYYYY...', '....YYY....', '..Y.....Y..', '.....Y.....'];
 const DROPPER = ['..RRR..', '..RRR..', '...R...', '..WWW..', '..WLW..', '..WLW..', '..WLW..', '..WWW..', '...W...'];
-const DAISY = ['..W.W..', '.WWWWW.', 'WWYYYWW', '.WYYYW.', 'WWYYYWW', '.WWWWW.', '..W.W..'];
+// 데이지(둥근 꽃잎 8장 — 물방울 모양, 꽃잎 사이 틈). W 흰 꽃잎 · w 꽃잎 안쪽 크림 · Y 노란 가운데 · h 하이라이트 · d 그늘
+const DAISY = ['......W......', '.W...WWW...W.', '..WW.WWW.WW..', '..WW..W..WW..', '....W.w.W....', '.WW..hYY..WW.', 'WWWWwYYYwWWWW', '.WW..YYd..WW.', '....W.w.W....', '..WW..W..WW..', '..WW.WWW.WW..', '.W...WWW...W.', '......W......'];
+const DCOL = { W: '#ffffff', w: '#efe7d6', Y: '#f5c542', h: '#ffe7a3', d: '#d9a12b' };
 const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
 export function createGarden({ onCare, icon }) {
@@ -45,35 +47,39 @@ export function createGarden({ onCare, icon }) {
 
   let M = { stage: 0, age: 0, wilting: false, mine: { water: 0, light: 0, feed: 0 }, theirs: { water: 0, light: 0, feed: 0 }, log: [], canWrite: false };
   const st = { tool: 'water', down: false, ptr: null, pend: { water: 0, light: 0, feed: 0 }, drops: [], pops: [], glow: 0, rays: 0, wet: 0, ok: null, tick: 0 };
-  let T = null, Tt = 0;
-  const tok = () => { const cs = getComputedStyle(el), g = (n, f) => cs.getPropertyValue(n).trim() || f; return { bg: g('--bg', '#0b0d10'), l2: g('--line2', '#2c323c'), ln: g('--line', '#232830'), ok: g('--ok', '#3ecf8e'), warn: g('--warn', '#f5b84d'), ac: g('--accent', '#5b9dff'), crit: g('--crit', '#ff6b6b'), tx: g('--text', '#e6e8ec') }; };
+  let T = null, Tt = 0;   // 색은 터미널 창 안(항상 어두움)에서 읽는다
+  const tok = () => { const cs = getComputedStyle(cv), g = (n, f) => cs.getPropertyValue(n).trim() || f; return { sky: g('--pl-sky', '') || g('--bg', '#0b0d10'), ol: g('--pl-ol', ''), bg: g('--bg', '#0b0d10'), l2: g('--line2', '#2c323c'), ln: g('--line', '#232830'), ok: g('--ok', '#3ecf8e'), warn: g('--warn', '#f5b84d'), ac: g('--accent', '#5b9dff'), crit: g('--crit', '#ff6b6b'), tx: g('--text', '#e6e8ec') }; };
   const P = (x, y, c, a = 1) => { cx.globalAlpha = a; cx.fillStyle = c; cx.fillRect(Math.round(x) * S, Math.round(y) * S, S, S); cx.globalAlpha = 1; };
   const R = (x, y, w, hh, c, a = 1) => { cx.globalAlpha = a; cx.fillStyle = c; cx.fillRect(Math.round(x) * S, Math.round(y) * S, w * S, hh * S); cx.globalAlpha = 1; };
   const spr2 = (map, pal, x, y, hx, hy) => map.forEach((row, r) => [...row].forEach((k, c) => { if (k === '.' || !pal[k]) return; cx.fillStyle = pal[k]; cx.fillRect(Math.round(x + (c - hx) * 2), Math.round(y + (r - hy) * 2), 2, 2); }));
   const mine = (k) => Math.min(HALF, M.mine[k] + st.pend[k]);
-  const plantTop = () => (27 - [0, 3, 6, 8, 10][M.stage] - (M.stage === 4 ? 4 : 0)) * S;
+  const plantTop = () => (29 - [0, 3, 6, 8, 10][M.stage] - (M.stage === 4 ? 10 : 0)) * S;
 
+  // 디자인 D: 화분 = 진행 막대(함께 키운 날만큼 참), 줄기 + 짧은 선 잎, 꽃 = 둥근 데이지. 밝은 테마에서는 흰 부분 둘레에 옅은 테두리
+  function sprite(map, col, x0, y0, wilt) {
+    const at = (r, c) => map[r] && map[r][c] && map[r][c] !== '.';
+    if (T.ol) map.forEach((row, r) => [...row].forEach((k, c) => { if (k === '.') return; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dc, dr]) => { if (!at(r + dr, c + dc)) P(x0 + c + dc, y0 + r + dr, T.ol); }); }));
+    map.forEach((row, r) => [...row].forEach((k, c) => { if (k === '.') return; let cl = col[k]; if (wilt && (k === 'W' || k === 'w')) cl = '#d6d0c2'; P(x0 + c, y0 + r, cl); }));
+  }
   function plant() {
-    const base = 27, wilt = M.wilting;
-    const leaf = wilt ? '#9aa36e' : st.glow > 0 ? '#5fe3a6' : T.ok, leaf2 = wilt ? '#7c8462' : st.glow > 0 ? '#36b87e' : '#2a9f6c';
-    R(PX - 5, 28, 10, 1, st.wet > 0 ? '#4a3426' : '#6b4a36');
-    R(PX - 6, 29, 12, 2, '#d08d68'); R(PX - 6, 30, 12, 1, '#b8714f');
-    [[31, 10], [32, 10], [33, 8], [34, 8]].forEach(([y, w]) => { const x = PX - w / 2; R(x, y, w, 1, '#b8714f'); R(x, y, 1, 1, '#d08d68'); R(x + w - 1, y, 1, 1, '#9a5c40'); });
-    if (M.stage === 0) { P(PX - 1, base, '#a07a52'); P(PX, base, '#a07a52'); P(PX, base - 1, leaf); return; }
+    const wilt = M.wilting, base = 29;
+    const leaf = wilt ? '#9aa36e' : st.glow > 0 ? '#5fe3a6' : T.ok, stem = wilt ? '#7c8462' : st.glow > 0 ? '#36b87e' : '#2a9f6c';
+    R(PX - 8, 30, 16, 4, T.l2); R(PX - 7, 31, 14, 2, T.bg); R(PX - 7, 31, Math.max(0, Math.round(14 * Math.min(1, M.age / 14))), 2, wilt ? T.warn : T.ok);   // 진행 막대 화분
+    if (st.wet > 0) R(PX - 7, 31, 14, 2, '#8fd0ff', 0.25);
+    if (M.stage === 0) { P(PX, base, leaf); return; }
     const hgt = [0, 3, 6, 8, 10][M.stage], dr = wilt ? 1 : 0;
-    for (let i = 0; i < hgt; i++) P(PX, base - i, leaf2);
+    for (let i = 0; i < hgt; i++) P(PX, base - i, stem);
     const top = base - hgt + 1;
-    const lf = (y, d, big) => { P(PX + d, y + dr, leaf); P(PX + 2 * d, y - 1 + dr * 2, leaf); if (big) { P(PX + 2 * d, y + dr, leaf2); P(PX + 3 * d, y - 1 + dr * 3, leaf); } };
-    if (M.stage >= 2) { lf(base - 2, -1, 1); lf(base - 4, 1, 1); }
-    if (M.stage >= 3) lf(base - 6, -1, 0);
+    if (M.stage >= 2) { R(PX - 3, base - 2 + dr, 2, 1, leaf); R(PX + 2, base - 4 + dr, 2, 1, leaf); }
+    if (M.stage >= 3) R(PX - 3, base - 6 + dr, 2, 1, leaf);
     if (M.stage === 1 || M.stage === 2) { P(PX - 1, top - 1 + dr, leaf); P(PX + 1, top - 1 + dr, leaf); }
-    if (M.stage === 3) { R(PX - 1, top - 3 + dr, 3, 2, '#e9e3d6'); P(PX, top - 1, leaf); }
-    if (M.stage === 4) DAISY.forEach((row, r) => [...row].forEach((k, c) => { if (k !== '.') P(PX - 3 + c, top - 7 + r + dr, k === 'W' ? (wilt ? '#d8d2c4' : '#f4f1ec') : '#f5c542'); }));
+    if (M.stage === 3) sprite(['WWW', 'WwW'], { W: '#efe8da', w: '#e2d8c4' }, PX - 1, top - 2 + dr, wilt);
+    if (M.stage === 4) sprite(DAISY, DCOL, PX - 6, top - 12 + dr, wilt);
   }
   function draw() {
     if (!cv.isConnected) return;
     if (!T || performance.now() - Tt > 1000) { T = tok(); Tt = performance.now(); }
-    R(0, 0, W, H, T.bg);
+    R(0, 0, W, H, T.sky);   // 그림 바탕: --pl-sky (테마마다), 없으면 --bg
     for (let y = 2; y < 27; y += 4) for (let x = 2; x < W; x += 4) P(x, y, T.l2, 0.5);
     R(0, 35, W, 1, T.ln);
     if (st.rays > 0 && st.ptr) { const tx = PX * S + 2, ty = plantTop(); for (let i = 1; i < 9; i++) { const t = i / 9; cx.globalAlpha = 0.5 * st.rays; cx.fillStyle = T.warn; cx.fillRect(Math.round(st.ptr.x + (tx - st.ptr.x) * t + (i % 2 ? -3 : 3)), Math.round(st.ptr.y + (ty - st.ptr.y) * t), 2, 2); } cx.globalAlpha = 1; }
@@ -110,7 +116,7 @@ export function createGarden({ onCare, icon }) {
   }
   const pick = (t) => { st.tool = t; ops.forEach((o) => o.classList.toggle('on', o.dataset.tool === t)); hint.textContent = HINTS[t]; };
   const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height }; };
-  const overPot = () => st.ptr && Math.abs(st.ptr.x - PX * S) < 30 && st.ptr.y < 28 * S;
+  const overPot = () => st.ptr && Math.abs(st.ptr.x - PX * S) < 34 && st.ptr.y < 30 * S;
   scene.addEventListener('pointerdown', (e) => { if (!M.canWrite) return; e.preventDefault(); try { scene.setPointerCapture(e.pointerId); } catch { /* 없음 */ } st.ptr = pos(e); st.down = true; });
   scene.addEventListener('pointermove', (e) => { st.ptr = pos(e); });
   const up = () => {
@@ -122,7 +128,7 @@ export function createGarden({ onCare, icon }) {
   scene.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !st.down) st.ptr = null; });
   const onKey = (e) => { if (!el.isConnected || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return; const t = { 1: 'water', 2: 'sun', 3: 'feed' }[e.key]; if (t) pick(t); };
   document.addEventListener('keydown', onKey);
-  const add = (k) => { if (mine(k) >= HALF) return; st.pend[k]++; st.glow = 16; st.pops.push({ s: '+10', x: (PX + 7) * S + Math.random() * 6, y: 28 * S, a: 1 }); paint(); };
+  const add = (k) => { if (mine(k) >= HALF) return; st.pend[k]++; st.glow = 16; st.pops.push({ s: '+10', x: (PX + 9) * S + Math.random() * 6, y: 29 * S, a: 1 }); paint(); };
   const timer = setInterval(() => {
     if (!cv.isConnected) return;
     st.tick++;
@@ -132,7 +138,7 @@ export function createGarden({ onCare, icon }) {
       if (st.tool === 'feed') { if (st.tick % 3 === 0) st.drops.push({ x: st.ptr.x, y: st.ptr.y + 2, vx: 0, v: 1, c: T?.ok }); if (overPot() && st.tick % 6 === 0) add(k); }
     }
     if (st.tool === 'sun' && st.down && overPot() && st.ptr.y < plantTop()) { st.rays = Math.min(1, st.rays + 0.2); if (st.tick % 4 === 0) add(k); } else st.rays = Math.max(0, st.rays - 0.1);
-    st.drops.forEach((d) => { d.y += d.v; d.v += 0.6; d.x += d.vx || 0; }); st.drops = st.drops.filter((d) => d.y < 28 * S);
+    st.drops.forEach((d) => { d.y += d.v; d.v += 0.6; d.x += d.vx || 0; }); st.drops = st.drops.filter((d) => d.y < 30 * S);
     st.pops.forEach((t) => { t.y -= 1.4; t.a -= 0.04; }); st.pops = st.pops.filter((t) => t.a > 0);
     if (st.glow > 0) st.glow--; if (st.wet > 0) st.wet--;
     if (st.ok) { st.ok.n += 1.5; if (--st.ok.life <= 0) st.ok = null; }

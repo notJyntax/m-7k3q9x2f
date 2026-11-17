@@ -967,7 +967,7 @@ function gardenCard() {
   if (S.garden && S.garden.role !== S.role) { S.garden.g.destroy(); S.garden = null; }
   if (!S.garden) S.garden = { g: createGarden({ onCare: plantCareSave, icon }), role: S.role };
   S.garden.g.update(plantModel());
-  return h('section', { class: 'card pl-card' }, S.garden.g.el);
+  return h('section', { class: 'card pl-card span-all' }, S.garden.g.el);   // 리스너 Overview(2칸 배치)에서도 작성자와 같은 한 줄 전체 폭
 }
 function viewDash() {
   const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
