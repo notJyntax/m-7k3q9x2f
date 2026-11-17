@@ -17,7 +17,7 @@
   --soft: #181c22; --hover: #1b2027; --track: #232830; --codebg: #0f1216; --gloss: #181c22;
   --ts: #5d6572; --svc: #8b93a1; --codecol: #5d6572; --fatalbg: #ff6b6b; --scrim: rgba(0, 0, 0, .62);
   --bar-irr: #e49a78; --bar-fat: #5b9dff; --bar-ok: #3ecf8e; --bar-warn: #f5b84d; --bar-crit: #ff6b6b; --bar-disk: #9a91cf;
-  --dot-0: #6ea8ff; --dot-1: #ffc96b; --dot-ok: #5ee0a8;
+  --dot-0: #6ea8ff; --dot-1: #ffc96b; --dot-ok: #5ee0a8; --tr-hi: #fff1c9; --tr-base: #c98a12;
   --shadow: 0 10px 30px rgba(0, 0, 0, .45);
   --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -39,7 +39,7 @@ html[data-theme="ops-light"] {
   --soft: #f3f5f8; --hover: #eef1f5; --track: #e2e6ec; --codebg: #f7f9fc; --gloss: #f3f5f8;
   --ts: #98a2b2; --svc: #5f6b7c; --codecol: #98a2b2; --fatalbg: #d13b47; --scrim: rgba(15, 23, 42, .4);
   --bar-irr: #d98a66; --bar-fat: #2f6df0; --bar-ok: #148a5c; --bar-warn: #c98a12; --bar-crit: #d13b47; --bar-disk: #7f74c4;
-  --dot-0: #4c8dff; --dot-1: #ffb83d; --dot-ok: #2fca86;
+  --dot-0: #4c8dff; --dot-1: #ffb83d; --dot-ok: #2fca86; --tr-hi: #fff1c9; --tr-base: #c98a12;
   --shadow: 0 10px 30px rgba(15, 23, 42, .14);
   --lg-bg1: #fcfdff; --lg-bg2: #d3def5; --lg-sheen: rgba(255, 255, 255, .55); --lg-line: rgba(159, 178, 220, .75); --lg-g1: #5a97ff; --lg-g2: #2646cf; --lg-dot: #22c58a; --lg-ring: rgba(255, 255, 255, .8);
   color-scheme: light;
@@ -59,7 +59,7 @@ html[data-theme="ops-excel"] {
   --soft: #f3f3f3; --hover: #e8f3ec; --track: #e7e6e6; --codebg: #fafafa; --gloss: #f3f3f3;
   --ts: #8c8c8c; --svc: #595959; --codecol: #8c8c8c; --fatalbg: #c00000; --scrim: rgba(0, 0, 0, .35);
   --bar-irr: #ed7d31; --bar-fat: #4472c4; --bar-ok: #70ad47; --bar-warn: #ffc000; --bar-crit: #c00000; --bar-disk: #7030a0;
-  --dot-0: #5b9bd5; --dot-1: #ffc000; --dot-ok: #70ad47;
+  --dot-0: #5b9bd5; --dot-1: #ffc000; --dot-ok: #70ad47; --tr-hi: #fff2cc; --tr-base: #bf8f00;
   --shadow: 0 4px 16px rgba(0, 0, 0, .14);
   --lg-bg1: #ffffff; --lg-bg2: #dcebd6; --lg-sheen: rgba(255, 255, 255, .6); --lg-line: rgba(112, 173, 71, .6); --lg-g1: #2e9e5f; --lg-g2: #185c37; --lg-dot: #ffc000; --lg-ring: rgba(255, 255, 255, .85);
   --sans: Calibri, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
@@ -658,7 +658,7 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 .sl.fresh { box-shadow: inset 2px 0 0 var(--accent); }
 .sl-t { color: var(--mute); flex: none; font-size: 11px; }
 .sl-f { flex: none; min-width: 70px; color: var(--sub); }
-.sl-h { color: var(--svc); flex: none; min-width: 42px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.sl-h { display: inline-flex; align-items: center; color: var(--svc); flex: none; min-width: 42px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .sl-h.them, .sl-ch.them, .sl-dmeta .them { color: var(--accent); }
 .sl-m { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-family: var(--sans); font-size: 13px; }
 .sl-m.mask { font-family: var(--mono); color: var(--mute); font-size: 11.5px; user-select: none; -webkit-user-select: none; pointer-events: none; }
@@ -868,20 +868,32 @@ html[data-theme="ops-excel"] html[data-theme="ops-excel"]
 .av svg { width: 100%; height: 100%; display: block; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cm-meta { display: flex; align-items: center; gap: 6px; }
-/* Received / Sent by me (B안 카드형): 칸 바탕은 사람 색을 아주 옅게, 글마다 흰 카드 */
-.cm-col { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: color-mix(in srgb, var(--dot-1) 9%, var(--bg)); min-width: 0; }
-.cm-col.cm-out { background: color-mix(in srgb, var(--dot-0) 8%, var(--bg)); }
-.cm-col > h3 { margin: 0 0 2px; font-size: 11.5px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: .07em; display: flex; align-items: center; gap: 8px; }
-.cm-col > h3 .ico { width: 16px; height: 16px; stroke-width: 2.4; color: var(--text); }
+/* Received / Sent by me (A안 대화형): 흰 카드 안에 줄마다 왼쪽 프로필 + 큰 글, 아래 한 줄에 번호·시각·상태 */
+.card.cm-col { gap: 0; }
+.cm-col > h3 { margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .cm-chip { font: 600 11.5px var(--sans); letter-spacing: 0; padding: 1px 8px; border-radius: 99px; background: color-mix(in srgb, var(--dot-1) 22%, transparent); color: color-mix(in srgb, var(--dot-1) 60%, var(--text)); }
 .cm-out .cm-chip { background: color-mix(in srgb, var(--dot-0) 18%, transparent); color: var(--accent); }
-.cm-col .empty { padding: 4px 2px; }
-.item.cm-card { border: 0; padding: 12px 14px; gap: 8px; border-radius: 12px; background: var(--panel); box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 2px 8px rgba(15, 23, 42, .04); }
-.item.cm-card:first-of-type { padding-top: 12px; }
-.cm-card .ih { flex-wrap: nowrap; gap: 8px; }
-.cm-card .sha { font-size: 12px; color: var(--mute); }
-.cm-card .ih .sub { font-size: 12px; white-space: nowrap; }
-.cm-card .msgtext { margin: 0; font-size: 14.5px; color: var(--hi); }
-.cm-card .sl-line { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, var(--panel)); font-size: 12px; color: var(--sub); overflow-wrap: anywhere; }
-.cm-card .ih .ih-reply { margin-left: 0; }
+.cm-col .empty { padding: 12px 0 0; }
+.item.cm-a { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line); }
+.cm-col > h3 + .item.cm-a { border-top: 0; }
+.item.cm-a:last-child { padding-bottom: 2px; }
+.cm-a-b { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cm-a .msgtext { margin: 0; font-size: 14.5px; font-weight: 500; color: var(--hi); }
+.cm-a .ih { flex-wrap: nowrap; gap: 6px; }
+.cm-a .sha { font-size: 12px; color: var(--mute); }
+.cm-a .ih .sub { font-size: 12px; white-space: nowrap; }
+.cm-a .sl-line { padding: 8px 10px; border-radius: 8px; border-left: 3px solid var(--line2); background: color-mix(in srgb, var(--text) 5%, var(--panel)); font-size: 12px; color: var(--sub); overflow-wrap: anywhere; }
+.sl-h .av, .sl-dby .av { vertical-align: middle; }
+.sl-dby { display: inline-flex; align-items: center; gap: 6px; }
 .w-line .av { justify-self: center; }
+.c-box .rv { margin-left: 0; padding-left: 0; border-left: 0; }
+.cm-a .ih .btn.ic { width: 28px; height: 28px; }
+
+/* 펼친 자랑: 왼쪽 픽셀 트로피, 글에 꿀색 형광펜, 아래 줄에 작은 프로필 · ★ win */
+.w-trophy { width: 30px; height: 30px; align-self: start; margin-top: 2px; }
+.w-row.open .w-line { align-items: start; }
+.w-hl { background: linear-gradient(transparent 60%, color-mix(in srgb, var(--dot-1) 42%, transparent) 60%); color: inherit; padding: 0 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+html[data-theme="ops-dark"] .w-hl { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--dot-1) 28%, transparent) 62%); }
+.w-row.open .w-text { font-size: 17px; }
+.w-star { font-weight: 600; color: color-mix(in srgb, var(--dot-1) 70%, var(--text)); }
+.w-meta .av { margin-right: 2px; }

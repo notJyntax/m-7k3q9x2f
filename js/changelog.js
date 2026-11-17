@@ -2,12 +2,17 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-p', date: '11/17', title: '프로필·commit 화면', items: [
+    ['new', '글쓴이 표시를 픽셀 캐릭터 프로필(얼굴+상체)로'],
+    ['change', 'Received·Sent by me: 왼쪽 프로필 + 큰 글, 아래 한 줄에 번호·시각·상태'],
+    ['change', '공유 로그엔 공유한 사람 프로필, Syslog 글에도 프로필'],
+    ['change', '자랑을 펼치면 픽셀 트로피 + 형광펜 글, 프로필은 아래에 작게'],
+    ['change', '리스너: 공유 로그는 Queue 에서만 (Send 는 commit 만), Queue 도 같은 댓글 상자'],
+  ] },
   { id: '2026-11-17-o', date: '11/17', title: '댓글 상자 통일', items: [
     ['change', '아젠다 댓글·commit 답글도 같은 둥근 댓글 상자로'],
     ['change', '댓글 상자 위아래 여백 줄임, Comment 버튼은 옅은 파랑'],
     ['change', 'Uptime 막대 색을 더 밝고 맑게'],
-    ['change', 'Received·Sent by me: 옅은 색 칸 안에 글마다 흰 카드'],
-    ['new', '글쓴이 표시를 픽셀 캐릭터 얼굴로 (commit·댓글·Wins)'],
   ] },
   { id: '2026-11-17-n', date: '11/17', title: '글꼴·댓글 상자', items: [
     ['change', '라벨·시각·개수·배지 같은 안내 글자는 일반 글꼴로'],
