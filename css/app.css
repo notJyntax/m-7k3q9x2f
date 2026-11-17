@@ -115,8 +115,9 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 
 /* ───────── 3. 앱 뼈대 (grid 영역으로 PC·폰 배치를 바꾼다) ───────── */
 #app { display: grid; height: 100dvh; background: var(--bg); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
-  grid-template-columns: var(--side) 1fr; grid-template-rows: var(--top) 1fr auto;
+  grid-template-columns: var(--side) minmax(0, 1fr); grid-template-rows: var(--top) 1fr auto;   /* minmax(0,…): 긴 글(상태 한마디 등)이 있어도 칸이 화면보다 넓어지지 않게 */
   grid-template-areas: "brand top" "tabs view" "mood dock"; }
+#app > * { min-width: 0; }
 .sidebrand { grid-area: brand; }
 .top { grid-area: top; }
 .tabs { grid-area: tabs; }
@@ -642,7 +643,8 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 
 /* ───────── 12. 폰 (≤ 759px): 상단바 + 상태 줄 + 내용 + 입력줄 + 하단 탭바 ───────── */
 @media (max-width: 759px) {
-  #app { grid-template-columns: 1fr; grid-template-rows: calc(48px + env(safe-area-inset-top, 0px)) auto 1fr auto auto; grid-template-areas: "top" "mood" "view" "dock" "tabs"; }
+  /* 폰: 앱을 화면에 고정(position: fixed). 아이폰 홈 화면 앱에서 처음 열 때 높이(100dvh)를 잘못 잡아 하단바 아래가 비었다가 스크롤하면 붙던 문제를 없앤다. 페이지 자체는 스크롤되지 않고 가운데(view)만 스크롤된다 */
+  #app { position: fixed; inset: 0; height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: calc(48px + env(safe-area-inset-top, 0px)) auto 1fr auto auto; grid-template-areas: "top" "mood" "view" "dock" "tabs"; }
   .sidebrand { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; border: 0; padding: 0; }
   .top { padding: env(safe-area-inset-top, 0px) 12px 0; gap: 6px; }
   .top .brand { display: flex; }
