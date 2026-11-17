@@ -2,10 +2,14 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-h', date: '11/17', title: '폰 하단바·Uptime 간격', items: [
+    ['fix', '폰: 하단바가 화면 아래로 사라지던 것'],
+    ['change', '아이폰 홈 화면 앱: 하단바 아래로 보이는 바탕을 하단바와 같은 색으로'],
+    ['change', 'Uptime: 안내·기록 줄 위아래 간격을 똑같이'],
+  ] },
   { id: '2026-11-17-g', date: '11/17', title: 'Uptime 정리·폰 하단', items: [
     ['fix', 'Uptime: 카드가 좁을 때 막대가 사라지고 글자가 잘리던 것 (그림 위·수치 아래로)'],
     ['change', 'Uptime: 오늘 남은 것을 배지로, 카드 접기, 여백 정리, 화분 조금 작게'],
-    ['fix', '아이폰 홈 화면 앱: 하단바 아래가 비던 것 (화면 높이를 화면 전체로 맞춤)'],
   ] },
   { id: '2026-11-17-f', date: '11/17', title: 'Uptime (함께 키우는 데이지)', items: [
     ['new', 'Dashboard·Overview 맨 위 Uptime 카드: 둘이 함께 키우는 데이지'],

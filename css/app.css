@@ -443,8 +443,8 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 .pl-cmd .caret { width: 7px; height: 14px; background: var(--ok); margin-left: 2px; animation: pl-blink 1s steps(1) infinite; }
 @keyframes pl-blink { 50% { opacity: 0; } }
 .pl.ro .pl-cmd, .pl.ro .pl-hint { display: none; }
-.pl-hint { font: 11px var(--mono); color: var(--mute); margin-top: -4px; }
-.pl-log { border-top: 1px solid var(--line); padding: 8px 12px 10px; font: 11.5px/1.7 var(--mono); color: var(--sub); }
+.pl-hint { font: 11px/1.7 var(--mono); color: var(--mute); margin-top: 2px; }   /* 명령줄과 12px, 아래 구분선까지 12px */
+.pl-log { border-top: 1px solid var(--line); padding: 12px; font: 11px/1.7 var(--mono); color: var(--sub); }   /* 위아래 12px (안내 줄과 같은 줄 높이·간격) */
 .pl-log div { display: grid; grid-template-columns: 44px 18px minmax(0, 1fr) auto; gap: 8px; }
 .pl-log .t { color: var(--mute); } .pl-log .u0 { color: var(--accent); } .pl-log .u1 { color: var(--warn); } .pl-log .g { color: var(--ok); } .pl-log .pl-empty { display: block; color: var(--mute); }
 @container (max-width: 520px) { .pl-body { grid-template-columns: minmax(0, 1fr); justify-items: center; } .pl-scene { width: min(100%, 240px); } .pl-stats { width: 100%; max-width: none; } }
@@ -699,8 +699,7 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 /* ───────── 12. 폰 (≤ 759px): 상단바 + 상태 줄 + 내용 + 입력줄 + 하단 탭바 ───────── */
 @media (max-width: 759px) {
   /* 폰: 앱을 화면에 고정(position: fixed). 아이폰 홈 화면 앱에서 처음 열 때 높이(100dvh)를 잘못 잡아 하단바 아래가 비었다가 스크롤하면 붙던 문제를 없앤다. 페이지 자체는 스크롤되지 않고 가운데(view)만 스크롤된다 */
-  /* 아이폰 홈 화면 앱(black-translucent)은 첫 화면 높이를 상단 시간 줄만큼 짧게 잡아 하단바 아래가 빈다 → 화면 전체 높이(--app-h, index.html 에서 넣음)로 맞춘다 */
-  #app { position: fixed; top: 0; left: 0; right: 0; bottom: auto; height: var(--app-h, 100%); grid-template-columns: minmax(0, 1fr); grid-template-rows: calc(48px + env(safe-area-inset-top, 0px)) auto 1fr auto auto; grid-template-areas: "top" "mood" "view" "dock" "tabs"; }
+  #app { position: fixed; inset: 0; height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: calc(48px + env(safe-area-inset-top, 0px)) auto 1fr auto auto; grid-template-areas: "top" "mood" "view" "dock" "tabs"; }
   .sidebrand { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; border: 0; padding: 0; }
   .top { padding: env(safe-area-inset-top, 0px) 12px 0; gap: 6px; }
   .top .brand { display: flex; }
@@ -721,6 +720,8 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
   .ln-detail { margin: 0 12px 8px; }
   .toolbar { padding: 8px 10px; }
   .dock { padding: 8px 12px 10px; gap: 6px; }
+  html, body { background: var(--panel); }   /* 아이폰 홈 화면 앱에서 앱 아래로 보이는 바탕을 하단바와 같은 색으로 (빈칸이 따로 보이지 않게) */
+  html[data-theme="ops-excel"], html[data-theme="ops-excel"] body { background: #f3f3f3; }
   .tabs { flex-direction: row; gap: 0; padding: 6px 6px max(4px, calc(env(safe-area-inset-bottom) - 30px)); border-right: 0;   /* 아이폰: 바는 바닥(bottom 0)에 붙어 있고 배경도 바닥까지. 아이콘·글자는 홈 줄 영역까지 내려 화면 맨 아래에 붙인다 (카카오톡처럼) */ border-top: 1px solid var(--line); overflow: visible; }
   .tab { flex: 1 1 0; flex-direction: column; gap: 3px; padding: 4px 0; font-size: 10.5px; font-weight: 500; align-items: center; justify-content: center; min-width: 0; border-radius: 8px; margin: 0; }
   .tab .ico { width: 21px; height: 21px; }

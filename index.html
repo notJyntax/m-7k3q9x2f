@@ -11,14 +11,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Monitor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>
-  // 아이폰 홈 화면 앱: 화면 높이를 화면 전체(screen)로 고정한다 (iOS 가 상단 시간 줄만큼 짧게 잡는 오류 때문에 하단바 아래가 비는 것을 막음)
-  (function () {
-    if (navigator.standalone !== true) return;
-    var fix = function () { var land = innerWidth > innerHeight; var full = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height); document.documentElement.style.setProperty('--app-h', Math.max(full, innerHeight) + 'px'); };
-    fix(); addEventListener('resize', fix); addEventListener('orientationchange', function () { setTimeout(fix, 300); });
-  })();
-</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png?v=4">
