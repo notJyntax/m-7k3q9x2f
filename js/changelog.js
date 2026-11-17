@@ -2,6 +2,11 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-l', date: '11/17', title: 'Wins 따로 보기', items: [
+    ['change', 'Syslog 맨 위 Log | Wins 버튼으로 화면 바꾸기'],
+    ['change', 'Wins 화면: 위에 쓰는 칸, 아래 자랑 목록 (누가·언제·👏 수)'],
+    ['change', '자랑을 누르면 그 자리에서 댓글, 👏 는 목록에서 바로'],
+  ] },
   { id: '2026-11-17-k', date: '11/17', title: '날짜·Uptime 도구·접기', items: [
     ['change', '맨 위 오른쪽 날짜에 달력 아이콘'],
     ['change', 'Uptime: 도구는 버튼을 눌렀을 때만 켜짐 (다시 누르면 꺼짐)'],

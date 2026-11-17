@@ -174,28 +174,32 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .card.cm-col.cm-out { border-top-color: var(--accent); }
 .cm-col h3 .cm-n { margin-left: auto; font: 500 11px var(--mono); color: var(--mute); letter-spacing: 0; }
 .cm-col .sl-line { font-size: 12px; color: var(--sub); }
-/* Wins 띠 (Syslog 맨 위, 전체 폭 카드) */
-.wins-h { display: flex; align-items: center; gap: 12px; }
-.wins-h h3 { flex: 1; min-width: 0; margin: 0; }
-.wins.folded { flex-direction: row; align-items: center; gap: 12px; }
-.wins.folded .wins-h { flex: none; }
-.wins.folded .wins-h h3 { flex: none; }
-.win-last { flex: 1; min-width: 0; font-size: 12.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.win-link { border: 0; background: none; padding: 0; font: 500 12px var(--sans); color: var(--accent); cursor: pointer; white-space: nowrap; }
-.win-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 899px) { .win-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; } .win-grid .win { flex: 0 0 78%; scroll-snap-align: start; } }
-.win { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel2); cursor: pointer; min-width: 0; }
-.win:hover { border-color: var(--line2); }
-.win.on { border-color: var(--accent); }
-.win.fresh { box-shadow: inset 3px 0 0 var(--accent); }
-.win-t { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.win-t.mask { font: 12px var(--mono); color: var(--mute); }
-.win-f { display: flex; align-items: center; gap: 6px; margin-top: auto; font-size: 11.5px; white-space: nowrap; }
-.win-b { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid var(--line); border-radius: 99px; background: var(--panel); font: 500 11.5px var(--mono); color: var(--sub); cursor: pointer; }
-.win-b.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
-.win-b.ro { cursor: inherit; }
-.win-open { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
-.win-open .msgtext { margin: 0; }
+/* Syslog 맨 위 Log | Wins 바꾸기 */
+.seg { display: flex; gap: 4px; padding: 4px; border-radius: var(--r); background: var(--panel2); border: 1px solid var(--line); justify-self: start; }
+.seg-b { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--sub); cursor: pointer; }
+.seg-b .ico { width: 15px; height: 15px; stroke-width: 2.2; }
+.seg-b i { font: 500 11px var(--mono); font-style: normal; color: var(--mute); }
+.seg-b.on { background: var(--panel); border-color: var(--line); color: var(--hi); }
+.seg-b.on i { color: var(--text); }
+/* Wins 화면 */
+.wins-h { display: flex; align-items: center; gap: 10px; }
+.wins-h h3 { margin: 0; }
+.card.w-list { gap: 0; padding-top: 2px; padding-bottom: 2px; }
+.w-row { border-top: 1px solid var(--line); }
+.w-row:first-child { border-top: 0; }
+.w-row.fresh .w-line { box-shadow: inset 3px 0 0 var(--accent); }
+.w-line { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer; }
+.w-who { font: 600 12px var(--mono); text-align: center; }
+.w-who.u0 { color: var(--accent); } .w-who.u1 { color: var(--warn); }
+.w-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.w-text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-text.full { white-space: pre-wrap; overflow-wrap: anywhere; }
+.w-text.mask { font: 12px var(--mono); color: var(--mute); }
+.w-meta { display: flex; align-items: center; gap: 4px; font: 11.5px var(--mono); color: var(--mute); }
+.w-clap { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font: 500 12px var(--mono); color: var(--sub); cursor: pointer; }
+.w-clap.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.w-row.open .w-line { padding-bottom: 8px; }
+.w-body { display: flex; flex-direction: column; gap: 10px; padding: 0 0 12px 34px; }
 .win-cmp input { flex: 1; min-width: 0; }
 .live, .mode, .env { font: 500 11.5px var(--mono); padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
 .live { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; }
@@ -329,6 +333,7 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 .badge.ok { background: var(--okbg); color: var(--ok); }
 .badge.warn { background: var(--warnbg); color: var(--warn); }
 .badge.bad { background: var(--critbg); color: var(--crit); }
+.badge.u0 { background: var(--accent-bg); color: var(--accent); }
 .new-tag { font: 600 9.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-bg); border-radius: 3px; padding: 1px 5px; margin-left: 6px; white-space: nowrap; }
 .b-ed { font: 10.5px var(--mono); color: var(--mute); }
 .gloss { display: flex; gap: 8px; align-items: baseline; background: var(--panel2); border-radius: 6px; padding: 6px 9px; font-size: 12.5px; }
@@ -819,12 +824,9 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 .fold-h h3 { margin: 0; }
 .fold-h .cm-n { font: 500 11px var(--mono); color: var(--mute); }
 .fold-h > .ico { margin-left: auto; width: 16px; height: 16px; color: var(--sub); }
-.win-t.full { -webkit-line-clamp: unset; display: block; }
 .ih .ih-reply { margin-left: auto; width: 28px; height: 28px; padding: 0; display: inline-grid; place-items: center; color: var(--accent); }
 .ih .ih-reply .ico { width: 16px; height: 16px; }
 /* Wins 펼침: 댓글 칸 옆(아래쪽 맞춤)에 메뉴·Close */
-.win-open { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 10px; }
-.win-open > .row { flex-wrap: nowrap; }
 html[data-theme="ops-excel"] .card h3.h-ic > .ico { color: var(--accent); }
 html[data-theme="ops-excel"] .card.cm-col { border-top-color: var(--warn); }
 html[data-theme="ops-excel"] .card.cm-col.cm-out { border-top-color: var(--accent); }

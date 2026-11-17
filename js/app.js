@@ -402,7 +402,7 @@ function refresh() {
 }
 // 열어 둔 것(답글·새 아젠다·메모 입력칸, 아젠다 댓글, 펼친 로그·Syslog 글, 업데이트 내역, 해결된 아젠다·승인 내역 목록, 달력 기간 선택)은 다른 탭으로 옮겨 갈 때 모두 접는다. 시간으로는 접지 않는다.
 function collapseAll() {
-  S.replyOpen?.clear(); S.agOpen?.clear(); S.open?.clear(); S.sys?.open.clear(); if (S.sys) { S.sys.winOpen = null; S.sys.winsShow = false; S.sys.winsAll = false; } S.uhOpen = false;
+  S.replyOpen?.clear(); S.agOpen?.clear(); S.open?.clear(); S.sys?.open.clear(); if (S.sys) S.sys.winOpen = null; S.uhOpen = false;
   S.clOpen = {}; S.agHist = false; S.planHist = false;
   if (S.cal) { S.cal.end = null; S.cal.range = false; }
 }
@@ -1542,7 +1542,7 @@ const newTag = (on) => (on ? h('span', { class: 'new-tag', text: 'new' }) : null
 const sysLikes = (cid) => rows('comment_likes').filter((l) => l.commentId === cid && l.on);
 const sysVotes = (id) => rows('post_votes').filter((v) => v.postId === id && v.option != null);
 const newSyslog = () => posts().filter((p) => p.by !== roleName() && p.ts > seenAt('syslog')).length + rows('post_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('syslog')).length + rows('comment_likes').filter((l) => l.on && l.postId && l.by !== roleName() && l.ts > seenAt('syslog')).length;
-const sysState = () => (S.sys ??= { filter: 'all', q: '', open: new Set(), read: new Set(), mask: lsGet('svcmon.sys.mask', true) });
+const sysState = () => (S.sys ??= { view: 'log', filter: 'all', q: '', open: new Set(), read: new Set(), mask: lsGet('svcmon.sys.mask', true) });
 // 목록의 글은 암호문처럼 보이고(msg=U2FsdGVkX1…), 누른 글만 진짜 내용으로 펼쳐진다. 한 번에 하나만 펼치고, 일정 시간이 지나거나 앱을 벗어나면 다시 가려진다.
 // 암호문처럼 보이는 글자는 글 id 로만 만든다. 글 내용과 상관이 없어서 내용이나 길이가 새지 않고, 새로고침해도 같은 글은 같은 모양이다.
 function maskText(id) {
@@ -1565,10 +1565,10 @@ function likeBtn(c, scope, me) {
     on: { click: act(() => S.store.set('comment_likes', `cl_${c.id}_${me}`, { commentId: c.id, ...scope, by: me, on: !mine, ts: Date.now() })) } }, icon(mine ? 'heartOn' : 'heart'));
   return h('span', { class: 'lk-wrap', 'data-newlike': fresh ? '1' : '0' }, heart, h('span', { class: 'lk-n', title: ls.length ? `${ls.length} liked` : '', text: ls.length || '' }));
 }
-function sysThread(id, canAdd) {
+function sysThread(id, canAdd, opt = {}) {   // opt: Wins 댓글처럼 입력칸 글·버튼 이름을 바꿀 때 (ph, label, send)
   const me = roleName(), all = sysComments(id), top = all.filter((c) => !c.parentId), kids = (pid) => all.filter((c) => c.parentId === pid);
   S.replyOpen ??= new Set();
-  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'comment', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: opt.ph || 'comment', id: 'sc-' + id, enterkeyhint: 'send', autocomplete: 'off' });
   const send = act(async () => { if (await sendField(box, (t) => S.store.set('post_comments', 'pc_' + uid(), { postId: id, by: me, text: t, ts: Date.now() }))) { S.replyOpen.delete('sc-' + id); renderView(); } });
   onEnter(box, send);
   // 댓글 한 줄 (답댓글이면 isReply: 한 단계만이라 더 답할 수 없다). 답글 쓰기는 줄 오른쪽의 ↩ 아이콘으로 입력칸을 연다.
@@ -1585,7 +1585,7 @@ function sysThread(id, canAdd) {
   };
   return h('div', { class: 'sl-thread rv-thread' },
     top.map((c) => { const ks = kids(c.id), rbx = replyBox(c); return ks.length || rbx ? h('div', { class: 'cm-grp' }, row(c, false), h('div', { class: 'cm-kids' }, ks.map((k) => row(k, true)), rbx)) : row(c, false); }),
-    canAdd ? replyArea('sc-' + id, box, send, 'Comment', 'Send') : null);
+    canAdd ? replyArea('sc-' + id, box, send, opt.label || 'Comment', opt.send || 'Send') : null);
 }
 function sysRow(p, kept) {
   const st = sysState(), me = roleName(), sev = sysSev(p), open = st.open.has(p.id), mine = p.by === me;
@@ -1661,43 +1661,45 @@ function composeBar() {
 // 자랑 글은 posts 에 kind:'win' 으로 저장한다(서버 규칙 그대로). 👏 는 post_reactions(글마다 한 사람 하나), 댓글은 Syslog 댓글과 같다.
 const wins = () => posts().filter((p) => p.kind === 'win').sort((a, b) => b.ts - a.ts);
 const claps = (id) => rows('post_reactions').filter((r) => r.postId === id && r.emoji === '👏');
-function winCard(p, st) {
-  const me = roleName(), mine = p.by === me, open = st.winOpen === p.id, cl = claps(p.id), myClap = cl.some((r) => r.by === me), nC = sysComments(p.id).filter((c) => !c.ack).length;
-  const fresh = !mine && p.ts > (S.sysSince ?? Infinity) && !st.read.has(p.id);
-  const toggle = () => { st.winOpen = open ? null : p.id; st.read.add(p.id); renderView(); };
-  return h('div', { class: 'win' + (open ? ' on' : '') + (fresh ? ' fresh' : ''), 'data-pid': p.id, role: 'button', tabindex: '0', on: { click: toggle, keydown: (e) => { if (e.key === 'Enter') toggle(); } } },
-    h('p', { class: 'win-t' + (st.mask && !open ? ' mask' : '') + (open ? ' full' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
-    h('div', { class: 'win-f' }, h('span', { class: 'sub mono', text: `by ${mine ? '0' : '1'} · ${dayKey(p.ts) === dayKey() ? hm(p.ts) : mdhm(p.ts).split(' ')[0]}` }), newTag(fresh), h('span', { class: 'sp' }),
-      h('button', { type: 'button', class: 'win-b' + (myClap ? ' on' : ''), title: myClap ? 'Undo clap' : 'Clap', 'aria-pressed': String(myClap), on: { click: act(async (e) => { e.stopPropagation(); await S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: myClap ? '' : '👏', ts: Date.now() }); }) } }, '👏', h('span', { text: cl.length || '' })),
-      h('span', { class: 'win-b ro' }, '💬', h('span', { text: nC || '' }))));
+// Syslog 맨 위 Log | Wins 바꾸기. Wins 화면 = 쓰는 칸(카드 하나) + 자랑 목록(카드 하나). 목록 줄을 누르면 그 자리에서 댓글이 열린다
+const winWhen = (ts) => (dayKey(ts) === dayKey() ? 'today ' + hm(ts) : dayKey(ts) === dayKey(Date.now() - 864e5) ? 'yesterday ' + hm(ts) : mdhm(ts).split(' ')[0]);
+function clapBtn(p) {
+  const me = roleName(), cl = claps(p.id), on = cl.some((r) => r.by === me);
+  return h('button', { type: 'button', class: 'w-clap' + (on ? ' on' : ''), title: on ? 'Undo clap' : 'Clap', 'aria-pressed': String(on),
+    on: { click: act(async (e) => { e.stopPropagation(); await S.store.set('post_reactions', `pr_${p.id}_${me}`, { postId: p.id, by: me, emoji: on ? '' : '👏', ts: Date.now() }); }) } }, '👏', cl.length ? String(cl.length) : '');
 }
-function winDetail(p) {   // 카드에 이미 글이 보이므로 여기엔 글을 다시 쓰지 않는다: 메뉴·닫기·댓글만
-  const mine = p.by === roleName();
-  return h('div', { class: 'win-open' },
-    sysThread(p.id, true),
-    h('div', { class: 'row' }, h('span', { class: 'sp' }),
+function winRow(p, st) {
+  const me = roleName(), mine = p.by === me, open = st.winOpen === p.id;
+  const fresh = !mine && p.ts > (S.sysSince ?? Infinity) && !st.read.has(p.id);
+  const nC = sysComments(p.id).filter((c) => !c.ack).length;
+  const toggle = () => { st.winOpen = open ? null : p.id; st.read.add(p.id); renderView(); };
+  const line = h('div', { class: 'w-line', role: 'button', tabindex: '0', 'aria-expanded': String(open), on: { click: toggle, keydown: (e) => { if (e.key === 'Enter') toggle(); } } },
+    h('span', { class: 'w-who ' + (mine ? 'u0' : 'u1'), text: mine ? '0' : '1' }),
+    h('div', { class: 'w-main' }, h('p', { class: 'w-text' + (st.mask && !open ? ' mask' : '') + (open ? ' full' : ''), text: st.mask && !open ? maskText(p.id) : p.text }),
+      h('span', { class: 'w-meta' }, winWhen(p.ts), p.editedAt ? ' · edited' : '', nC ? ` · ${nC} comment${nC > 1 ? 's' : ''}` : '', newTag(fresh))),
+    clapBtn(p));
+  if (!open) return h('div', { class: 'w-row' + (fresh ? ' fresh' : '') }, line);
+  return h('div', { class: 'w-row open' }, line, h('div', { class: 'w-body' },
+    sysThread(p.id, true, { ph: '축하 한마디', label: 'Comment', send: 'Reply' }),
+    h('div', { class: 'sl-act' }, h('span', { class: 'sp' }),
       mine ? moreMenu([
         { label: 'Edit', icon: 'edit', fn: () => editText({ title: 'Edit win', text: p.text, max: 300, onSave: (t) => S.store.patch('posts', p.id, { text: t, editedAt: Date.now() }) }) },
-        { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { sysState().winOpen = null; await S.store.del('posts', p.id); }) }] }) }]) : null,
-      btn('Close', () => { sysState().winOpen = null; renderView(); }, 'small quiet')));
+        { label: 'Delete', icon: 'trash', danger: true, fn: () => modal({ title: '이 자랑을 삭제할까요?', body: note('댓글과 박수도 함께 사라져요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { st.winOpen = null; await S.store.del('posts', p.id); }) }] }) }]) : null)));
 }
-function winsStrip(st) {
+function winsView(st) {
   const me = roleName(), all = wins();
-  const folded = st.open.size > 0 && !st.winsShow;   // 로그 글을 펼친 동안에는 한 줄로 접힌다
-  const tgl = (label, fn) => h('button', { type: 'button', class: 'win-link', text: label, on: { click: fn } });
-  const head = (...extra) => h('div', { class: 'wins-h' }, h('h3', { class: 'h-ic' }, icon('star'), 'Wins', h('span', { class: 'cm-n', text: String(all.length) })), ...extra);
-  if (folded) return h('section', { class: 'card span-all wins folded' }, head(), all[0] ? h('span', { class: 'win-last', text: st.mask ? maskText(all[0].id) : all[0].text }) : null, tgl('show', () => { st.winsShow = true; renderView(); }));
-  const box = h('input', { type: 'text', id: 'win-text', maxLength: 300, placeholder: 'share a win…', autocomplete: 'off', enterkeyhint: 'send' });
+  const box = h('input', { type: 'text', id: 'win-text', maxLength: 300, placeholder: '오늘 자랑할 거 한 줄', autocomplete: 'off', enterkeyhint: 'send' });
   const post = act(async () => { if (await sendField(box, (t) => S.store.set('posts', 'po_' + uid(), { by: me, text: t, ts: Date.now(), kind: 'win' }))) toast('올렸어요 👏'); });
   onEnter(box, post);
-  const list = st.winsAll ? all : all.slice(0, 3), sel = all.find((p) => p.id === st.winOpen);
-  return h('section', { class: 'card span-all wins' },
-    head(
-      st.open.size ? tgl('hide', () => { st.winsShow = false; renderView(); }) : null,
-      all.length > 3 ? tgl(st.winsAll ? 'less' : 'see all', () => { st.winsAll = !st.winsAll; renderView(); }) : null),
-    list.length ? h('div', { class: 'win-grid' }, list.map((p) => winCard(p, st))) : h('p', { class: 'empty', text: '아직 자랑이 없어요. 오늘 잘한 걸 하나 적어 보세요.' }),
-    sel ? winDetail(sel) : null,
-    h('div', { class: 'row win-cmp' }, box, btn('Post', post, 'small primary')));
+  return [
+    h('section', { class: 'card span-all' }, h('div', { class: 'wins-h' }, h('h3', { class: 'h-ic' }, icon('star'), 'Wins'), h('span', { class: 'sub', text: '자랑만 적는 곳' })),
+      h('div', { class: 'row win-cmp' }, box, btn('Post', post, 'primary'))),
+    h('section', { class: 'card span-all w-list' }, all.length ? all.map((p) => winRow(p, st)) : empty('아직 자랑이 없어요. 오늘 잘한 걸 하나 적어 보세요.')),
+  ];
+}
+function sysSeg(st, nLog, nWin) {
+  const b = (v, ic, label, n) => h('button', { type: 'button', class: 'seg-b' + (st.view === v ? ' on' : ''), 'aria-pressed': String(st.view === v), on: { click: () => { if (st.view === v) return; st.view = v; st.open.clear(); st.winOpen = null; renderView(); } } }, icon(ic), label, h('i', { text: String(n) }));
+  return h('div', { class: 'seg span-all', role: 'group', 'aria-label': 'Syslog view' }, b('log', 'tSyslog', 'Log', nLog), b('wins', 'star', 'Wins', nWin));
 }
 function viewSyslog() {
   const st = sysState(), me = roleName();
@@ -1714,7 +1716,9 @@ function viewSyslog() {
   const chips = FILTERS.map(([f, label, n]) => h('button', { type: 'button', class: 'schip' + (st.filter === f ? ' on' : ''), on: { click: () => { st.filter = f; renderView(); } } }, label, h('i', { text: n() })));
   const wide = sysWide(), sel = wide ? all.find((p) => st.open.has(p.id)) : null;
   const detail = !wide ? null : h('section', { class: 'card sl-detail' }, sel ? sysDetail(sel, kept.has(sel.id)) : [cardTitle('Entry'), empty('목록에서 글을 누르면 여기에 열려요')]);
-  return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, winsStrip(st), h('section', { class: 'card syslog' },
+  const seg = sysSeg(st, all.length, wins().length);
+  if (st.view === 'wins') return h('div', { class: 'grid' }, seg, ...winsView(st));
+  return h('div', { class: 'grid' + (wide ? ' sl-split' : '') }, seg, h('section', { class: 'card syslog' },
     h('div', { class: 'row sl-head' }, cardTitle('Syslog'), h('span', { class: 'sl-hact' },
       st.open.size ? btn('Hide all', () => { st.open.clear(); renderView(); }, 'small quiet') : null,
       tglBtn(st.mask ? 'eyeOff' : 'eye', st.mask ? 'Mask on (hide text) · tap to show' : 'Mask off · tap to hide text', st.mask, () => { st.mask = !st.mask; lsSet('svcmon.sys.mask', st.mask); renderView(); }),
