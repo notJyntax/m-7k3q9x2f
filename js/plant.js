@@ -16,7 +16,7 @@ const DROPPER = ['..RRR..', '..RRR..', '...R...', '..WWW..', '..WLW..', '..WLW..
 const DAISY = ['..W.W..', '.WWWWW.', 'WWYYYWW', '.WYYYW.', 'WWYYYWW', '.WWWWW.', '..W.W..'];
 const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
-export function createGarden({ onCare }) {
+export function createGarden({ onCare, icon }) {
   const cv = h('canvas', { class: 'pl-cv', role: 'img', 'aria-label': 'Daisy' });
   cv.width = W * S; cv.height = H * S;
   const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
@@ -26,13 +26,22 @@ export function createGarden({ onCare }) {
   const meta = h('div', { class: 'pl-meta' }), today = h('div', { class: 'pl-today' }), log = h('div', { class: 'pl-log' }), hint = h('div', { class: 'pl-hint', text: HINTS.water });
   const ops = Object.keys(HINTS).map((t, i) => h('button', { type: 'button', class: 'op' + (i ? '' : ' on'), 'data-tool': t, on: { click: () => pick(t) } }, h('kbd', { text: String(i + 1) }), t));
   const who = [0, 1].map((u) => h('span', { class: 'pl-who u' + u }, h('i'), String(u)));
+  // 접기: 이 기기에서만 기억 (접으면 제목 줄에 단계·나이만)
+  const FOLD = 'svcmon.plant.fold';
+  let folded = false; try { folded = localStorage.getItem(FOLD) === '1'; } catch { /* 없음 */ }
+  const sum = h('span', { class: 'pl-sum' }), chev = h('span', { class: 'pl-chev' });
+  const setFold = (v) => { folded = v; el.classList.toggle('folded', v); hd.setAttribute('aria-expanded', String(!v)); hd.title = v ? 'Show uptime' : 'Hide uptime'; chev.replaceChildren(icon ? icon(v ? 'chevD' : 'chevU') : (v ? '+' : '−')); try { localStorage.setItem(FOLD, v ? '1' : '0'); } catch { /* 없음 */ } };
+  const hd = h('button', { type: 'button', class: 'pl-hd', on: { click: () => setFold(!folded) } }, chev, h('h3', { text: 'Uptime' }), h('span', { class: 'sp' }), sum, ...who);
   const el = h('div', { class: 'pl' },
-    h('div', { class: 'pl-head' }, h('h3', { text: 'Uptime' }), h('span', { class: 'sp' }), ...who),
+    hd,
     h('div', { class: 'pl-term' },
       h('div', { class: 'pl-tt' }, h('b', { class: 'r' }), h('b', { class: 'y' }), h('b', { class: 'g' }), h('span', { text: 'garden@prod-api-02: ~/daisy' })),
-      h('div', { class: 'pl-body' }, scene, h('div', { class: 'pl-stats' }, ...KINDS.map(stat), meta, today)),
-      h('div', { class: 'pl-cmd', role: 'toolbar', 'aria-label': 'Care' }, h('span', { class: 'ps', text: '~/daisy $' }), ...ops, h('span', { class: 'caret' })),
-      hint, log));
+      h('div', { class: 'pl-in' },
+        h('div', { class: 'pl-body' }, scene, h('div', { class: 'pl-stats' }, ...KINDS.map(stat), meta, today)),
+        h('div', { class: 'pl-cmd', role: 'toolbar', 'aria-label': 'Care' }, h('span', { class: 'ps', text: '~/daisy $' }), ...ops, h('span', { class: 'caret' })),
+        hint),
+      log));
+  setFold(folded);
 
   let M = { stage: 0, age: 0, wilting: false, mine: { water: 0, light: 0, feed: 0 }, theirs: { water: 0, light: 0, feed: 0 }, log: [], canWrite: false };
   const st = { tool: 'water', down: false, ptr: null, pend: { water: 0, light: 0, feed: 0 }, drops: [], pops: [], glow: 0, rays: 0, wet: 0, ok: null, tick: 0 };
@@ -90,9 +99,12 @@ export function createGarden({ onCare }) {
     who[0].classList.toggle('on', doneMe); who[1].classList.toggle('on', doneThem);
     const next = [2, 5, 9, 14].find((n) => n > M.age);
     meta.replaceChildren(...['uptime ', h('b', { text: M.age + 'd' }), ' · stage ', h('b', { text: M.stage + '/4' }), next ? ` · next in ${next - M.age}d` : ' · bloom', M.wilting ? h('span', { class: 'pl-wilt', text: ' · wilting' }) : ''].filter((x) => x !== ''));
-    const miss = (src) => KINDS.filter((k) => src(k) < HALF);
-    today.replaceChildren(h('span', { text: 'today' }), h('span', { class: 'k u0' + (doneMe ? ' on' : ''), text: '0' }), h('span', { class: 'k u1' + (doneThem ? ' on' : ''), text: '1' }),
-      h('span', { text: doneMe && doneThem ? 'all 100% → growing' : [doneMe ? '' : `0 needs ${miss(mine).join(' ')}`, doneThem ? '' : `1 needs ${miss((k) => M.theirs[k]).join(' ')}`].filter(Boolean).join(' · ') }));
+    // 오늘: 사람마다 한 줄. 다 했으면 done, 아니면 남은 것(water·light·feed)을 배지로
+    const row = (u, done, left) => h('div', { class: 'pl-tr' }, h('span', { class: `k u${u}${done ? ' on' : ''}`, text: String(u) }),
+      done ? h('span', { class: 'badge ok', text: 'done' }) : [h('span', { class: 'nd', text: 'needs' }), ...left.map((k) => h('span', { class: 'badge warn', text: k }))]);
+    today.replaceChildren(h('span', { class: 'lb', text: doneMe && doneThem ? 'today · all 100% → growing' : 'today' }),
+      row(0, doneMe, KINDS.filter((k) => mine(k) < HALF)), row(1, doneThem, KINDS.filter((k) => M.theirs[k] < HALF)));
+    sum.textContent = `stage ${M.stage}/4 · ${M.age}d${M.wilting ? ' · wilting' : ''}`;
     log.replaceChildren(...(M.log.length ? M.log.slice(0, 6).map((l) => h('div', null, h('span', { class: 't', text: hm(l.ts) }), h('span', { class: 'u' + l.who, text: String(l.who) }), h('span', { text: DONE_WORD[l.k] || l.k }), h('span', { class: 'g', text: `+${l.n * 10}%` })))
       : [h('div', { class: 'pl-empty', text: '# no care yet today' })]));
   }

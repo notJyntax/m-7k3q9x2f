@@ -965,7 +965,7 @@ function plantCareSave(k, n) {
 }
 function gardenCard() {
   if (S.garden && S.garden.role !== S.role) { S.garden.g.destroy(); S.garden = null; }
-  if (!S.garden) S.garden = { g: createGarden({ onCare: plantCareSave }), role: S.role };
+  if (!S.garden) S.garden = { g: createGarden({ onCare: plantCareSave, icon }), role: S.role };
   S.garden.g.update(plantModel());
   return h('section', { class: 'card pl-card' }, S.garden.g.el);
 }
