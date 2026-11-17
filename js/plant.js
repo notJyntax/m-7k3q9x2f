@@ -1,0 +1,140 @@
+// 함께 키우는 데이지 (Dashboard 의 Uptime 카드). 그림·도구·반응만 맡고, 저장은 app.js 가 한다 (onCare).
+// 터미널 창 안의 도트 화분. 도구(물뿌리개·해·스포이트)가 커서/손가락을 따라다니고, 화분 위에서 누르고 있으면 칸이 찬다.
+// 식물은 움직이지 않는다. 반응은 +10 글자(누가 했는지 색), 잎이 잠깐 생기 있게, 끝나면 [ OK ] 줄.
+// 막대는 반반: 왼쪽 5칸 = 0(나), 오른쪽 5칸 = 1(상대). 한 사람은 자기 몫(5칸)까지만 채운다.
+import { h } from './util.js';
+
+const S = 4, W = 48, H = 36, PX = 24, HALF = 5;
+const KINDS = ['water', 'light', 'feed'];
+const NAME = { water: 'moisture', light: 'light', feed: 'nutrients' };
+const TOOL_KIND = { water: 'water', sun: 'light', feed: 'feed' };
+const DONE_WORD = { water: 'watered', light: 'sunlight', feed: 'nutrients' };
+const HINTS = { water: '# hold the can over the pot to sprinkle', sun: '# hold the sun above the plant', feed: '# hold the dropper over the soil' };
+const CAN = ['.....HHHH.......', '....H....H......', '.BBBBBBBBB....SS', 'HBLLBBBBBB...SS.', 'HBLBBBBBBBSSSS..', 'HBBBBBBBBBS.....', '.BBBBBBBBB......', '.DDDDDDDDD......', '..DDDDDDD.......'];
+const SUN = ['.....Y.....', '..Y.....Y..', '....YYY....', '...YLLYY...', 'Y.YYLYYYY.Y', '...YYYYY...', '....YYY....', '..Y.....Y..', '.....Y.....'];
+const DROPPER = ['..RRR..', '..RRR..', '...R...', '..WWW..', '..WLW..', '..WLW..', '..WLW..', '..WWW..', '...W...'];
+const DAISY = ['..W.W..', '.WWWWW.', 'WWYYYWW', '.WYYYW.', 'WWYYYWW', '.WWWWW.', '..W.W..'];
+const hm = (ts) => { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+
+export function createGarden({ onCare }) {
+  const cv = h('canvas', { class: 'pl-cv', role: 'img', 'aria-label': 'Daisy' });
+  cv.width = W * S; cv.height = H * S;
+  const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
+  const scene = h('div', { class: 'pl-scene' }, cv);
+  const cells = {}, vals = {};
+  const stat = (k) => { cells[k] = h('div', { class: 'pl-cells' }); vals[k] = h('em', { text: '0%' }); return h('div', { class: 'pl-stat' }, h('span', { text: NAME[k] }), cells[k], vals[k]); };
+  const meta = h('div', { class: 'pl-meta' }), today = h('div', { class: 'pl-today' }), log = h('div', { class: 'pl-log' }), hint = h('div', { class: 'pl-hint', text: HINTS.water });
+  const ops = Object.keys(HINTS).map((t, i) => h('button', { type: 'button', class: 'op' + (i ? '' : ' on'), 'data-tool': t, on: { click: () => pick(t) } }, h('kbd', { text: String(i + 1) }), t));
+  const who = [0, 1].map((u) => h('span', { class: 'pl-who u' + u }, h('i'), String(u)));
+  const el = h('div', { class: 'pl' },
+    h('div', { class: 'pl-head' }, h('h3', { text: 'Uptime' }), h('span', { class: 'sp' }), ...who),
+    h('div', { class: 'pl-term' },
+      h('div', { class: 'pl-tt' }, h('b', { class: 'r' }), h('b', { class: 'y' }), h('b', { class: 'g' }), h('span', { text: 'garden@prod-api-02: ~/daisy' })),
+      h('div', { class: 'pl-body' }, scene, h('div', { class: 'pl-stats' }, ...KINDS.map(stat), meta, today)),
+      h('div', { class: 'pl-cmd', role: 'toolbar', 'aria-label': 'Care' }, h('span', { class: 'ps', text: '~/daisy $' }), ...ops, h('span', { class: 'caret' })),
+      hint, log));
+
+  let M = { stage: 0, age: 0, wilting: false, mine: { water: 0, light: 0, feed: 0 }, theirs: { water: 0, light: 0, feed: 0 }, log: [], canWrite: false };
+  const st = { tool: 'water', down: false, ptr: null, pend: { water: 0, light: 0, feed: 0 }, drops: [], pops: [], glow: 0, rays: 0, wet: 0, ok: null, tick: 0 };
+  let T = null, Tt = 0;
+  const tok = () => { const cs = getComputedStyle(el), g = (n, f) => cs.getPropertyValue(n).trim() || f; return { bg: g('--bg', '#0b0d10'), l2: g('--line2', '#2c323c'), ln: g('--line', '#232830'), ok: g('--ok', '#3ecf8e'), warn: g('--warn', '#f5b84d'), ac: g('--accent', '#5b9dff'), crit: g('--crit', '#ff6b6b'), tx: g('--text', '#e6e8ec') }; };
+  const P = (x, y, c, a = 1) => { cx.globalAlpha = a; cx.fillStyle = c; cx.fillRect(Math.round(x) * S, Math.round(y) * S, S, S); cx.globalAlpha = 1; };
+  const R = (x, y, w, hh, c, a = 1) => { cx.globalAlpha = a; cx.fillStyle = c; cx.fillRect(Math.round(x) * S, Math.round(y) * S, w * S, hh * S); cx.globalAlpha = 1; };
+  const spr2 = (map, pal, x, y, hx, hy) => map.forEach((row, r) => [...row].forEach((k, c) => { if (k === '.' || !pal[k]) return; cx.fillStyle = pal[k]; cx.fillRect(Math.round(x + (c - hx) * 2), Math.round(y + (r - hy) * 2), 2, 2); }));
+  const mine = (k) => Math.min(HALF, M.mine[k] + st.pend[k]);
+  const plantTop = () => (27 - [0, 3, 6, 8, 10][M.stage] - (M.stage === 4 ? 4 : 0)) * S;
+
+  function plant() {
+    const base = 27, wilt = M.wilting;
+    const leaf = wilt ? '#9aa36e' : st.glow > 0 ? '#5fe3a6' : T.ok, leaf2 = wilt ? '#7c8462' : st.glow > 0 ? '#36b87e' : '#2a9f6c';
+    R(PX - 5, 28, 10, 1, st.wet > 0 ? '#4a3426' : '#6b4a36');
+    R(PX - 6, 29, 12, 2, '#d08d68'); R(PX - 6, 30, 12, 1, '#b8714f');
+    [[31, 10], [32, 10], [33, 8], [34, 8]].forEach(([y, w]) => { const x = PX - w / 2; R(x, y, w, 1, '#b8714f'); R(x, y, 1, 1, '#d08d68'); R(x + w - 1, y, 1, 1, '#9a5c40'); });
+    if (M.stage === 0) { P(PX - 1, base, '#a07a52'); P(PX, base, '#a07a52'); P(PX, base - 1, leaf); return; }
+    const hgt = [0, 3, 6, 8, 10][M.stage], dr = wilt ? 1 : 0;
+    for (let i = 0; i < hgt; i++) P(PX, base - i, leaf2);
+    const top = base - hgt + 1;
+    const lf = (y, d, big) => { P(PX + d, y + dr, leaf); P(PX + 2 * d, y - 1 + dr * 2, leaf); if (big) { P(PX + 2 * d, y + dr, leaf2); P(PX + 3 * d, y - 1 + dr * 3, leaf); } };
+    if (M.stage >= 2) { lf(base - 2, -1, 1); lf(base - 4, 1, 1); }
+    if (M.stage >= 3) lf(base - 6, -1, 0);
+    if (M.stage === 1 || M.stage === 2) { P(PX - 1, top - 1 + dr, leaf); P(PX + 1, top - 1 + dr, leaf); }
+    if (M.stage === 3) { R(PX - 1, top - 3 + dr, 3, 2, '#e9e3d6'); P(PX, top - 1, leaf); }
+    if (M.stage === 4) DAISY.forEach((row, r) => [...row].forEach((k, c) => { if (k !== '.') P(PX - 3 + c, top - 7 + r + dr, k === 'W' ? (wilt ? '#d8d2c4' : '#f4f1ec') : '#f5c542'); }));
+  }
+  function draw() {
+    if (!cv.isConnected) return;
+    if (!T || performance.now() - Tt > 1000) { T = tok(); Tt = performance.now(); }
+    R(0, 0, W, H, T.bg);
+    for (let y = 2; y < 27; y += 4) for (let x = 2; x < W; x += 4) P(x, y, T.l2, 0.5);
+    R(0, 35, W, 1, T.ln);
+    if (st.rays > 0 && st.ptr) { const tx = PX * S + 2, ty = plantTop(); for (let i = 1; i < 9; i++) { const t = i / 9; cx.globalAlpha = 0.5 * st.rays; cx.fillStyle = T.warn; cx.fillRect(Math.round(st.ptr.x + (tx - st.ptr.x) * t + (i % 2 ? -3 : 3)), Math.round(st.ptr.y + (ty - st.ptr.y) * t), 2, 2); } cx.globalAlpha = 1; }
+    plant();
+    st.drops.forEach((d) => { cx.fillStyle = d.c || '#8fd0ff'; cx.fillRect(Math.round(d.x), Math.round(d.y), 2, d.c ? 2 : 3); });
+    cx.font = '500 10px "JetBrains Mono", ui-monospace, monospace'; cx.textBaseline = 'top';
+    st.pops.forEach((t) => { cx.globalAlpha = t.a; cx.fillStyle = T.ac; cx.fillText(t.s, Math.round(t.x), Math.round(t.y)); cx.globalAlpha = 1; });
+    if (st.ok) { const L = st.ok, txt = L.s.slice(0, Math.floor(L.n)); cx.globalAlpha = 0.85; cx.fillStyle = T.bg; cx.fillRect(4, 4, cx.measureText(L.s).width + 8, 14); cx.globalAlpha = 1; cx.fillStyle = T.ok; cx.fillText(txt.slice(0, 6), 8, 7); cx.fillStyle = T.tx; cx.fillText(txt.slice(6), 8 + cx.measureText(txt.slice(0, 6)).width, 7); }
+    if (st.ptr && M.canWrite) {   // 손가락·커서 자리에 지금 든 도구
+      if (st.tool === 'water') spr2(CAN, { H: '#3b6fd1', B: T.ac, L: '#a9c8ff', D: '#3b6fd1', S: T.ac }, st.ptr.x, st.ptr.y + (st.down ? 2 : 0), 15, 2);
+      if (st.tool === 'sun') spr2(SUN, { Y: T.warn, L: '#fff3c4' }, st.ptr.x, st.ptr.y, 5, 4);
+      if (st.tool === 'feed') spr2(DROPPER, { R: st.down ? '#d65a5a' : T.crit, W: '#cfe3f0', L: T.ok }, st.ptr.x, st.ptr.y, 3, st.down ? 7 : 8);
+    }
+  }
+  // 막대·글자 (반반: 왼쪽 = 0 나, 오른쪽 = 1 상대)
+  function paint() {
+    for (const k of KINDS) {
+      const a = mine(k), b = Math.min(HALF, M.theirs[k]);
+      cells[k].replaceChildren(...Array.from({ length: HALF }, (_, i) => h('s', { class: i < a ? 'u0' : '' })), h('i'), ...Array.from({ length: HALF }, (_, i) => h('s', { class: i >= HALF - b ? 'u1' : '' })));
+      vals[k].textContent = Math.round((a + b) * 10) + '%';
+    }
+    const doneMe = KINDS.every((k) => mine(k) >= HALF), doneThem = KINDS.every((k) => M.theirs[k] >= HALF);
+    who[0].classList.toggle('on', doneMe); who[1].classList.toggle('on', doneThem);
+    const next = [2, 5, 9, 14].find((n) => n > M.age);
+    meta.replaceChildren(...['uptime ', h('b', { text: M.age + 'd' }), ' · stage ', h('b', { text: M.stage + '/4' }), next ? ` · next in ${next - M.age}d` : ' · bloom', M.wilting ? h('span', { class: 'pl-wilt', text: ' · wilting' }) : ''].filter((x) => x !== ''));
+    const miss = (src) => KINDS.filter((k) => src(k) < HALF);
+    today.replaceChildren(h('span', { text: 'today' }), h('span', { class: 'k u0' + (doneMe ? ' on' : ''), text: '0' }), h('span', { class: 'k u1' + (doneThem ? ' on' : ''), text: '1' }),
+      h('span', { text: doneMe && doneThem ? 'all 100% → growing' : [doneMe ? '' : `0 needs ${miss(mine).join(' ')}`, doneThem ? '' : `1 needs ${miss((k) => M.theirs[k]).join(' ')}`].filter(Boolean).join(' · ') }));
+    log.replaceChildren(...(M.log.length ? M.log.slice(0, 6).map((l) => h('div', null, h('span', { class: 't', text: hm(l.ts) }), h('span', { class: 'u' + l.who, text: String(l.who) }), h('span', { text: DONE_WORD[l.k] || l.k }), h('span', { class: 'g', text: `+${l.n * 10}%` })))
+      : [h('div', { class: 'pl-empty', text: '# no care yet today' })]));
+  }
+  const pick = (t) => { st.tool = t; ops.forEach((o) => o.classList.toggle('on', o.dataset.tool === t)); hint.textContent = HINTS[t]; };
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height }; };
+  const overPot = () => st.ptr && Math.abs(st.ptr.x - PX * S) < 30 && st.ptr.y < 28 * S;
+  scene.addEventListener('pointerdown', (e) => { if (!M.canWrite) return; e.preventDefault(); try { scene.setPointerCapture(e.pointerId); } catch { /* 없음 */ } st.ptr = pos(e); st.down = true; });
+  scene.addEventListener('pointermove', (e) => { st.ptr = pos(e); });
+  const up = () => {
+    if (!st.down) return; st.down = false;
+    const k = TOOL_KIND[st.tool], n = st.pend[k];
+    if (n > 0) { st.ok = { s: `[ OK ] ${NAME[k]} ${Math.round((mine(k) + Math.min(HALF, M.theirs[k])) * 10)}%`, n: 0, life: 50 }; onCare(k, n); }
+  };
+  scene.addEventListener('pointerup', up); scene.addEventListener('pointercancel', up);
+  scene.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !st.down) st.ptr = null; });
+  const onKey = (e) => { if (!el.isConnected || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return; const t = { 1: 'water', 2: 'sun', 3: 'feed' }[e.key]; if (t) pick(t); };
+  document.addEventListener('keydown', onKey);
+  const add = (k) => { if (mine(k) >= HALF) return; st.pend[k]++; st.glow = 16; st.pops.push({ s: '+10', x: (PX + 7) * S + Math.random() * 6, y: 28 * S, a: 1 }); paint(); };
+  const timer = setInterval(() => {
+    if (!cv.isConnected) return;
+    st.tick++;
+    const k = TOOL_KIND[st.tool];
+    if (st.down && st.ptr) {
+      if (st.tool === 'water') { for (let i = 0; i < 4; i++) st.drops.push({ x: st.ptr.x + 2, y: st.ptr.y + 2, vx: Math.random() * 3.4 - 1.7, v: 0.5 + Math.random() }); st.wet = 40; if (overPot() && st.tick % 3 === 0) add(k); }
+      if (st.tool === 'feed') { if (st.tick % 3 === 0) st.drops.push({ x: st.ptr.x, y: st.ptr.y + 2, vx: 0, v: 1, c: T?.ok }); if (overPot() && st.tick % 6 === 0) add(k); }
+    }
+    if (st.tool === 'sun' && st.down && overPot() && st.ptr.y < plantTop()) { st.rays = Math.min(1, st.rays + 0.2); if (st.tick % 4 === 0) add(k); } else st.rays = Math.max(0, st.rays - 0.1);
+    st.drops.forEach((d) => { d.y += d.v; d.v += 0.6; d.x += d.vx || 0; }); st.drops = st.drops.filter((d) => d.y < 28 * S);
+    st.pops.forEach((t) => { t.y -= 1.4; t.a -= 0.04; }); st.pops = st.pops.filter((t) => t.a > 0);
+    if (st.glow > 0) st.glow--; if (st.wet > 0) st.wet--;
+    if (st.ok) { st.ok.n += 1.5; if (--st.ok.life <= 0) st.ok = null; }
+    draw();
+  }, 50);
+  return {
+    el,
+    // 저장된 상태가 바뀌면 다시 그린다. 보내는 중인 칸(pend)은 저장값에 들어가면 지운다
+    update(model) {
+      for (const k of KINDS) if (model.mine[k] !== M.mine[k]) st.pend[k] = Math.max(0, st.pend[k] - Math.max(0, model.mine[k] - M.mine[k]));
+      if (!st.down) for (const k of KINDS) if (model.mine[k] + st.pend[k] > HALF) st.pend[k] = Math.max(0, HALF - model.mine[k]);
+      M = model; el.classList.toggle('ro', !M.canWrite); paint(); draw();
+    },
+    sent(k) { st.pend[k] = 0; },
+    destroy() { clearInterval(timer); document.removeEventListener('keydown', onKey); },
+  };
+}

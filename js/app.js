@@ -6,6 +6,7 @@ import * as Push from './push.js';
 import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 import { CHANGELOG } from './changelog.js';
+import { createGarden } from './plant.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
@@ -939,9 +940,38 @@ function statusBlock(m, sub, extra) {
     h('div', { class: 'ds-hero st-' + m.level }, h('span', { class: 'ds-dot' }), h('div', {}, h('p', { class: 'ds-t', text: L.STATUS_TEXT[m.level] }), h('p', { class: 'ds-s' }, sub, extra ? [' ', extra] : null)), counts)),
   h('div', { class: 'tiles' }, h('div', { class: 'tile' }, stackMeter('CPU', m.cpu, m.mem)), h('div', { class: 'tile' }, goodMeter(m.pos)), h('div', { class: 'tile' }, meter('DISK', m.disk | 0, 'disk')))];
 }
+// ───────── 함께 키우는 데이지 (Uptime 카드): Dashboard(작성자)·Overview(리스너) 맨 위 ─────────
+// 각자 자기 문서만 쓴다: shared/plant_역할 = { day, care: {water, light, feed} (오늘 내 몫 0~5칸), done: [내가 세 가지를 다 채운 날], log: [{ts, k, n}] }
+// 식물의 나이 = 두 사람 done 에 모두 있는 날 수 → 2·5·9일에 한 단계, 14일에 꽃. 함께 다 채운 마지막 날이 그제보다 전이면 시든다(다시 함께 채우면 회복).
+// 성장·시듦 알림은 서버(DB 019)가 보낸다: System · [Daisy] …
+const PLANT_ZERO = { water: 0, light: 0, feed: 0 };
+const plantDoc = (role) => sd('plant_' + role);
+const plantCare = (d) => (d.day === dayKey() && d.care ? { ...PLANT_ZERO, ...d.care } : { ...PLANT_ZERO });
+function plantModel() {
+  const me = plantDoc(roleName()), them = plantDoc(otherRole());
+  const a = new Set(Array.isArray(me.done) ? me.done : []), both = (Array.isArray(them.done) ? them.done : []).filter((x) => a.has(x)).sort();
+  const age = both.length, stage = age >= 14 ? 4 : age >= 9 ? 3 : age >= 5 ? 2 : age >= 2 ? 1 : 0;
+  const wilting = age > 0 && both[both.length - 1] < dayKey(Date.now() - 2 * 864e5);
+  const lg = (d, who) => (Array.isArray(d.log) ? d.log : []).map((l) => ({ ...l, who }));
+  return { stage, age, wilting, mine: plantCare(me), theirs: plantCare(them), log: [...lg(me, 0), ...lg(them, 1)].sort((x, y) => y.ts - x.ts), canWrite: !!(S.store && S.canWrite) };
+}
+// 내 몫 저장: 손을 뗄 때 한 번 (오늘 칸에 더하고, 세 가지를 다 채우면 오늘을 done 에)
+function plantCareSave(k, n) {
+  const d = plantDoc(roleName()), today = dayKey(), care = plantCare(d);
+  care[k] = Math.min(5, care[k] + n);
+  const done = new Set(Array.isArray(d.done) ? d.done : []); if (care.water >= 5 && care.light >= 5 && care.feed >= 5) done.add(today);
+  const log = [{ ts: Date.now(), k, n }, ...(Array.isArray(d.log) ? d.log : [])].slice(0, 20);
+  return S.store.set('shared', 'plant_' + roleName(), { kind: 'plant', v: 1, day: today, care, done: [...done].sort().slice(-400), log }).catch((e) => { console.warn('plant', e); toast('저장하지 못했어요'); S.garden?.g.sent(k); });
+}
+function gardenCard() {
+  if (S.garden && S.garden.role !== S.role) { S.garden.g.destroy(); S.garden = null; }
+  if (!S.garden) S.garden = { g: createGarden({ onCare: plantCareSave }), role: S.role };
+  S.garden.g.update(plantModel());
+  return h('section', { class: 'card pl-card' }, S.garden.g.el);
+}
 function viewDash() {
   const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
-  return h('div', { class: 'db' }, statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive());   // 주간 보고와 날짜별 기록(Archive)도 여기에
+  return h('div', { class: 'db' }, gardenCard(), statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive());   // 주간 보고와 날짜별 기록(Archive)도 여기에
 }
 
 function keepBtn(text, from) {
@@ -1422,6 +1452,7 @@ function viewOverview() {
   const st = statusToday();
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
+    gardenCard(),
     st.level ? h('div', { class: 'db span-all' }, statusBlock(st, 'updated ' + (st.ts ? mdhm(st.ts) : '–'), st.dnd ? badge('Do not disturb', 'warn') : null)) : card('Service status', note('아직 신호가 없어요.')),
     checkinCardL(st), updatesCard(), reportCard(),
     alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null, updateHistoryCard());
