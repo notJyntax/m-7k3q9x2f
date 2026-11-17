@@ -80,7 +80,7 @@ html[data-theme="ops-excel"] .cnt { border-radius: 2px; }
 /* 카드·버튼·입력: 각진 테두리, 그림자 없음 */
 html[data-theme="ops-excel"] .card, html[data-theme="ops-excel"] .tile, html[data-theme="ops-excel"] .console, html[data-theme="ops-excel"] .loglist, html[data-theme="ops-excel"] .sl-list { border-color: var(--line2); }
 html[data-theme="ops-excel"] .card h3 { color: var(--accent); letter-spacing: .04em; }
-html[data-theme="ops-excel"] .btn, html[data-theme="ops-excel"] .btn.chip, html[data-theme="ops-excel"] .schip, html[data-theme="ops-excel"] .catb, html[data-theme="ops-excel"] .pbox, html[data-theme="ops-excel"] input, html[data-theme="ops-excel"] select, html[data-theme="ops-excel"] textarea, html[data-theme="ops-excel"] .badge, html[data-theme="ops-excel"] .ln .lv, html[data-theme="ops-excel"] .cl-status, html[data-theme="ops-excel"] .dialog, html[data-theme="ops-excel"] .more-menu, html[data-theme="ops-excel"] .toast, html[data-theme="ops-excel"] .notif, html[data-theme="ops-excel"] .bar, html[data-theme="ops-excel"] .cd, html[data-theme="ops-excel"] .ev, html[data-theme="ops-excel"] .room-cv { border-radius: 2px; }
+html[data-theme="ops-excel"] .btn, html[data-theme="ops-excel"] .btn.chip, html[data-theme="ops-excel"] .schip, html[data-theme="ops-excel"] .catb, html[data-theme="ops-excel"] .pbox, html[data-theme="ops-excel"] input, html[data-theme="ops-excel"] select, html[data-theme="ops-excel"] textarea, html[data-theme="ops-excel"] .badge, html[data-theme="ops-excel"] .ln .lv, html[data-theme="ops-excel"] .cl-status, html[data-theme="ops-excel"] .dialog, html[data-theme="ops-excel"] .more-menu, html[data-theme="ops-excel"] .toast, html[data-theme="ops-excel"] .notif, html[data-theme="ops-excel"] .bar, html[data-theme="ops-excel"] .cd, html[data-theme="ops-excel"] .ev { border-radius: 2px; }
 html[data-theme="ops-excel"] .btn.chip { border-radius: 2px; }
 html[data-theme="ops-excel"] .live { border-radius: 2px; }
 html[data-theme="ops-excel"] .ln { border-bottom-color: var(--line); }
@@ -132,9 +132,6 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
   .mood { align-self: end; z-index: 1; }
   #app:has(> .mood:not([hidden]):not(.folded)) > .tabs { padding-bottom: 156px; }
   #app:has(> .mood.folded:not([hidden])) > .tabs { padding-bottom: 48px; }
-  #app:has(> .mood:not([hidden]):not(.folded) .rwrap.closed) > .tabs { padding-bottom: 190px; }
-  #app:has(> .mood.folded:not([hidden]) .rwrap.closed) > .tabs { padding-bottom: 82px; }
-  #app:has(> .mood:not([hidden]) .rwrap:not(.closed)) > .tabs { padding-bottom: 420px; }
 }
 .sidebrand { display: flex; align-items: center; gap: 10px; padding: 0 20px; }
 .sidebrand b { font-weight: 600; font-size: 14px; color: var(--hi); display: block; line-height: 1.2; }
@@ -186,11 +183,6 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .mfold { display: flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--mute); font: 500 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 2px 4px; cursor: pointer; border-radius: 4px; }
 .mfold:hover { color: var(--text); background: var(--panel2); }
 .mfold .ico { width: 13px; height: 13px; }
-/* Room: Status 바로 위의 접히는 방 (픽셀 그림은 흐려지지 않게). 버튼은 .btn.small.ic 그대로 */
-.rwrap { display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
-.rwrap.closed { padding-bottom: 6px; }
-.mroom { display: flex; flex-direction: column; gap: 8px; }
-.room-cv { display: block; width: 100%; height: auto; aspect-ratio: 120 / 68; image-rendering: pixelated; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
 .mchip { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; border: 1px solid transparent; background: transparent; color: var(--text); border-radius: var(--r); padding: 5px 6px; cursor: pointer; position: relative; }
 .mchip:hover { background: var(--panel2); }
 .mav { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--panel2); border: 1.5px solid var(--line2); position: relative; }
@@ -579,7 +571,6 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
 .more-menu .mi { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .more-menu .mi:hover, .more-menu .mi:focus-visible { background: var(--panel2); outline: 0; }
 .more-menu .mi.danger { color: var(--crit); }
-.more-menu .mi .mi-e { width: 16px; text-align: center; font-size: 14px; line-height: 1; }   /* Room 메뉴의 이모지 (아이콘 자리와 같은 폭) */
 .more-menu .mi .cnt { margin-left: auto; }
 @media (pointer: coarse) { .more-menu .mi { padding: 11px 12px; font-size: 14px; } }
 .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); background: var(--hi); color: var(--bg); padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; max-width: 90vw; z-index: 45; display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow); }
@@ -662,10 +653,6 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; m
   .mood .mfold .ml { display: none; }
   .mood.folded { padding: 4px 10px; }
   .mood.folded .mfold .ml { display: inline; }
-  .mood { flex-wrap: wrap; }
-  .mood .rwrap { flex: 1 0 100%; order: -1; padding: 0 0 6px; margin: 0 0 2px; }
-  .mood .rwrap.closed { padding-bottom: 4px; }
-  .mood .rwrap .mfold .ml { display: inline; }
   .view { padding: 12px 12px 16px; }
   .page { gap: 12px; }
   .console { min-height: 0; }

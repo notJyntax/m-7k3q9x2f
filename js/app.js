@@ -6,7 +6,6 @@ import * as Push from './push.js';
 import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 import { CHANGELOG } from './changelog.js';
-import { createRoom } from './room.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
@@ -366,7 +365,7 @@ function onReady() {
   S.ready = true; S.slow = false; clearShownNotifs();
   renderChrome(); renderView(); bootSplash();
   gcOnce(); syncSoon(); Push.registerSW();
-  touchPresence(); S.timers.push(setInterval(() => { gcOnce(); schedule(); touchPresence(); }, 60_000));
+  S.timers.push(setInterval(() => { gcOnce(); schedule(); }, 60_000));
   scheduleIdle();
 }
 function teardown() {
@@ -487,13 +486,12 @@ function migrateNotifIds() {
 }
 const notifUnread = () => { migrateNotifIds(); const base = notifBase(), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
 function markRead(id) { const ids = [...new Set([...(notifDoc().ids || []), id])].slice(-300); saveNotif(notifBase(), ids); }
-// Mark all read: 알림 목록뿐 아니라 앱 안의 모든 새 표시(탭 빨간 숫자, 목록의 new, 상태 점, Room 점, What's new)를 지운다. 계정 문서에 남기므로 다른 기기에서도 함께 사라진다
+// Mark all read: 알림 목록뿐 아니라 앱 안의 모든 새 표시(탭 빨간 숫자, 목록의 new, 상태 점, What's new)를 지운다. 계정 문서에 남기므로 다른 기기에서도 함께 사라진다
 const SEEN_TABS = ['console', 'dash', 'inbox', 'overview', 'queue', 'send', 'syslog', 'plan', 'mood'];
 function markAllRead() {
   const t = Math.max(notifBase(), seenNow(), moodTs());
   SEEN_TABS.forEach((k) => lsSet(seenKey(k), t));
   saveNotif(t, [], Object.fromEntries(SEEN_TABS.map((k) => [k, t])));
-  S.roomPending = null;
   const un = clUnread(); if (un.length) clConfirm(un.map((e) => e.id));
 }
 // 앱을 열거나 다시 화면에 띄우면, 폰 알림 센터에 쌓인 이 앱의 알림을 지운다 (이미 앱 안에서 보고 있으니까). 지원하지 않는 기기에서는 아무 일도 하지 않는다
@@ -643,81 +641,11 @@ function renderMood() {
   // 접고 펴는 줄은 항상 맨 위 가운데(좌우 대칭): 접어도 펴도 같은 자리
   const handle = h('button', { type: 'button', class: 'mfold', title: folded ? 'Show status bar' : 'Hide status bar', 'aria-label': folded ? 'Show status bar' : 'Hide status bar', 'aria-expanded': String(!folded), on: { click: fold(!folded) } },
     icon(folded ? 'chevD' : 'chevU'), h('span', { class: 'ml', text: 'Status' }), folded && ((moodHas(they) && (they.ts || 0) > Math.max(foldAt, seenAt('mood'))) || ((theirR.ts || 0) > Math.max(foldAt, seenAt('mood')) && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
-  const room = roomBlock();
-  if (folded) { box.replaceChildren(room, handle); return; }
-  box.replaceChildren(room, handle,
+  if (folded) { box.replaceChildren(handle); return; }
+  box.replaceChildren(handle,
     moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
     moodChip(they, { name: '1', me: false, isNew, title: 'Status 1', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
 }
-// ───────── Room: 두 사람(픽셀 캐릭터)과 고양이 두 마리가 사는 작은 방. Status 바로 위, 기본은 접혀 있다 ─────────
-// 내 캐릭터가 왼쪽 (작성자 = 남자, 리스너 = 여자). 표정·소품은 각자의 상태 이모지. 평소에는 모두 가만히 있다.
-// 내 캐릭터를 누르면 상태 설정, 상대 캐릭터를 누르면 Kiss·Hug·Pat 을 보낸다.
-// 동작은 내 상태 문서(me_역할)에 act 로 덧붙여 보낸다: 이모지·한마디·시각은 그대로 두므로 "Status changed" 알림은 가지 않는다.
-// 앱을 열 때마다, 앱을 내렸다 올 때마다 다시 접힌다 (옆 사람이 보지 않게).
-const ROOM_ACTS = { kiss: 'Keepalive OK', hug: 'Heartbeat received', pat: 'Health check passed' };   // 받았을 때 토스트 (서버 알림처럼)
-const ROOM_MENU = [['kiss', '💋', 'Kiss'], ['hug', '🫂', 'Hug'], ['pat', '🤚', 'Pat']];
-const actOf = (role) => sd('me_' + role).act || null;
-function sendAct(k, extra = {}) {
-  if (!S.store || !S.canWrite) return;
-  const { id: _i, ...d } = sd('me_' + roleName());
-  return S.store.set('shared', 'me_' + roleName(), { ...d, act: { k, ...extra, ts: Date.now() } }).catch((e) => console.warn('room act', e));
-}
-// 자리 비움: 앱이 보이는 동안 5분마다 내 상태 문서에 online 시각만 적는다 (이모지·한마디·동작은 그대로라 알림이 가지 않는다). 상대 online 이 15분보다 오래되면 방에서 졸고 있는 모습으로
-const PRESENCE_EVERY = 5 * 60000, AWAY_AFTER = 15 * 60000;
-function touchPresence() {
-  if (!S.store || !S.ready || !S.canWrite || !S.cloud || document.hidden) return;
-  const { id: _i, ...d } = sd('me_' + roleName()); const now = Date.now();
-  if (now - (Number(d.online) || 0) < PRESENCE_EVERY - 5000) return;
-  S.store.set('shared', 'me_' + roleName(), { ...d, online: now }).catch((e) => console.warn('presence', e));
-}
-const theirAway = () => { if (!S.cloud) return false; const on = Number(sd('me_' + otherRole()).online) || 0; return Date.now() - on > AWAY_AFTER; };
-document.addEventListener('visibilitychange', () => { if (!document.hidden) touchPresence(); });
-function playAct(a, fromThem) {
-  const r = S.room?.room; if (!r || !a) return;
-  if (ROOM_ACTS[a.k]) r[a.k](fromThem);
-}
-// 상대가 보낸 새 동작: 방이 펼쳐져 있으면 바로 보여 주고, 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 준다 (처음 열 때 받은 옛 동작은 다시 틀지 않는다)
-function checkTheirAct() {
-  const a = actOf(otherRole()), ts = Number(a?.ts) || 0;
-  if (S.roomSeenAct == null) { S.roomSeenAct = ts; return; }
-  if (ts <= S.roomSeenAct) return;
-  S.roomSeenAct = ts;
-  if (ROOM_ACTS[a.k]) toast(ROOM_ACTS[a.k]);
-  if (S.roomOpen) playAct(a, true); else if (Date.now() - ts < 30 * 60000) S.roomPending = a;
-}
-function ensureRoom() {
-  if (S.room && S.room.role !== S.role) { S.room.room.destroy(); S.room = null; }
-  if (S.room) return S.room;
-  const room = createRoom({ left: isWriter() ? 'boy' : 'girl' });
-  // 상대 캐릭터를 누르면 작은 메뉴(⋯ 메뉴와 같은 모양): Kiss · Hug · Pat
-  const actMenu = (ev) => {
-    ev.stopPropagation(); closeMenu();
-    const m = h('div', { id: 'more-menu', class: 'more-menu', role: 'menu' }, ROOM_MENU.map(([k, e, label]) => h('button', { type: 'button', role: 'menuitem', class: 'mi', on: { click: (x) => { x.stopPropagation(); closeMenu(); room[k](false); sendAct(k); } } }, h('span', { class: 'mi-e', text: e }), h('span', { text: label }))));
-    document.body.append(m);
-    const mw = m.offsetWidth, mh = m.offsetHeight;
-    m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, ev.clientX - mw / 2)) + 'px';
-    m.style.top = (ev.clientY + 10 + mh > innerHeight - 8 ? Math.max(8, ev.clientY - mh - 10) : ev.clientY + 10) + 'px';
-    m.querySelector('.mi')?.focus();
-  };
-  room.canvas.addEventListener('click', (e) => { const w = room.hit(e); if (!S.canWrite) return; if (w === 'me') openMood(); else if (w === 'them') actMenu(e); });
-  room.canvas.style.cursor = 'pointer';
-  const el = h('div', { class: 'mroom' }, room.canvas);
-  S.room = { room, el, role: S.role };
-  return S.room;
-}
-function roomBlock() {
-  checkTheirAct();
-  const open = !!S.roomOpen;
-  const hd = h('button', { type: 'button', class: 'mfold', title: open ? 'Hide room' : 'Show room', 'aria-label': open ? 'Hide room' : 'Show room', 'aria-expanded': String(open),
-    on: { click: () => { S.roomOpen = !open; renderMood(); if (S.roomOpen && S.roomPending) { const a = S.roomPending; S.roomPending = null; setTimeout(() => playAct(a, true), 300); } } } },
-    icon(open ? 'chevU' : 'chevD'), h('span', { class: 'ml', text: 'Room' }), !open && S.roomPending ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
-  if (!open) return h('div', { class: 'rwrap closed' }, hd);
-  const { room, el } = ensureRoom(), me = moodDoc(roleName()), they = moodDoc(otherRole());
-  room.setView(matchMedia('(min-width: 760px)').matches ? 'tight' : 'wide');   // PC 는 사이드바가 좁아서 캐릭터 쪽을 더 가까이
-  room.setMoods(me.emoji, they.emoji); room.setAway(theirAway());
-  return h('div', { class: 'rwrap' }, hd, el);
-}
-document.addEventListener('visibilitychange', () => { if (document.hidden && S.roomOpen) { S.roomOpen = false; renderMood(); } });
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';
   const text = h('input', { type: 'text', maxLength: 20, placeholder: '한마디 (선택) 예: 회의 중, 9시 이후 가능', value: cur.text || '' });
@@ -1788,9 +1716,6 @@ const HELP_W = [
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
     tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
-  { t: '🏠 **Room**', why: '두 사람과 고양이 두 마리가 늘 같이 있는 작은 방. 상태 이모지가 표정·소품이 되고, 한마디가 말풍선이 돼요.',
-    how: ['화면 위(PC 는 왼쪽 아래) **Room** 을 눌러 펼치기', '**내 캐릭터(왼쪽)** 를 누르면 상태 설정', '아래 버튼: 🫂 **Hug**(꾹 누른 만큼 1~5) · 💋 **Kiss** · ✈️ **Plane** · 💓 **Beat**(2.5초 동안 두드린 박자) · 🐟 **Snack**'],
-    tip: ['동작은 상대 방에서도 똑같이 움직여요. 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 줘요', '잠금화면 알림은 서버 알림처럼만 와요 (Heartbeat received · Keepalive OK · Ping received · Pulse pattern received)', '상대가 15분 넘게 앱을 안 열면 캐릭터가 졸아요', '탭을 옮기거나 앱을 내리면 다시 접혀요 (옆 사람이 보지 않게)'] },
   { t: '💬 **Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
@@ -1823,9 +1748,6 @@ const HELP_L = [
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
     tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
-  { t: '🏠 **Room**', why: '두 사람과 고양이 두 마리가 늘 같이 있는 작은 방. 상태 이모지가 표정·소품이 되고, 한마디가 말풍선이 돼요.',
-    how: ['화면 위(PC 는 왼쪽 아래) **Room** 을 눌러 펼치기', '**내 캐릭터(왼쪽)** 를 누르면 상태 설정', '아래 버튼: 🫂 **Hug**(꾹 누른 만큼 1~5) · 💋 **Kiss** · ✈️ **Plane** · 💓 **Beat**(2.5초 동안 두드린 박자) · 🐟 **Snack**'],
-    tip: ['동작은 상대 방에서도 똑같이 움직여요. 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 줘요', '잠금화면 알림은 서버 알림처럼만 와요 (Heartbeat received · Keepalive OK · Ping received · Pulse pattern received)', '상대가 15분 넘게 앱을 안 열면 캐릭터가 졸아요', '탭을 옮기거나 앱을 내리면 다시 접혀요 (옆 사람이 보지 않게)'] },
   { t: '💬 **Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },

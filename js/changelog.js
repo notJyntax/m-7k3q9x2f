@@ -2,6 +2,9 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-c', date: '11/17', title: 'Room 없앰', items: [
+    ['change', 'Room(도트 방·캐릭터·고양이)을 앱에서 뺐어요'],
+  ] },
   { id: '2026-11-17-b', date: '11/17', title: 'Room 단순하게', items: [
     ['change', 'Room: 말풍선을 없애고 캐릭터·고양이는 가만히 (고양이 둘은 나란히)'],
     ['change', '상대 캐릭터를 누르면 Kiss · Hug · Pat (쓰담쓰담), 아래 버튼 줄은 없앰'],
