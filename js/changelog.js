@@ -2,6 +2,21 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-17-a', date: '11/17', title: 'Room·폰 화면·모두 읽음', items: [
+    ['new', 'Room: 두 사람과 고양이 두 마리가 사는 도트 방 (PC 왼쪽 아래 · 폰 맨 위)'],
+    ['new', '상태 이모지 → 표정·소품, 한마디 → 말풍선. 내 캐릭터를 누르면 상태 설정'],
+    ['new', 'Hug·Kiss·Plane·Beat·Snack 동작이 상대 방에서도 똑같이 움직임'],
+    ['new', '동작 알림은 서버 알림처럼만 (Heartbeat received 등)'],
+    ['new', '상대가 15분 넘게 앱을 안 열면 캐릭터가 졸아요'],
+    ['change', 'Room: 배경을 줄이고 캐릭터·고양이를 더 크게'],
+    ['fix', '폰: 입력칸을 눌러도 화면이 확대돼 옆으로 넓어지지 않게'],
+    ['fix', '폰 하단바를 더 아래로 (아이폰 홈 줄 바로 위)'],
+    ['fix', '좁은 폰에서 상단 아이콘이 잘리던 것'],
+    ['change', 'Mark all read: 모든 탭 빨간 숫자·new·What\'s new 까지 지움 (모든 기기)'],
+    ['fix', '탭을 열어 본 것은 Alerts 에서도 읽음으로 (다른 기기 포함)'],
+    ['change', 'Weekly report 막대: 사고 5건이면 꽉 참 · 1~2건 노랑, 3건부터 빨강'],
+    ['fix', 'Weekly report: 요일마다 막대 길이 통일'],
+  ] },
   { id: '2026-11-16-a', date: '11/16', title: '기기 간 읽음·폰 아이콘', items: [
     ['fix', '한 기기에서 읽은 알림·new 표시가 다른 기기에서 되살아나던 문제'],
     ['change', '앱을 열면 폰 알림 센터에 쌓인 이 앱 알림을 지움'],

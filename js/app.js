@@ -6,6 +6,7 @@ import * as Push from './push.js';
 import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 import { CHANGELOG } from './changelog.js';
+import { createRoom } from './room.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
 
@@ -365,7 +366,7 @@ function onReady() {
   S.ready = true; S.slow = false; clearShownNotifs();
   renderChrome(); renderView(); bootSplash();
   gcOnce(); syncSoon(); Push.registerSW();
-  S.timers.push(setInterval(() => { gcOnce(); schedule(); }, 60_000));
+  touchPresence(); S.timers.push(setInterval(() => { gcOnce(); schedule(); touchPresence(); }, 60_000));
   scheduleIdle();
 }
 function teardown() {
@@ -398,11 +399,13 @@ const seenAt = (tab) => Math.max(lsGet(seenKey(tab), 0), (notifDoc().seen || {})
 // 상대 기기의 시계가 이 기기보다 앞서 있으면 상대가 쓴 글의 시각(ts)이 '지금'보다 미래가 되어 읽음 처리해도 계속 새 글로 남는다. 읽음 시각은 상대 글 중 가장 늦은 시각까지 포함한다.
 const latestOtherTs = () => { let m = 0; for (const c of ['posts', 'post_comments', 'comment_likes', 'reviews', 'review_replies', 'lines', 'commits', 'commit_replies', 'agendas', 'agenda_comments', 'plan_log', 'checkins', 'alerts']) for (const r of rows(c)) if ((r.by == null || r.by !== roleName()) && r.ts > m && r.ts < Date.now() + 864e5) m = r.ts; return m; };   // 하루 넘게 앞선 시각은 오류로 보고 무시
 const seenNow = () => Math.max(Date.now(), latestOtherTs());
+const moodTs = () => Math.max(Number(sd('me_' + otherRole()).ts) || 0, Number(sd('react_' + otherRole()).ts) || 0);   // 상대 상태·반응도 '새 것'에 넣는다
 const markSeen = (tab) => {
   if (!tab) return; const t = seenNow(); lsSet(seenKey(tab), t);
   // 계정 문서에도 남긴다 (자주 그리므로 탭마다 30초에 한 번만)
+  // 새로 본 것이 있을 때만(상대가 마지막으로 쓴 시각이 문서의 '본 시각'보다 뒤일 때), 탭마다 5초에 한 번. 다른 기기에서도 곧바로 읽은 것으로 보이게 한다
   const seen = notifDoc().seen || {}, last = (S.seenSaved ??= {})[tab] || 0;
-  if (S.store && S.ready && Date.now() - last > 30000 && t - (seen[tab] || 0) > 30000) { S.seenSaved[tab] = Date.now(); saveNotif(notifBase(), notifDoc().ids || [], { ...seen, [tab]: t }); }
+  if (S.store && S.ready && Date.now() - last > 5000 && Math.max(latestOtherTs(), moodTs()) > (seen[tab] || 0)) { S.seenSaved[tab] = Date.now(); saveNotif(notifBase(), [], { [tab]: t }); }
 };
 const newReviewTalk = (since) => rows('review_replies').filter((c) => c.by !== roleName() && c.ts > since).length + rows('comment_likes').filter((l) => l.on && l.lineId && l.by !== roleName() && l.ts > since).length;
 function newCounts() {
@@ -410,17 +413,17 @@ function newCounts() {
   if (isWriter()) {
     const sIn = seenAt('inbox');
     return {
-      inbox: (pendingCheckin() ? 1 : 0) + (sd('status').dnd ? 0 : rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now && c.deliverAt > sIn).length) + rows('commits').filter((c) => c.by === 'writer' && c.ackAt > sIn).length + rows('commit_replies').filter((r) => r.by !== 'writer' && r.ts > sIn).length + rows('reviews').filter((r) => r.ts > sIn).length + newReviewTalk(sIn) + (clUnread().length ? 1 : 0),
+      inbox: ((pendingCheckin()?.ts || 0) > notifBase() ? 1 : 0) + (sd('status').dnd ? 0 : rows('commits').filter((c) => (c.by || 'listener') === 'listener' && c.deliverAt <= now && c.deliverAt > sIn).length) + rows('commits').filter((c) => c.by === 'writer' && c.ackAt > sIn).length + rows('commit_replies').filter((r) => r.by !== 'writer' && r.ts > sIn).length + rows('reviews').filter((r) => r.ts > sIn).length + newReviewTalk(sIn) + (clUnread().length ? 1 : 0),
       syslog: newSyslog(),
-      plan: planNeeds() + newAgendas(),
+      plan: planNeedsNew() + newAgendas(),
     };
   }
   return {
-    overview: rows('alerts').filter((a) => !a.ackAt).length + (checkinToday()?.status === 'answered' && checkinToday().answeredAt > seenAt('overview') ? 1 : 0) + (clUnread().length ? 1 : 0),
+    overview: rows('alerts').filter((a) => !a.ackAt && a.ts > notifBase()).length + (checkinToday()?.status === 'answered' && checkinToday().answeredAt > seenAt('overview') ? 1 : 0) + (clUnread().length ? 1 : 0),
     queue: rows('lines').filter((l) => l.ts > seenAt('queue')).length + newReviewTalk(seenAt('queue')),
     send: rows('commits').filter((c) => c.ackAt && (c.by || 'listener') === 'listener' && c.ackAt > seenAt('send')).length + rows('commits').filter((c) => c.by === 'writer' && c.ts > seenAt('send')).length + rows('commit_replies').filter((r) => r.by !== 'listener' && r.ts > seenAt('send')).length,
     syslog: newSyslog(),
-    plan: planNeeds() + newAgendas(),
+    plan: planNeedsNew() + newAgendas(),
   };
 }
 // ───────── 알림창 (PC 에서만): 지금까지 상대가 한 일을 한 곳에 모아 보여주고, 누르면 그 자리로 이동한다 ─────────
@@ -467,7 +470,8 @@ const notifDocId = () => 'notif_' + roleName();
 const notifDoc = () => sd(notifDocId());
 const notifBase = () => notifDoc().base || 0;
 const notifRead = () => new Set(notifDoc().ids || []);
-const isUnreadItem = (i, base, read) => i.ts > base && !read.has(i.id);
+// 안 읽음: '모두 읽음' 시각(base)과 그 탭을 마지막으로 본 시각(seen) 둘 다보다 뒤이고, 하나씩 읽음 처리하지도 않은 것. 탭을 열어 본 것은 알림 목록에서도 읽은 것이 된다
+const isUnreadItem = (i, base, read) => i.ts > Math.max(base, seenAt(i.mood ? 'mood' : i.tab)) && !read.has(i.id);
 // 기기 여러 대가 같은 문서를 쓰므로 읽음은 앞으로만 간다: 지금 알고 있는 값과 합쳐서 쓰고(큰 값·합집합), 서버도 한 번 더 합친다 (DB 017)
 const saveNotif = (base, ids, seen = {}) => {
   if (!S.store) return null;
@@ -479,11 +483,19 @@ const saveNotif = (base, ids, seen = {}) => {
 // 알림 문구가 바뀌면서(영어 → Feedback/Ack 말투) 알림 id 가 달라졌다: 계정마다 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다
 function migrateNotifIds() {
   if (!S.ready || !S.store || S.notifMig || notifDoc().v === 2) return;
-  S.notifMig = true; markAllRead();
+  S.notifMig = true; saveNotif(Math.max(notifBase(), seenNow()), []);
 }
 const notifUnread = () => { migrateNotifIds(); const base = notifBase(), read = notifRead(); return activityFeed().filter((i) => isUnreadItem(i, base, read)).length; };
 function markRead(id) { const ids = [...new Set([...(notifDoc().ids || []), id])].slice(-300); saveNotif(notifBase(), ids); }
-function markAllRead() { saveNotif(Math.max(notifBase(), seenNow()), []); }
+// Mark all read: 알림 목록뿐 아니라 앱 안의 모든 새 표시(탭 빨간 숫자, 목록의 new, 상태 점, Room 점, What's new)를 지운다. 계정 문서에 남기므로 다른 기기에서도 함께 사라진다
+const SEEN_TABS = ['console', 'dash', 'inbox', 'overview', 'queue', 'send', 'syslog', 'plan', 'mood'];
+function markAllRead() {
+  const t = Math.max(notifBase(), seenNow(), moodTs());
+  SEEN_TABS.forEach((k) => lsSet(seenKey(k), t));
+  saveNotif(t, [], Object.fromEntries(SEEN_TABS.map((k) => [k, t])));
+  S.roomPending = null;
+  const un = clUnread(); if (un.length) clConfirm(un.map((e) => e.id));
+}
 // 앱을 열거나 다시 화면에 띄우면, 폰 알림 센터에 쌓인 이 앱의 알림을 지운다 (이미 앱 안에서 보고 있으니까). 지원하지 않는 기기에서는 아무 일도 하지 않는다
 const clearShownNotifs = () => { try { navigator.serviceWorker?.getRegistration?.().then((r) => r?.getNotifications?.()).then((ns) => ns?.forEach((n) => n.close())).catch(() => {}); } catch { /* 없음 */ } };
 document.addEventListener('visibilitychange', () => { if (!document.hidden) clearShownNotifs(); });
@@ -501,7 +513,7 @@ function renderNotif() {
     : [h('p', { class: 'empty', text: 'No alerts yet' })];
   const el = h('section', { id: 'notif', class: 'notif', role: 'dialog', 'aria-label': 'Alerts' },
     h('div', { class: 'nt-h' }, h('b', { text: 'Alerts' }), h('span', { class: 'sub', text: unread ? `${unread} unread` : 'all read' }), h('span', { class: 'sp' }),
-      unread ? btn('Mark all read', () => { markAllRead(); redo(); }, 'small quiet') : null, btn('Close', () => { closeNotif(); renderChrome(); }, 'small quiet')),
+      unread || Object.values(newCounts()).some((n) => n > 0) || clUnread().length ? btn('Mark all read', () => { markAllRead(); redo(); }, 'small quiet') : null, btn('Close', () => { closeNotif(); renderChrome(); }, 'small quiet')),
     h('div', { class: 'nt-l' }, list), h('p', { class: 'nt-f', text: 'Shows the type only, never the content. Tap one to jump there and mark it read.' }));
   document.body.append(el);
 }
@@ -630,12 +642,87 @@ function renderMood() {
   box.classList.toggle('folded', folded);
   // 접고 펴는 줄은 항상 맨 위 가운데(좌우 대칭): 접어도 펴도 같은 자리
   const handle = h('button', { type: 'button', class: 'mfold', title: folded ? 'Show status bar' : 'Hide status bar', 'aria-label': folded ? 'Show status bar' : 'Hide status bar', 'aria-expanded': String(!folded), on: { click: fold(!folded) } },
-    icon(folded ? 'chevD' : 'chevU'), h('span', { class: 'ml', text: 'Status' }), folded && ((moodHas(they) && (they.ts || 0) > foldAt) || ((theirR.ts || 0) > foldAt && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
-  if (folded) { box.replaceChildren(handle); return; }
-  box.replaceChildren(handle,
+    icon(folded ? 'chevD' : 'chevU'), h('span', { class: 'ml', text: 'Status' }), folded && ((moodHas(they) && (they.ts || 0) > Math.max(foldAt, seenAt('mood'))) || ((theirR.ts || 0) > Math.max(foldAt, seenAt('mood')) && onMe)) ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
+  const room = roomBlock();
+  if (folded) { box.replaceChildren(room, handle); return; }
+  box.replaceChildren(room, handle,
     moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
     moodChip(they, { name: '1', me: false, isNew, title: 'Status 1', onClick: openTheirMood, react: reactOn(roleName(), they.ts) }));
 }
+// ───────── Room: 두 사람(픽셀 캐릭터)과 고양이 두 마리가 사는 작은 방. Status 바로 위, 기본은 접혀 있다 ─────────
+// 내 캐릭터가 왼쪽 (작성자 = 남자, 리스너 = 여자). 표정·소품은 각자의 상태 이모지, 말풍선은 상태 한마디를 그대로 쓴다.
+// 동작(Hug·Kiss·Plane·Beat·Snack)은 내 상태 문서(me_역할)에 act 로 덧붙여 보낸다: 이모지·한마디·시각은 그대로 두므로 "Status changed" 알림은 가지 않는다.
+// 앱을 열 때마다, 앱을 내렸다 올 때마다 다시 접힌다 (옆 사람이 보지 않게).
+const ROOM_ACTS = { hug: 'Heartbeat received', kiss: 'Keepalive OK', plane: 'Ping received', beat: 'Pulse pattern received' };   // 받았을 때 토스트 (서버 알림처럼)
+const actOf = (role) => sd('me_' + role).act || null;
+function sendAct(k, extra = {}) {
+  if (!S.store || !S.canWrite) return;
+  const { id: _i, ...d } = sd('me_' + roleName());
+  return S.store.set('shared', 'me_' + roleName(), { ...d, act: { k, ...extra, ts: Date.now() } }).catch((e) => console.warn('room act', e));
+}
+// 자리 비움: 앱이 보이는 동안 5분마다 내 상태 문서에 online 시각만 적는다 (이모지·한마디·동작은 그대로라 알림이 가지 않는다). 상대 online 이 15분보다 오래되면 방에서 졸고 있는 모습으로
+const PRESENCE_EVERY = 5 * 60000, AWAY_AFTER = 15 * 60000;
+function touchPresence() {
+  if (!S.store || !S.ready || !S.canWrite || !S.cloud || document.hidden) return;
+  const { id: _i, ...d } = sd('me_' + roleName()); const now = Date.now();
+  if (now - (Number(d.online) || 0) < PRESENCE_EVERY - 5000) return;
+  S.store.set('shared', 'me_' + roleName(), { ...d, online: now }).catch((e) => console.warn('presence', e));
+}
+const theirAway = () => { if (!S.cloud) return false; const on = Number(sd('me_' + otherRole()).online) || 0; return Date.now() - on > AWAY_AFTER; };
+document.addEventListener('visibilitychange', () => { if (!document.hidden) touchPresence(); });
+function playAct(a, fromThem) {
+  const r = S.room?.room; if (!r || !a) return;
+  if (a.k === 'hug') r.hug(clamp(Number(a.lv) || 1, 1, 5)); else if (a.k === 'kiss') r.kiss(); else if (a.k === 'plane') r.plane(fromThem);
+  else if (a.k === 'beat' && Array.isArray(a.beats)) r.beat(a.beats.slice(0, 24).map(Number)); else if (a.k === 'fish') r.fish();
+}
+// 상대가 보낸 새 동작: 방이 펼쳐져 있으면 바로 보여 주고, 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 준다 (처음 열 때 받은 옛 동작은 다시 틀지 않는다)
+function checkTheirAct() {
+  const a = actOf(otherRole()), ts = Number(a?.ts) || 0;
+  if (S.roomSeenAct == null) { S.roomSeenAct = ts; return; }
+  if (ts <= S.roomSeenAct) return;
+  S.roomSeenAct = ts;
+  if (ROOM_ACTS[a.k]) toast(ROOM_ACTS[a.k]);
+  if (S.roomOpen) playAct(a, true); else if (Date.now() - ts < 30 * 60000) S.roomPending = a;
+}
+function ensureRoom() {
+  if (S.room && S.room.role !== S.role) { S.room.room.destroy(); S.room = null; }
+  if (S.room) return S.room;
+  const room = createRoom({ left: isWriter() ? 'boy' : 'girl' });
+  const msg = h('p', { class: 'room-msg', text: 'tap yourself to set status' });
+  const say = (t, act = true) => { msg.textContent = t; if (act && S.room) S.room.actMsgAt = Date.now(); };
+  const ib = (e, label, on) => h('button', { type: 'button', class: 'btn small ic', title: label, 'aria-label': label, on }, e);
+  // Hug: 꾹 누른 만큼 1~5단계
+  let t0 = 0, tick = 0;
+  const pct = () => Math.min(100, Math.round((performance.now() - t0) / 30));
+  const hugUp = () => { if (!t0) return; clearInterval(tick); const lv = clamp(Math.ceil(pct() / 20), 1, 5); t0 = 0; room.charge(0); room.hug(lv); sendAct('hug', { lv }); say(`hug lv.${lv} sent`); };
+  const hug = ib('🫂', 'Hug (hold)', { pointerdown: (e) => { e.preventDefault(); t0 = performance.now(); tick = setInterval(() => { const p = pct(), n = Math.round(p / 10); room.charge(p); say(`[${'█'.repeat(n)}${'░'.repeat(10 - n)}] ${p}%`); }, 50); }, pointerup: hugUp, pointerleave: hugUp, pointercancel: hugUp });
+  // Beat: 2.5초 동안 두드린 박자 그대로
+  let taps = [];
+  const beat = ib('💓', 'Beat (tap a rhythm)', { pointerdown: (e) => { e.preventDefault(); if (!taps.length) { say('tap your rhythm… 2.5s'); setTimeout(() => { const s0 = taps[0], beats = taps.map((x) => Math.round(x - s0)); taps = []; room.beat(beats); sendAct('beat', { beats }); say(`beat ×${beats.length} sent`); }, 2500); } taps.push(performance.now()); } });
+  const one = (e, label, k, fn, done) => ib(e, label, { click: () => { fn(); sendAct(k); say(done); } });
+  room.canvas.addEventListener('click', (e) => { if (room.isMine(e) && S.canWrite) openMood(); });
+  room.canvas.style.cursor = 'pointer';
+  const el = h('div', { class: 'mroom' }, room.canvas,
+    h('div', { class: 'row room-act' }, hug, one('💋', 'Kiss', 'kiss', () => room.kiss(), 'kiss sent'), one('✈️', 'Paper plane', 'plane', () => room.plane(), 'paper plane sent'), beat, one('🐟', 'Snack for the cats', 'fish', () => room.fish(), 'snack for the cats')),
+    msg);
+  S.room = { room, el, role: S.role, say, msg };
+  return S.room;
+}
+function roomBlock() {
+  checkTheirAct();
+  const open = !!S.roomOpen;
+  const hd = h('button', { type: 'button', class: 'mfold', title: open ? 'Hide room' : 'Show room', 'aria-label': open ? 'Hide room' : 'Show room', 'aria-expanded': String(open),
+    on: { click: () => { S.roomOpen = !open; renderMood(); if (S.roomOpen && S.roomPending) { const a = S.roomPending; S.roomPending = null; setTimeout(() => playAct(a, true), 300); } } } },
+    icon(open ? 'chevU' : 'chevD'), h('span', { class: 'ml', text: 'Room' }), !open && S.roomPending ? h('span', { class: 'ndot', 'aria-label': 'New' }) : null);
+  if (!open) return h('div', { class: 'rwrap closed' }, hd);
+  const { room, el } = ensureRoom(), me = moodDoc(roleName()), they = moodDoc(otherRole());
+  const away = theirAway(); room.setMoods(me.emoji, they.emoji); room.setBubbles(me.text || '', they.text || ''); room.setAway(away);
+  // 안내 줄: 동작 중 문구가 아니면 상대의 자리 비움(마지막 접속)을 보여 준다
+  const on = Number(sd('me_' + otherRole()).online) || 0, def = away ? `1 away · last seen ${on ? short(on) + ' ago' : '–'}` : 'tap yourself to set status';
+  if (!S.room.actMsgAt || Date.now() - S.room.actMsgAt > 4000) S.room.say(def);
+  return h('div', { class: 'rwrap' }, hd, el);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.roomOpen) { S.roomOpen = false; renderMood(); } });
 function openMood() {
   const cur = moodDoc(roleName()); let pick = cur.emoji || '';
   const text = h('input', { type: 'text', maxLength: 20, placeholder: '한마디 (선택) 예: 회의 중, 9시 이후 가능', value: cur.text || '' });
@@ -1037,6 +1124,7 @@ const planRange = (l) => fmtMD(l.date) + (l.endDate ? '~' + fmtMD(l.endDate) : '
 const planText = (l) => `${planRange(l)} ${l.label} ${l.action === 'add' ? '추가' : '삭제'}`;
 const calState = () => (S.cal ??= { y: new Date().getFullYear(), m: new Date().getMonth(), sel: dayKey() });
 function planNeeds() { return rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName()).length; }
+const planNeedsNew = () => rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName() && l.ts > notifBase()).length;   // 탭 숫자용: 모두 읽음 뒤에 온 승인 요청만
 const newAgendas = () => rows('agendas').filter((a) => a.status === 'open' && a.by !== roleName() && a.ts > seenAt('plan')).length + rows('agenda_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('plan')).length + rows('comment_likes').filter((l) => l.on && l.agendaId && l.by !== roleName() && l.ts > seenAt('plan')).length;
 const otherName = () => '상대';
 
@@ -1262,21 +1350,22 @@ async function ensureReport(force) {
 const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function reportCard() {
   const s = L.weekSummary(weekRows()), f = L.reportFacts(s), map = new Map(s.days.map((d) => [d.day, d])), today = dayKey(), days = weekDays();
-  const inc = (r) => (r ? (r.ERROR | 0) + (r.FATAL | 0) : 0), max = Math.max(1, ...days.map((d) => inc(map.get(d))));
+  const inc = (r) => (r ? (r.ERROR | 0) + (r.FATAL | 0) : 0), FULL = 5;   // 막대는 사고 5건이면 꽉 참 (1건으로 꽉 차지 않게)
   const peak = s.peakDay && s.incidents ? DOW_EN[new Date(s.peakDay + 'T12:00:00').getDay()] : null;
   const logsOf = (r) => (r ? L.LEVELS.reduce((t, lv) => t + (r[lv] | 0), 0) : 0), totalLogs = days.reduce((t, d) => t + logsOf(map.get(d)), 0);   // 하루에 쓴 로그 수 = 그날의 PASS+WARN+ERROR+FATAL
   // 요일마다 한 줄: 요일 · 대시보드 미터와 같은 가는 막대(길이 = 사고 수, 색 = 그날 가장 나쁜 단계) · 개수
   const bars = h('div', { class: 'rp3' }, days.map((d, i) => {
     const r = map.get(d), n = inc(r), fut = d > today, worst = r ? ['FATAL', 'ERROR', 'WARN', 'PASS'].find((lv) => (r[lv] | 0) > 0) : null, fatal = r ? r.FATAL | 0 : 0;
-    const c = worst === 'FATAL' || worst === 'ERROR' ? 'r' : worst === 'WARN' ? 'y' : 'g';
-    const w = n ? Math.max(6, Math.round(n / max * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
+    // 색: 사고 1~2건은 노랑, 3건 이상이거나 FATAL 이 있으면 빨강. 사고가 없으면 그날 가장 나쁜 단계(WARN 노랑 · PASS 초록)
+    const c = fatal || n >= 3 ? 'r' : n || worst === 'WARN' ? 'y' : 'g';
+    const w = n ? Math.max(6, Math.round(Math.min(n, FULL) / FULL * 100)) : worst === 'WARN' ? 8 : worst === 'PASS' ? 4 : 0;
     const txt = n ? `${n} incident${n === 1 ? '' : 's'}` + (fatal ? ` · ${fatal} fatal` : '') : worst ? '0 incidents' : fut ? '' : '–';   // 사고 = ERROR + FATAL
     return h('div', { class: 'rp3-r' + (d === today ? ' t' : '') + (fut ? ' fut' : ''), title: r ? `${d.slice(5)} · ${L.LEVELS.map((lv) => `${lv} ${r[lv] | 0}`).join(' · ')}` : `${d.slice(5)} · ${fut ? 'upcoming' : 'no data'}` },
       h('span', { class: 'rp3-d', text: DOW_EN[(i + 1) % 7] }), h('div', { class: 'bar' }, w ? h('i', { class: c === 'r' ? 'crit' : c === 'y' ? 'warn' : 'ok', style: `width:${w}%` }) : null), h('span', { class: 'rp3-n' + (fatal ? ' f' : ''), text: txt }), h('span', { class: 'rp3-l', title: 'logs written that day', text: r ? `${logsOf(r)} ${logsOf(r) === 1 ? 'log' : 'logs'}` : '' }));
   }));
   const head = s.incidents ? `${s.incidents} incident${s.incidents === 1 ? '' : 's'} this week` : (s.days.length ? 'No incidents this week' : 'No records this week');
   const c = card('Weekly report', h('div', { class: 'rp2' }, h('p', { class: 'rp2-h', text: head }), h('p', { class: 'rp2-s', text: (peak ? `Worst day: ${peak} · ` : '') + `${totalLogs} logs · Week of ${fmtMD(weekKey())}` }), bars,
-    h('p', { class: 'rp2-cap', text: 'Bar and first number: incidents (ERROR + FATAL) per day · last number: logs written that day' }),
+    h('p', { class: 'rp2-cap', text: 'Bar and first number: incidents (ERROR + FATAL) per day, full at 5 · last number: logs written that day' }),
     f ? h('p', { class: 'rp2-adv ' + f.advice.tone, text: f.advice.text }) : null));
   c.classList.add('rpt-card');
   return c;
@@ -1704,6 +1793,9 @@ const HELP_W = [
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
     tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+  { t: '🏠 **Room**', why: '두 사람과 고양이 두 마리가 늘 같이 있는 작은 방. 상태 이모지가 표정·소품이 되고, 한마디가 말풍선이 돼요.',
+    how: ['화면 위(PC 는 왼쪽 아래) **Room** 을 눌러 펼치기', '**내 캐릭터(왼쪽)** 를 누르면 상태 설정', '아래 버튼: 🫂 **Hug**(꾹 누른 만큼 1~5) · 💋 **Kiss** · ✈️ **Plane** · 💓 **Beat**(2.5초 동안 두드린 박자) · 🐟 **Snack**'],
+    tip: ['동작은 상대 방에서도 똑같이 움직여요. 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 줘요', '잠금화면 알림은 서버 알림처럼만 와요 (Heartbeat received · Keepalive OK · Ping received · Pulse pattern received)', '상대가 15분 넘게 앱을 안 열면 캐릭터가 졸아요', '탭을 옮기거나 앱을 내리면 다시 접혀요 (옆 사람이 보지 않게)'] },
   { t: '💬 **Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
@@ -1736,6 +1828,9 @@ const HELP_L = [
   { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
     tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
+  { t: '🏠 **Room**', why: '두 사람과 고양이 두 마리가 늘 같이 있는 작은 방. 상태 이모지가 표정·소품이 되고, 한마디가 말풍선이 돼요.',
+    how: ['화면 위(PC 는 왼쪽 아래) **Room** 을 눌러 펼치기', '**내 캐릭터(왼쪽)** 를 누르면 상태 설정', '아래 버튼: 🫂 **Hug**(꾹 누른 만큼 1~5) · 💋 **Kiss** · ✈️ **Plane** · 💓 **Beat**(2.5초 동안 두드린 박자) · 🐟 **Snack**'],
+    tip: ['동작은 상대 방에서도 똑같이 움직여요. 접혀 있으면 점으로 알려 두었다가 펼칠 때 보여 줘요', '잠금화면 알림은 서버 알림처럼만 와요 (Heartbeat received · Keepalive OK · Ping received · Pulse pattern received)', '상대가 15분 넘게 앱을 안 열면 캐릭터가 졸아요', '탭을 옮기거나 앱을 내리면 다시 접혀요 (옆 사람이 보지 않게)'] },
   { t: '💬 **Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
