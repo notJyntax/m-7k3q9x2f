@@ -835,9 +835,7 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 .fold-h > .ico { margin-left: auto; width: 16px; height: 16px; color: var(--sub); }
 .ih .ih-reply { margin-left: auto; width: 28px; height: 28px; padding: 0; display: inline-grid; place-items: center; color: var(--accent); }
 .ih .ih-reply .ico { width: 16px; height: 16px; }
-/* Wins 펼침: 댓글 칸 옆(아래쪽 맞춤)에 메뉴·Close */
 html[data-theme="ops-excel"] .card h3.h-ic > .ico { color: var(--accent); }
-html[data-theme="ops-excel"] html[data-theme="ops-excel"] 
 /* 식물 수치 이름·줄 머리 아이콘 */
 .pl-k, .pl-m1, .pl-next .lb, .pl-today .lb { display: inline-flex; align-items: center; gap: 6px; }
 .pl-m1 > .ico, .pl-k .ico { color: var(--sub); }
@@ -904,3 +902,12 @@ html[data-theme="ops-dark"] .w-hl { background: linear-gradient(transparent 62%,
 .c-box .c-new .btn { flex: none; }
 .ag-list, .ag-wrap { min-width: 0; }
 @media (max-width: 600px) { .ag-thread { margin-left: 0; } .c-box .cm-act { gap: 0; } }
+/* Syslog 줄: 프로필이 글자 줄 한가운데 오게 (줄이 baseline 정렬이라 아바타만 위로 떠 있었음) */
+.sl-h { align-self: center; }
+/* 좁은 카드(폰): 식물 막대 칸 하나에 도트 4개를 넣으면 1.5px 짜리 실선이 된다 → 2개로, 네모 도트가 보이게 */
+@container (max-width: 520px) {
+  .pl-cells s { -webkit-mask: repeating-linear-gradient(90deg, #000 0 calc(50% - 1px), transparent calc(50% - 1px) 50%); mask: repeating-linear-gradient(90deg, #000 0 calc(50% - 1px), transparent calc(50% - 1px) 50%); }
+}
+@container (max-width: 350px) {   /* 아주 좁은 폰(360px 이하): 칸 하나 = 네모 도트 하나 */
+  .pl-cells s { -webkit-mask: none; mask: none; border-radius: 1px; }
+}

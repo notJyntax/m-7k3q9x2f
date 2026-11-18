@@ -1154,6 +1154,12 @@ async function decidePlan(l, ok) {
   else await S.store.patch('events', l.eventId, { state: 'approved' });
 }
 
+// 창이 열려 있는 동안만 눌린 칸을 강조한다. 일정을 추가하지 않고 닫아도 파란 칸이 남지 않는다
+function markWhileModal(el, cls, open) {
+  el.classList.add(cls); open();
+  const root = $('#modal-root'), mo = new MutationObserver(() => { if (!root.childElementCount) { el.classList.remove(cls); mo.disconnect(); } });
+  mo.observe(root, { childList: true });
+}
 function calendarCard() {
   const c = calState(), today = dayKey(), evs = rows('events');
   const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), off = first.getDay(); // 일요일 시작
@@ -1163,7 +1169,7 @@ function calendarCard() {
     const key = `${c.y}-${p2(c.m + 1)}-${p2(d)}`;
     const es = evs.filter((e) => e.date <= key && key <= (e.endDate || e.date));
     // 날짜를 누르면 바로 그 날의 일정 추가 창이 열린다
-    cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : '') + (key === c.sel ? ' sel' : ''), on: { click: () => { c.sel = key; renderView(); openDayModal(key); } } },
+    cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : ''), on: { click: (e) => markWhileModal(e.currentTarget, 'sel', () => openDayModal(key)) } },
       h('b', { text: String(d) }),
       es.slice(0, 3).map((e) => h('span', { class: `ev${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}`, style: `--c:${CATCOL[e.kind] || CATCOL.etc}`, text: e.label })),
       es.length > 3 ? h('span', { class: 'more', text: '+' + (es.length - 3) }) : null));
@@ -1171,7 +1177,7 @@ function calendarCard() {
   const move = (n) => () => { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); renderView(); };
   return card('Shared calendar',
     h('div', { class: 'row' }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), h('span', { class: 'sp' }),
-      btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('Today', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); c.sel = dayKey(); renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
+      btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('Today', () => { const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); renderView(); }, 'small'), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
     h('div', { class: 'cal' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('div', { class: 'ch', text: t })), cells));
 }
 // 되돌리기 버튼이 있는 안내 (일정을 추가한 직후 몇 초 동안)
@@ -1291,7 +1297,7 @@ function agendaCard() {
     open.length ? h('div', { class: 'ag-list' }, open.map((a) => item(a, 'open'))) : empty('No agenda yet'),
     replyArea('ag-new', input, add, 'New agenda', 'Add'),
     solved.length ? [
-      btn(S.agHist ? 'Hide resolved' : `Show resolved (${solved.length})`, () => { S.agHist = !S.agHist; redraw(); }, 'small quiet block'),
+      btn(S.agHist ? 'Hide resolved' : `Show resolved (${solved.length})`, () => { if (S.agHist) solved.forEach((a) => opened.delete(a.id)); S.agHist = !S.agHist; redraw(); }, 'small quiet block'),
       S.agHist ? [h('div', { class: 'ag-list' }, solved.map((a) => item(a, 'done')))] : null] : null);
 }
 function viewPlanW() {
@@ -1399,7 +1405,7 @@ const updatesCard = () => { const un = clUnread(); const list = un.length ? un.s
 // Update history: 기본은 접혀 있고 제목 줄을 누르면 펼친다 (탭을 옮기면 다시 접힘)
 const updateHistoryCard = () => {
   const read = CHANGELOG.filter((e) => clAcked().has(e.id)), open = !!S.uhOpen;
-  const head = h('button', { type: 'button', class: 'fold-h', 'aria-expanded': String(open), on: { click: () => { S.uhOpen = !open; renderView(); } } },
+  const head = h('button', { type: 'button', class: 'fold-h', 'aria-expanded': String(open), on: { click: () => { if (open) for (const k of Object.keys(S.clOpen ?? {})) if (k.startsWith('h:')) delete S.clOpen[k]; S.uhOpen = !open; renderView(); } } },
     cardTitle('Update history'), h('span', { class: 'cm-n', text: String(read.length) }), icon(open ? 'chevU' : 'chevD'));
   return h('section', { class: 'card' + (open ? '' : ' folded') }, head, ...(open ? (read.length ? read.map((e) => clFold(e, true)) : [empty('아직 읽은 업데이트가 없어요')]) : []));
 };
