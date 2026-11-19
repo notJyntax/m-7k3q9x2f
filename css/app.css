@@ -928,12 +928,13 @@ html[data-theme="ops-dark"] .w-hl { background: linear-gradient(transparent 62%,
 .gd-pot span { font: 11px var(--sans); color: var(--mute); }
 .gd-pot.now svg { opacity: .85; } .gd-pot.now b { color: var(--accent); }
 /* 떠 있는 고양이: 맨 아래 줄 위만 오간다. 누를 수 없고 아무것도 가리지 않는다 */
-.cat-layer { position: fixed; height: 34px; z-index: 4; pointer-events: none; }
+.cat-layer { position: fixed; height: 37px; z-index: 4; pointer-events: none; }
 .cat { position: absolute; left: 0; bottom: 2px; transition: transform .12s linear; pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; }
 .cat::before { content: ''; position: absolute; inset: -8px; }   /* 폰에서 누르기 쉽게 보이지 않는 여유 */
 .cat > div { transition: transform .08s ease-out; transform-origin: 50% 100%; transform: scaleX(var(--f, 1)); }
 .cat.press > div { transform: scaleX(var(--f, 1)) scale(1.1, .82); }
-.cat > div { width: 48px; height: 30px; }
+.cat > div { width: 48px; height: 33px; }
+/* 다리: 턱시도 흰 발은 연한 회색 양말로 (밝은 화면에서도 보임) */
 .cat svg { display: block; }
 
 .cat-fx { position: absolute; pointer-events: none; }

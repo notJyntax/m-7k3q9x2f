@@ -4,14 +4,14 @@ import { lsGet, lsSet } from './util.js';
 const pad = (rows, w = 16) => rows.map((r) => (r + '.'.repeat(w)).slice(0, w));
 const TUX = pad(['.KK......KK.....', '.KPK....KPK.....', '.KKKKKKKKKK.....', '.KKKKKKKKKKK....', '.KKEKKKKEKK...KK', '.KKWWNWWKKK...K.', '.KBWWWWWWBKK.KK.', '..KKWWWWKKKKKK..', '..KKWWKKKKKKKK..']);
 const TAB = pad(['.OO......OO.....', '.OPO....OPO.....', '.OTOTOTOTOO.....', '.OOTOOOTOOOO....', '.OOEOOOOEOO...TO', '.OLLLNLLLOO...O.', '.OOLLLLLLOOO.OT.', '..OTLLLLOTOTOO..', '..OTOOOOTOOTOO..']);
-const LEGS = { t: ['..WW.WW...WW.WW.', '.WW..WW..WW..WW.'], a: ['..OL.OL...OL.OL.', '.OL..OL..OL..OL.'] };
-const PAL = { t: { K: '#26232a', P: '#e9a9b3', E: '#d8e070', W: '#f4f1ec', N: '#f0a0ae', B: '#f3c0c6' }, a: { O: '#8a7f71', T: '#3e3832', P: '#c99f98', E: '#c8c86a', L: '#d9d0c2', N: '#9a5f57', B: '#d9b0aa' } };
+const LEGS = { t: ['..SS.SS...SS.SS.', '.SS..SS..SS..SS.'], a: ['..OL.OL...OL.OL.', '.OL..OL..OL..OL.'] };
+const PAL = { t: { K: '#26232a', P: '#e9a9b3', E: '#d8e070', W: '#f4f1ec', N: '#f0a0ae', B: '#f3c0c6', S: '#aeb6c4' }, a: { O: '#8a7f71', T: '#3e3832', P: '#c99f98', E: '#c8c86a', L: '#d9d0c2', N: '#9a5f57', B: '#d9b0aa' } };
 const PX = 3;
 function svg(which, { sleep = false, closed = false, step = 0 } = {}) {
-  const p = PAL[which], body = (which === 't' ? TUX : TAB).map((r) => (sleep || closed ? r.replaceAll('E', which === 't' ? 'K' : 'O') : r)), rows = [...body, pad([LEGS[which][step % 2]])[0]];
+  const p = PAL[which], body = (which === 't' ? TUX : TAB).map((r) => (sleep || closed ? r.replaceAll('E', which === 't' ? 'K' : 'O') : r)), leg = pad([LEGS[which][step % 2]])[0], rows = [...body, leg, leg];   // 다리는 두 칸 높이
   const rects = rows.flatMap((r, y) => [...r].map((k, x) => (p[k] ? `<rect x="${x}" y="${y}" width="1" height="1" fill="${p[k]}"/>` : ''))).join('');
   const z = sleep ? '<text x="12.5" y="2.5" font-size="3.2" fill="#8a94a6" font-family="monospace">z</text>' : '';
-  return `<svg viewBox="0 0 16 10" width="${16 * PX}" height="${10 * PX}" shape-rendering="crispEdges" aria-hidden="true">${rects}${z}</svg>`;   // 고정 문자열만 사용
+  return `<svg viewBox="0 0 16 11" width="${16 * PX}" height="${11 * PX}" shape-rendering="crispEdges" aria-hidden="true">${rects}${z}</svg>`;   // 고정 문자열만 사용
 }
 export const catsOn = () => lsGet('cats', true) !== false;
 let layer = null, timer = 0, cats = [], tick = 0;
