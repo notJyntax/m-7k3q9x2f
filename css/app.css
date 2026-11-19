@@ -911,3 +911,11 @@ html[data-theme="ops-dark"] .w-hl { background: linear-gradient(transparent 62%,
 @container (max-width: 350px) {   /* 아주 좁은 폰(360px 이하): 칸 하나 = 네모 도트 하나 */
   .pl-cells s { -webkit-mask: none; mask: none; border-radius: 1px; }
 }
+
+/* Plan 달력: 일정 칸 색 = 추가한 사람(0 파랑 · 1 노랑), 종류는 앞 아이콘 */
+.ev { --c: var(--dot-0); display: flex; align-items: center; gap: 3px; min-width: 0; color: var(--text); background: color-mix(in srgb, var(--c) 28%, transparent); }
+.ev.u1 { --c: var(--dot-1); }
+.ev i { font-style: normal; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev .ci { width: 10px; height: 10px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ev.pend { background: color-mix(in srgb, var(--c) 10%, transparent); border: 1px dashed var(--c); }
+@media (max-width: 600px) { .ev i { display: none; } .ev { justify-content: center; padding: 0; } .ev .ci { width: 11px; height: 11px; } }

@@ -1171,7 +1171,7 @@ function calendarCard() {
     // 날짜를 누르면 바로 그 날의 일정 추가 창이 열린다
     cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : ''), on: { click: (e) => markWhileModal(e.currentTarget, 'sel', () => openDayModal(key)) } },
       h('b', { text: String(d) }),
-      es.slice(0, 3).map((e) => h('span', { class: `ev${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}`, style: `--c:${CATCOL[e.kind] || CATCOL.etc}`, text: e.label })),
+      es.slice(0, 3).map((e) => h('span', { class: `ev u${e.by === roleName() ? 0 : 1}${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}`, title: e.by === roleName() ? '0 (me)' : '1' }, catIcon(e.kind in CATICON ? e.kind : 'etc'), h('i', { text: e.label }))),
       es.length > 3 ? h('span', { class: 'more', text: '+' + (es.length - 3) }) : null));
   }
   const move = (n) => () => { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); renderView(); };
