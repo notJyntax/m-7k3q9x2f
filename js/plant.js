@@ -181,3 +181,20 @@ export function createGarden({ onCare, icon }) {
     destroy() { clearInterval(timer); document.removeEventListener('keydown', onKey); },
   };
 }
+
+// 다 키운 화분(Garden 선반)용 작은 도트 그림: 데이지 + 줄기 + 화분. i 로 화분 색이 돌아가며 바뀐다. 식물은 움직이지 않는다
+const POT_COL = [['#c9774a', '#b3623a'], ['#e8dcc6', '#d3c5a8'], ['#8d9bb0', '#76849a'], ['#9ccdb8', '#82b8a2'], ['#e8a0b4', '#d58a9f']];
+export function potSvg(i, px = 4, growing = false) {
+  const [a, b] = POT_COL[i % POT_COL.length], NS = 'http://www.w3.org/2000/svg', g = [];
+  const r = (x, y, w, hh, c) => g.push(`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${c}"/>`);
+  if (growing) { r(7, 15, 1, 3, '#2fa36f'); r(5, 14, 2, 1, '#2fa36f'); r(8, 13, 2, 1, '#2fa36f'); }
+  else {
+    DAISY.forEach((row, y) => [...row].forEach((k, x) => { if (DCOL[k]) r(x + 1, y, 1, 1, DCOL[k]); }));
+    for (let k = 0; k < 5; k++) r(7, 13 + k, 1, 1, '#2fa36f');
+    r(5, 15, 2, 1, '#2fa36f'); r(8, 16, 2, 1, '#2fa36f');
+  }
+  r(3, 18, 9, 2, a); r(3, 19, 9, 1, b); r(4, 20, 7, 2, a); r(5, 22, 5, 1, b);
+  const t = document.createElement('template');
+  t.innerHTML = `<svg xmlns="${NS}" viewBox="0 0 15 23" width="${15 * px}" height="${23 * px}" shape-rendering="crispEdges" aria-hidden="true">${g.join('')}</svg>`;   // 고정 문자열만 사용
+  return t.content.firstChild;
+}

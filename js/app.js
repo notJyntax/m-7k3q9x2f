@@ -6,7 +6,8 @@ import * as Push from './push.js';
 import { startUpdateCheck, refreshNow } from './update.js';
 import { BUILD } from './version.js';
 import { CHANGELOG } from './changelog.js';
-import { createGarden } from './plant.js';
+import { createGarden, potSvg } from './plant.js';
+import { startCats, catsOn, setCatsOn } from './cats.js';
 import { avatar } from './avatar.js';
 
 const SHARED = ['lines', 'reviews', 'commits', 'alerts', 'stats', 'shared', 'events', 'plan_log', 'agendas', 'agenda_comments', 'checkins', 'posts', 'post_comments', 'post_reactions', 'post_votes', 'comment_likes', 'review_replies', 'commit_replies'];
@@ -77,7 +78,7 @@ function weekDays() {
 
 // ───────── UI 부품 ─────────
 // 카드 제목 왼쪽 아이콘(색 없이 진한 선). 제목마다 정해 둔 아이콘, 없으면 아이콘 없이
-const CARD_ICON = { 'Weekly report': 'chart', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'more', Engine: 'more', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
+const CARD_ICON = { 'Weekly report': 'chart', Garden: 'leaf', Cats: 'spark', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'more', Engine: 'more', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
 const cardIc = (title) => CARD_ICON[title] || (/ Log$/.test(title) ? 'note' : null);   // 날짜가 붙는 제목('11/17 Log')도
 const cardTitle = (title) => h('h3', { class: 'h-ic' }, cardIc(title) ? icon(cardIc(title)) : null, title);
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? cardTitle(title) : null, ...kids);
@@ -301,7 +302,7 @@ async function fetchMember(sb, uid) {
 async function boot({ sandbox = false } = {}) {
   teardown();
   S.sandbox = sandbox; S.ready = false; S.slow = false; S.store = null; S.care = null; S.prev = null; S.gate = null; S.cloud = false; S.sb = null;
-  renderChrome(); renderView();
+  startCats(); renderChrome(); renderView();
   let sb = null, member = null, user = null;
   if (!sandbox) {
     try {
@@ -977,16 +978,19 @@ function statusBlock(m, sub, extra) {
 // 각자 자기 문서만 쓴다: shared/plant_역할 = { day, care: {water, light, feed} (오늘 내 몫 0~5칸), done: [내가 세 가지를 다 채운 날], log: [{ts, k, n}] }
 // 식물의 나이 = 두 사람 done 에 모두 있는 날 수 → 2·5·9일에 한 단계, 14일에 꽃. 함께 다 채운 마지막 날이 그제보다 전이면 시든다(다시 함께 채우면 회복).
 // 성장·시듦 알림은 서버(DB 019)가 보낸다: System · [Daisy] …
+const PLANT_CYCLE = 17;
 const PLANT_ZERO = { water: 0, light: 0, feed: 0 };
 const plantDoc = (role) => sd('plant_' + role);
 const plantCare = (d) => (d.day === dayKey() && d.care ? { ...PLANT_ZERO, ...d.care } : { ...PLANT_ZERO });
 function plantModel() {
   const me = plantDoc(roleName()), them = plantDoc(otherRole());
   const a = new Set(Array.isArray(me.done) ? me.done : []), both = (Array.isArray(them.done) ? them.done : []).filter((x) => a.has(x)).sort();
-  const age = both.length, stage = age >= 14 ? 4 : age >= 9 ? 3 : age >= 5 ? 2 : age >= 2 ? 1 : 0;
-  const wilting = age > 0 && both[both.length - 1] < dayKey(Date.now() - 2 * 864e5);
+  // 한 그루 = 17일(14일에 꽃이 피고 3일 동안 꽃 상태로 있다가 Garden 선반으로 가고, 새 씨앗이 시작). 화분 수와 날짜는 both 에서 계산하므로 저장할 것이 없다
+  const total = both.length, cyc = Math.floor(total / PLANT_CYCLE), age = total % PLANT_CYCLE, stage = age >= 14 ? 4 : age >= 9 ? 3 : age >= 5 ? 2 : age >= 2 ? 1 : 0;
+  const wilting = total > 0 && both[both.length - 1] < dayKey(Date.now() - 2 * 864e5);
+  const grown = Array.from({ length: cyc }, (_, i) => ({ n: i + 1, from: both[i * PLANT_CYCLE], to: both[i * PLANT_CYCLE + PLANT_CYCLE - 1] }));
   const lg = (d, who) => (Array.isArray(d.log) ? d.log : []).map((l) => ({ ...l, who }));
-  return { stage, age, wilting, mine: plantCare(me), theirs: plantCare(them), log: [...lg(me, 0), ...lg(them, 1)].sort((x, y) => y.ts - x.ts), canWrite: !!(S.store && S.canWrite) };
+  return { stage, age, grown, wilting, mine: plantCare(me), theirs: plantCare(them), log: [...lg(me, 0), ...lg(them, 1)].sort((x, y) => y.ts - x.ts), canWrite: !!(S.store && S.canWrite) };
 }
 // 내 몫 저장: 손을 뗄 때 한 번 (오늘 칸에 더하고, 세 가지를 다 채우면 오늘을 done 에)
 function plantCareSave(k, n) {
@@ -1002,9 +1006,16 @@ function gardenCard() {
   S.garden.g.update(plantModel());
   return h('section', { class: 'card pl-card span-all' }, S.garden.g.el);   // 리스너 Overview(2칸 배치)에서도 작성자와 같은 한 줄 전체 폭
 }
+// 다 키운 화분 선반 (한 그루를 다 키우면 생김): 화분마다 이름·키운 기간, 맨 끝은 지금 키우는 중
+function gardenShelf() {
+  const M = plantModel(); if (!M.grown.length) return null;
+  const pot = (i, top, sub, cls) => h('div', { class: 'gd-pot' + (cls ? ' ' + cls : '') }, potSvg(i, 4, cls === 'now'), h('b', { text: top }), h('span', { text: sub }));
+  return h('section', { class: 'card gd-card span-all' }, h('div', { class: 'row' }, cardTitle('Garden'), h('span', { class: 'sp' }), h('span', { class: 'cm-n', text: `${M.grown.length} grown` })),
+    h('div', { class: 'gd-shelf' }, M.grown.map((g) => pot(g.n - 1, `daisy #${g.n}`, `${fmtMD(g.from)} ~ ${fmtMD(g.to)}`)), pot(M.grown.length, 'growing…', M.stage === 4 ? 'blooming' : `day ${M.age}`, 'now')));
+}
 function viewDash() {
   const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
-  return h('div', { class: 'db' }, gardenCard(), statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive());   // 주간 보고와 날짜별 기록(Archive)도 여기에
+  return h('div', { class: 'db' }, gardenCard(), gardenShelf(), statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive());   // 주간 보고와 날짜별 기록(Archive)도 여기에
 }
 
 function keepBtn(text, from) {
@@ -1409,6 +1420,8 @@ const updateHistoryCard = () => {
     cardTitle('Update history'), h('span', { class: 'cm-n', text: String(read.length) }), icon(open ? 'chevU' : 'chevD'));
   return h('section', { class: 'card' + (open ? '' : ' folded') }, head, ...(open ? (read.length ? read.map((e) => clFold(e, true)) : [empty('아직 읽은 업데이트가 없어요')]) : []));
 };
+// 떠 있는 고양이 켜기/끄기 (이 기기에만 저장)
+const catsCard = () => card('Cats', h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: catsOn(), on: { change: (e) => setCatsOn(e.target.checked) } }), h('span', {}, h('b', { text: 'Show cats' }), h('small', { text: '화면 맨 아래 줄을 오가는 고양이 두 마리' }))));
 function viewSettingsW() {
   const st = sd('status'), m = meta();
   const sw = (label, checked, fn, sub) => h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked, on: { change: act((e) => fn(e.target.checked)) } }), h('span', {}, h('b', { text: label }), sub ? h('small', { text: sub }) : null));
@@ -1417,7 +1430,7 @@ function viewSettingsW() {
       sw('Do not disturb', !!st.dnd, (v) => S.store.patch('shared', 'status', { kind: 'status', dnd: v, ts: Date.now() }), ''),
       sw('Safety alert', m.alertOn !== false, (v) => setMeta({ alertOn: v }), '"죽고 싶다" 같은 표현이 입력되면 상대에게 안부 확인 신호만 가요(내용은 가지 않아요). 끄면 상대에게 아무것도 가지 않아요.')),
     card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
-    themeCard(), modeCard());
+    themeCard(), modeCard(), catsCard());
 }
 const pushOn = act(async () => {
   try { await Push.enablePush(S.sb); toast('이 기기에서 알림을 켰어요.'); } catch (e) { if (e?.message === 'denied') toast('알림이 허용되지 않았어요. 기기 설정에서 허용해 주세요.'); else throw e; }
@@ -1515,7 +1528,7 @@ function viewOverview() {
   const st = statusToday();
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
   return h('div', { class: 'grid' },
-    gardenCard(),
+    gardenCard(), gardenShelf(),
     st.level ? h('div', { class: 'db span-all' }, statusBlock(st, 'updated ' + (st.ts ? mdhm(st.ts) : '–'), st.dnd ? badge('Do not disturb', 'warn') : null)) : card('Service status', note('아직 신호가 없어요.')),
     checkinCardL(st), updatesCard(), reportCard(),
     alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null, updateHistoryCard());
@@ -1552,7 +1565,7 @@ function viewPlan() {
 }
 
 function viewSettingsL() {
-  return h('div', { class: 'grid' }, themeCard(), modeCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
+  return h('div', { class: 'grid' }, themeCard(), modeCard(), catsCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
 // ───────── Syslog: 둘이 쓰는 게시판 ─────────
