@@ -1153,7 +1153,7 @@ async function addEvent({ date, endDate, kind, label, memo }) {
   await S.store.set('plan_log', 'pl_' + uid(), { eventId: eid, action: 'add', by: roleName(), ts: now, status: 'pending', date, endDate: end, label, memo: memo || '' });
   return eid;
 }
-async function removeEvent(e) {
+async function removeEvent(e, reason = '') {
   const mine = e.by === roleName(), now = Date.now();
   const pend = rows('plan_log').find((l) => l.eventId === e.id && l.status === 'pending');
   if (e.state === 'pending' && mine) {
@@ -1163,7 +1163,7 @@ async function removeEvent(e) {
   }
   if (e.state !== 'approved') return;
   await S.store.patch('events', e.id, { state: 'removing' });
-  await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'remove', by: roleName(), ts: now, status: 'pending', date: e.date, endDate: e.endDate || null, label: e.label, memo: e.memo || '' });
+  await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'remove', by: roleName(), ts: now, status: 'pending', date: e.date, endDate: e.endDate || null, label: e.label, memo: e.memo || '', reason: reason.slice(0, 80) });
 }
 async function decidePlan(l, ok) {
   const now = Date.now();
@@ -1233,9 +1233,21 @@ function openDayModal(key) {
   const list = es.length ? es.map((e) => h('div', { class: 'prow' },
     h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
     stBadge(e),
-    (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => { await removeEvent(e); renderView(); close(); openDayModal(key); }), 'small danger') : null)) : [];
+    (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => {
+      if (e.state !== 'approved') { await removeEvent(e); renderView(); close(); openDayModal(key); return; }
+      askDeleteReason(e, () => openDayModal(key));   // 승인된 일정은 지우는 사유를 적어야 한다
+    }), 'small danger') : null,
+    e.state === 'removing' && removeReason(e) ? h('div', { class: 'sub prow-why', text: 'Reason: ' + removeReason(e) }) : null)) : [];
   const body = h('div', { class: 'daymodal' }, h('button', { type: 'button', class: 'btn small quiet ic dm-x', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x')), list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
   close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [] });
+}
+const removeReason = (e) => rows('plan_log').find((l) => l.eventId === e.id && l.action === 'remove' && l.status === 'pending')?.reason || '';
+function askDeleteReason(e, after) {
+  const why = h('input', { type: 'text', maxLength: 80, autocomplete: 'off', placeholder: 'Reason (required)', 'aria-label': 'Reason' });
+  const go = async (close) => { const t = why.value.trim(); if (!t) { toast('사유를 적어 주세요'); why.focus(); return false; } close(); await removeEvent(e, t); renderView(); after(); };
+  const close = modal({ title: 'Delete reason', body: h('div', { class: 'share' }, h('div', { class: 'mlab', text: `${e.label} · ${fmtMD(e.date)}` }), why, h('div', { class: 'mlab', text: 'The other person will see this' })),
+    actions: [{ label: 'Cancel', cls: 'small', fn: () => after() }, { label: 'Send request', cls: 'primary', close: false, fn: () => go(close) }] });
+  onEnter(why, () => go(close)); why.focus();
 }
 function planChangesCard() {
   const me = roleName(), logs = rows('plan_log').sort((a, b) => b.ts - a.ts);
@@ -1251,10 +1263,10 @@ function planChangesCard() {
   const head = h('div', { class: 'pc-head' }, cardTitle('Changes'), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
     done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
   const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
-    needs.map((l) => h('div', { class: 'prow need' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}` })),
+    needs.map((l) => h('div', { class: 'prow need' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}${l.reason ? ' · Reason: ' + l.reason : ''}` })),
       btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))),
-    mine.map((l) => h('div', { class: 'prow' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) })), badge('pending', 'warn'))),
-    S.planHist ? done.map((l) => h('div', { class: 'prow' }, stIc(l.status), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.status === 'cancelled' ? '' : ` · handled by ${l.decidedBy === me ? '0' : '1'}`}` })),
+    mine.map((l) => h('div', { class: 'prow' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) + (l.reason ? ' · Reason: ' + l.reason : '') })), badge('pending', 'warn'))),
+    S.planHist ? done.map((l) => h('div', { class: 'prow' }, stIc(l.status), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.reason ? ' · Reason: ' + l.reason : ''}${l.status === 'cancelled' ? '' : ` · handled by ${l.decidedBy === me ? '0' : '1'}`}` })),
       badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : ''))) : null);
   return el;
 }

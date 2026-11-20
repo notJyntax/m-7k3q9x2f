@@ -79,7 +79,7 @@ export function startCats() {
   if (!catsOn() || layer) return;
   layer = document.createElement('div'); layer.className = 'cat-layer'; layer.setAttribute('aria-hidden', 'true');
   cats = [{ w: 't', x: 40, dir: 1 }, { w: 'a', x: 220, dir: -1 }].map((c) => {
-    const el = document.createElement('div'); el.className = 'cat'; const inner = document.createElement('div'); el.append(inner); layer.append(el);
+    const el = document.createElement('div'); el.className = 'kitty'; const inner = document.createElement('div'); el.append(inner); layer.append(el);
     const k = { ...c, el, mode: 'sit', until: 0, look: '', pet: 0, last: -1 }; wire(k); return k;
   });
   document.body.append(layer); place();
