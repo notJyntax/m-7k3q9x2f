@@ -425,7 +425,7 @@ const seenKey = (tab) => `svcmon.seen.${S.sandbox ? 'sb' : S.cloud ? 'c' : 'l'}.
 const seenAt = (tab) => Math.max(lsGet(seenKey(tab), 0), (notifDoc().seen || {})[tab] || 0);
 // 상대 기기의 시계가 이 기기보다 앞서 있으면 상대가 쓴 글의 시각(ts)이 '지금'보다 미래가 되어 읽음 처리해도 계속 새 글로 남는다. 읽음 시각은 상대 글 중 가장 늦은 시각까지 포함한다.
 const latestOtherTs = () => { let m = 0; for (const c of ['posts', 'post_comments', 'comment_likes', 'reviews', 'review_replies', 'lines', 'commits', 'commit_replies', 'agendas', 'agenda_comments', 'plan_log', 'checkins', 'alerts']) for (const r of rows(c)) if ((r.by == null || r.by !== roleName()) && r.ts > m && r.ts < Date.now() + 864e5) m = r.ts; return m; };   // 하루 넘게 앞선 시각은 오류로 보고 무시
-const seenNow = () => Math.max(Date.now(), latestOtherTs());
+const seenNow = () => Math.max(Date.now(), latestOtherTs(), moodTs());   // 상대 상태·반응의 시각도 포함: 상대 시계가 앞서 있어도 읽으면 읽은 것으로 남는다
 const moodTs = () => Math.max(Number(sd('me_' + otherRole()).ts) || 0, Number(sd('react_' + otherRole()).ts) || 0);   // 상대 상태·반응도 '새 것'에 넣는다
 const markSeen = (tab) => {
   if (!tab) return; const t = seenNow(); lsSet(seenKey(tab), t);
@@ -504,7 +504,8 @@ const saveNotif = (base, ids, seen = {}) => {
   if (!S.store) return null;
   const cur = notifDoc(), old = cur.seen || {}, merged = { ...old };
   for (const [k, v] of Object.entries(seen)) merged[k] = Math.max(Number(old[k]) || 0, Number(v) || 0);
-  const allIds = [...new Set([...(cur.ids || []), ...ids])].slice(-300);
+  const mine = (S.notifIdsLocal ??= new Set()); ids.forEach((x) => mine.add(x));   // 방금 읽은 것은 저장이 끝나기 전에 다른 저장(탭을 본 시각 등)이 옛 목록으로 덮어쓰지 못하게 따로 기억한다
+  const allIds = [...new Set([...(cur.ids || []), ...mine])].slice(-300);
   return S.store.set('shared', notifDocId(), { kind: 'notif', v: 2, base: Math.max(Number(cur.base) || 0, Number(base) || 0), ids: allIds, seen: merged }).catch((e) => console.warn('notif read', e));
 };
 // 알림 문구가 바뀌면서(영어 → Feedback/Ack 말투) 알림 id 가 달라졌다: 계정마다 처음 한 번만 지금까지의 알림을 읽은 것으로 맞춘다
