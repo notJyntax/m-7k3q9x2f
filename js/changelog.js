@@ -2,6 +2,9 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-20-b', date: '11/20', title: '공유 로그 답글 잇기', items: [
+    ['new', '공유 로그 댓글에 작성자·리스너가 서로 답글을 이어 씀'],
+  ] },
   { id: '2026-11-20-a', date: '11/20', title: '알림 읽음 고침', items: [
     ['fix', '알림을 눌러 확인해도 안 읽음으로 남던 것'],
   ] },

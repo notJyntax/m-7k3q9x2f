@@ -1078,12 +1078,20 @@ function reviewRow(ln, r, role) {
     onEdit: mine ? () => editText({ title: 'Edit comment', text: r.text, max: 140, onSave: (t) => S.store.patch('reviews', r.id, { text: t, editedAt: Date.now() }) }) : null, onDel: mine ? () => S.store.del('reviews', r.id) : null }), reviewThread(ln, r));
 }
 function reviewThread(ln, r) {
-  const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity);
-  if (!reviewReplies(r.id).length) return null;   // 답글이 없으면 빈 묶음(왼쪽 선)도 그리지 않는다
-  return h('div', { class: 'sl-thread rv-thread' },
-    reviewReplies(r.id).map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), extra: null, like: likeBtn(c, { lineId: ln.id }, me),
-      onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null })),
-    null);   // 리뷰 댓글에는 답글을 새로 쓰는 기능이 없다 (이미 있는 답글은 그대로 보인다)
+  const me = roleName(), fresh = (x, by) => by !== me && x.ts > (S.revSince ?? Infinity), key = 'rr-' + r.id, list = reviewReplies(r.id);
+  S.replyOpen ??= new Set();
+  // 작성자·리스너 모두 이 리뷰 댓글 아래에 답글을 이어 쓴다 (한 줄 목록). 입력칸은 Reply 를 눌러야 열린다 (보내거나 Cancel/Esc 로 닫힘)
+  const box = h('input', { type: 'text', maxLength: 200, placeholder: 'Write a reply…', id: key, enterkeyhint: 'send', autocomplete: 'off' });
+  const close = () => { S.replyOpen.delete(key); renderView(); };
+  const send = act(async () => { if (await sendField(box, (t) => S.store.set('review_replies', 'rr_' + uid(), { reviewId: r.id, lineId: ln.id, by: me, text: t, ts: Date.now(), day: dayKey() }))) close(); });
+  onEnter(box, send); box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  const open = S.replyOpen.has(key);
+  const form = open ? h('div', { class: 'row c-new rv-form' }, box, btn('Send', send, 'small dark txt'), btn('Cancel', close, 'small'))
+    : h('div', { class: 'row reply-row end' }, btn('Reply', () => { S.replyOpen.add(key); renderView(); document.getElementById(key)?.focus(); }, 'small quiet'));
+  return h('div', { class: 'rv-rep' },
+    list.length ? h('div', { class: 'sl-thread rv-thread' }, list.map((c) => cmtRow({ cls: fresh(c, c.by) ? 'fresh' : '', time: hm(c.ts), by: `by ${c.by === me ? '0' : '1'}`, them: c.by !== me, text: c.text, edited: c.editedAt, isNew: newTag(fresh(c, c.by)), extra: null, like: likeBtn(c, { lineId: ln.id }, me),
+      onEdit: c.by === me ? () => editText({ title: 'Edit reply', text: c.text, max: 200, onSave: (t) => S.store.patch('review_replies', c.id, { text: t, editedAt: Date.now() }) }) : null, onDel: c.by === me ? () => S.store.del('review_replies', c.id) : null }))) : null,
+    form);
 }
 // commit 화면(작성자 Inbox·리스너 Send 공통): 맨 위 작성칸, 아래 왼쪽 Received(노랑)·오른쪽 Sent by me(파랑). 공유 로그 리뷰 댓글은 'on shared log' 로 같은 칸에 섞인다.
 function commitPanel() {
