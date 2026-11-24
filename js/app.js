@@ -78,7 +78,7 @@ function weekDays() {
 
 // ───────── UI 부품 ─────────
 // 카드 제목 왼쪽 아이콘(색 없이 진한 선). 제목마다 정해 둔 아이콘, 없으면 아이콘 없이
-const CARD_ICON = { 'Weekly report': 'chart', Garden: 'leaf', Cats: 'spark', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'more', Engine: 'more', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
+const CARD_ICON = { 'Weekly report': 'chart', Garden: 'leaf', Cats: 'spark', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'swap', Engine: 'engine', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
 const cardIc = (title) => CARD_ICON[title] || (/ Log$/.test(title) ? 'note' : null);   // 날짜가 붙는 제목('11/17 Log')도
 const cardTitle = (title) => h('h3', { class: 'h-ic' }, cardIc(title) ? icon(cardIc(title)) : null, title);
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? cardTitle(title) : null, ...kids);
@@ -126,7 +126,7 @@ const ICONS = {   // 선 + 옅은 면(fill-opacity .16) + 아이콘마다 디테
   tConsole: '<path d="M4 17l6-5-6-5"/><path d="M12 19h8"/>', tDash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   tInbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v7H2v-7z"/>', tSyslog: '<path d="M4 6h16M4 12h16M4 18h10"/>',
   tPlan: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', tReport: '<path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/>',
-  tArchive: '<path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>', tSettings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+  tArchive: '<path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>', tSettings: '<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.6"/><circle cx="8" cy="17" r="2.6"/>', engine: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>', swap: '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
   tOverview: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tQueue: '<path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2"/>', tSend: '<path d="M4 11.5L20 4l-5.5 16-3.2-6.3z"/><path d="M11.3 13.7L15 9.5"/>',
 };
 const TAB_ICON = { console: 'tConsole', dash: 'tDash', inbox: 'tInbox', syslog: 'tSyslog', plan: 'tPlan', report: 'tReport', archive: 'tArchive', settings: 'tSettings', overview: 'tOverview', queue: 'tQueue', send: 'tSend' };
@@ -253,7 +253,7 @@ function editText({ title, text, max, onSave }) {
 
 // ───────── 셸 / 부팅 ─────────
 function buildShell() {
-  const ta = h('textarea', { id: 'cmd', rows: 1, placeholder: matchMedia?.('(pointer: coarse)').matches ? 'Enter incident note…' : 'Enter incident note…   (Enter = run · /help)', 'aria-label': 'incident note', on: {
+  const ta = h('textarea', { id: 'cmd', rows: 1, placeholder: matchMedia?.('(pointer: coarse), (max-width: 600px)').matches ? 'Enter incident note…' : 'Enter incident note…   (Enter = run · /help)', 'aria-label': 'incident note', on: {
     input: (e) => { autoGrow(e.target); syncRun(); },
   } });
   // 쓰는 맛: 입력하면 Run 이 켜지고(비어 있으면 흐리게), 입력칸 오른쪽에 ↵ 힌트, 포커스하면 ~$ 와 칸이 빛난다 (CSS)
@@ -469,8 +469,9 @@ function activityFeed() {
   rows('agendas').forEach((a) => { if (other(a)) add(a.ts, 'plan', 'Agenda', 'New agenda', { agenda: a.id }); if (a.resolvedAt && (a.resolvedBy || a.by) !== me) add(a.resolvedAt, 'plan', 'Agenda', 'Agenda resolved', { agenda: a.id }); });   // 해결 알림은 해결한 사람이 내가 아닐 때
   rows('agenda_comments').filter(other).forEach((c) => add(c.ts, 'plan', 'Agenda', 'Feedback received', { agenda: c.agendaId }));
   rows('plan_log').forEach((l) => {
+    if (l.by !== me && l.action === 'edit') add(l.ts, 'plan', 'Plan', 'Schedule edited');
     if (l.by !== me && l.status === 'pending') add(l.ts, 'plan', 'Plan', l.action === 'remove' ? 'Removal approval request' : 'New approval request');
-    if (l.by === me && l.decidedAt && (l.status === 'approved' || l.status === 'rejected')) add(l.decidedAt, 'plan', 'Plan', `Schedule ${l.action === 'remove' ? 'removal ' : ''}${l.status === 'approved' ? 'approved' : 'rejected'}`);
+    if (l.by === me && l.action !== 'edit' && l.decidedAt && (l.status === 'approved' || l.status === 'rejected')) add(l.decidedAt, 'plan', 'Plan', `Schedule ${l.action === 'remove' ? 'removal ' : ''}${l.status === 'approved' ? 'approved' : 'rejected'}`);
   });
   const mood = sd('me_' + otherRole()); if (mood.ts && (mood.emoji || mood.text)) add(mood.ts, S.tab, 'Status', 'Status changed', { mood: 'status' });
   const rea = sd('react_' + otherRole()); if (rea.ts && rea.emoji) add(rea.ts, S.tab, 'Status', 'Ack received', { mood: 'react' });
@@ -587,7 +588,7 @@ const greetWord = (h0 = new Date().getHours()) => (h0 >= 5 && h0 < 12 ? 'Good mo
 const greetClock = () => new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 function greetBlock() {
   const line = GREET_LINES[Math.floor(Date.now() / 864e5) % GREET_LINES.length];
-  return h('div', { class: 'greet' }, h('span', { class: 'greet-ic' }, icon('sun')), h('div', { class: 'greet-t' }, h('b', { text: greetWord() }), h('span', { text: line })), h('span', { class: 'greet-date' }, icon('calendar'), h('span', { class: 'greet-clock', text: greetClock() })));
+  return h('div', { class: 'greet' }, h('span', { class: 'greet-ic' }, icon('sun')), h('div', { class: 'greet-t' }, h('b', { text: greetWord(), role: 'heading', 'aria-level': '1' }), h('span', { text: line })), h('span', { class: 'greet-date' }, icon('calendar'), h('span', { class: 'greet-clock', text: greetClock() })));
 }
 setInterval(() => { const c = document.querySelector('.greet-clock'), w = document.querySelector('.greet-t b'); if (c) c.textContent = greetClock(); if (w) w.textContent = greetWord(); }, 30000);
 function renderChrome() {
@@ -855,8 +856,9 @@ function runCmd(t) {
   else if (c === 'restart') openRestart();
   else if (c === 'report') go(isWriter() ? 'dash' : 'overview');
   else if (c === 'status') go('dash');
-  else if (c === 'help') toast('/grep 검색어 · /clear · /restart · /status · /report');
-  else toast('unknown command: ' + c);
+  else if (['warn', 'error', 'fatal'].includes(c)) { const lv = c.toUpperCase(); (async () => { try { const tr = arg ? { ...(await L.translate(arg)), level: lv } : L.quickLine(lv); await saveLog(tr, arg); } catch (e) { toast(errText(e)); } })(); }
+  else if (c === 'help') toast('/warn · /error · /fatal [내용] · /grep 검색어 · /clear · /restart · /status · /report');
+  else toast('알 수 없는 명령이에요: /' + c + ' (/help 로 목록)');
 }
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 async function addLog(raw) {
@@ -1140,7 +1142,7 @@ const roleName = () => (isWriter() ? 'writer' : 'listener');
 const p2 = (n) => String(n).padStart(2, '0');
 const fmtMD = (k) => `${+k.slice(5, 7)}/${+k.slice(8, 10)}`;
 const planRange = (l) => fmtMD(l.date) + (l.endDate ? '~' + fmtMD(l.endDate) : '');
-const planText = (l) => `${planRange(l)} ${l.label} ${l.action === 'add' ? '추가' : '삭제'}`;
+const planText = (l) => `${planRange(l)} ${l.label} ${l.action === 'add' ? '추가' : l.action === 'edit' ? '수정' : '삭제'}`;
 const calState = () => (S.cal ??= { y: new Date().getFullYear(), m: new Date().getMonth(), sel: dayKey() });
 function planNeeds() { return rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName()).length; }
 const planNeedsNew = () => rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName() && l.ts > notifBase()).length;   // 탭 숫자용: 모두 읽음 뒤에 온 승인 요청만
@@ -1225,23 +1227,57 @@ function openDayModal(key) {
     toastUndo(`Added ${fmtMD(key)}${end ? '~' + fmtMD(end) : ''} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
   onEnter(memo, save);
-  const tentBtn = h('button', { type: 'button', class: 'catb tentb', 'aria-pressed': 'false', on: { click: (ev) => { tent = !tent; ev.currentTarget.classList.toggle('on', tent); ev.currentTarget.setAttribute('aria-pressed', String(tent)); } } }, icon('help'), 'Tentative');
+  const tentBtn = tentRow(false, (v) => { tent = v; });
   const form = h('div', { class: 'dm-form', hidden: true }, h('div', { class: 'dm-row' }, memo, btn('Add', save, 'small primary')), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), tentBtn);
   const chips = Object.entries(KINDS).map(([id, t]) => { const b = h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: () => {
     kind = id; chips.forEach(([k2, el]) => el.classList.toggle('on', k2 === id));
     memo.placeholder = id === 'etc' ? 'Name (required)' : 'Memo (optional)'; form.hidden = false; memo.focus();
   } } }, catIcon(id), t); return [id, b]; });
-  const list = es.length ? es.map((e) => h('div', { class: 'prow' },
-    h('span', { class: 'sp' }, h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: ' · ' + e.memo }) : null, h('span', { class: 'sub', text: ` · by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` })),
-    stBadge(e), e.tentative ? badge('Tentative', 'warn') : null,
-    (e.state === 'approved' || (e.state === 'pending' && e.by === me)) ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => {
-      if (e.state !== 'approved') { await removeEvent(e); renderView(); close(); openDayModal(key); return; }
-      askDeleteReason(e, () => openDayModal(key));   // 승인된 일정은 지우는 사유를 적어야 한다
-    }), 'small danger') : null,
-    e.tentative && e.state !== 'removing' ? btn('Mark firm', act(async () => { await S.store.patch('events', e.id, { tentative: false }); renderView(); close(); openDayModal(key); }), 'small') : null,
-    e.state === 'removing' && removeReason(e) ? h('div', { class: 'sub prow-why', text: 'Reason: ' + removeReason(e) }) : null)) : [];
+  const list = es.length ? es.map((e) => {
+    const canDel = e.state === 'approved' || (e.state === 'pending' && e.by === me), live = e.state !== 'removing';
+    // 윗줄: 종류 아이콘·이름·메모·누가 + 오른쪽에 상태 배지 / 아랫줄: 버튼을 오른쪽 끝에 같은 높이로 (Edit · Mark firm · Delete)
+    return h('div', { class: 'prow ev-row' },
+      h('div', { class: 'pr-l1' }, h('span', { class: 'pr-k', style: `color:${CATCOL[e.kind] || CATCOL.etc}` }, catIcon(e.kind in CATICON ? e.kind : 'etc')), h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: '· ' + e.memo }) : null, h('span', { class: 'sub', text: `· by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` }),
+        h('span', { class: 'pr-bg' }, stBadge(e), e.tentative ? badge('Tentative', 'tn') : null)),
+      live || canDel ? h('div', { class: 'pr-l2' },
+        live ? btn('Edit', act(async () => { close(); openEditEvent(e, () => openDayModal(key)); }), 'small') : null,
+        e.tentative && live ? btn('Mark firm', act(async () => { await S.store.patch('events', e.id, { tentative: false }); renderView(); close(); openDayModal(key); }), 'small txt') : null,
+        canDel ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => {
+          if (e.state !== 'approved') { await removeEvent(e); renderView(); close(); openDayModal(key); return; }
+          askDeleteReason(e, () => openDayModal(key));   // 승인된 일정은 지우는 사유를 적어야 한다
+        }), 'small danger txt') : null) : null,
+      e.state === 'removing' && removeReason(e) ? h('div', { class: 'sub', text: 'Reason: ' + removeReason(e) }) : null);
+  }) : [];
   const body = h('div', { class: 'daymodal' }, h('button', { type: 'button', class: 'btn small quiet ic dm-x', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x')), list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
   close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [] });
+}
+// Tentative 스위치 카드: 설정 화면의 스위치와 같은 모양 (아이콘 · 제목+설명 · 오른쪽 스위치)
+function tentRow(on, onChange) {
+  const input = h('input', { type: 'checkbox', checked: !!on, on: { change: (e) => onChange(e.target.checked) } });
+  return h('label', { class: 'switch tentrow' }, icon('help'), h('span', {}, h('b', { text: 'Tentative' }), h('small', { text: '바뀔 수 있는 일정이에요' })), input);
+}
+// 일정 고치기: 내가 올린 승인 전 일정은 바로 바뀌고(승인 요청 내용도 같이), 승인된 일정은 바로 바뀐 뒤 기록(History)과 상대 알림 목록에 '수정' 으로 남는다
+function openEditEvent(e, after) {
+  const me = roleName(), mine = e.by === me && e.state === 'pending';
+  const memo = h('input', { type: 'text', maxLength: e.kind === 'etc' ? 12 : 40, autocomplete: 'off', value: e.kind === 'etc' ? e.label : (e.memo || ''), 'aria-label': e.kind === 'etc' ? 'Name' : 'Memo', placeholder: e.kind === 'etc' ? 'Name (required)' : 'Memo (optional)' });
+  const from = h('input', { type: 'date', value: e.date, 'aria-label': 'from' }), until = h('input', { type: 'date', value: e.endDate || '', min: e.date, 'aria-label': 'until' });
+  let tent = !!e.tentative;
+  const tb = tentRow(tent, (v) => { tent = v; });
+  from.addEventListener('change', () => { until.min = from.value; });
+  const save = async (close) => {
+    const t = memo.value.trim(), d = from.value, end = until.value && until.value > d ? until.value : null;
+    if (!d) { toast('날짜를 골라 주세요'); return false; }
+    if (e.kind === 'etc' && !t) { toast('기타는 이름을 적어 주세요'); memo.focus(); return false; }
+    const patch = { date: d, endDate: end, tentative: tent, ...(e.kind === 'etc' ? { label: t.slice(0, 12), memo: '' } : { memo: t.slice(0, 40) }) };
+    close(); await S.store.patch('events', e.id, patch);
+    const merged = { ...e, ...patch};
+    if (mine) { const pend = rows('plan_log').find((l) => l.eventId === e.id && l.status === 'pending'); if (pend) await S.store.patch('plan_log', pend.id, { date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent }); }
+    else await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'edit', by: me, ts: Date.now(), status: 'approved', decidedAt: Date.now(), decidedBy: me, date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent });
+    renderView(); toast('Saved'); after();
+  };
+  const close = modal({ title: `Edit ${e.label}`, body: h('div', { class: 'share' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'From' }), from), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), memo, tb),
+    actions: [{ label: 'Cancel', cls: 'small', fn: () => after() }, { label: 'Save', cls: 'primary', close: false, fn: () => save(close) }] });
+  onEnter(memo, () => save(close));
 }
 const removeReason = (e) => rows('plan_log').find((l) => l.eventId === e.id && l.action === 'remove' && l.status === 'pending')?.reason || '';
 function askDeleteReason(e, after) {
@@ -1260,7 +1296,7 @@ function planChangesCard() {
   // 줄 앞의 둥근 상태 아이콘(승인 ✓ · 거절 ✕ · 취소 − · 대기 시계)과 일정 종류 아이콘(야근 달·회식 잔·출장 가방…)
   const kindOf = (l) => Object.entries(KINDS).find(([, v]) => v === l.label)?.[0] || 'etc';
   const stIc = (st) => h('span', { class: 'pc-ic ' + st }, icon(st === 'approved' ? 'check' : st === 'rejected' ? 'x' : st === 'cancelled' ? 'minus' : 'clock'));
-  const title = (l) => h('b', { class: 'pc-t' }, catIcon(kindOf(l)), planText(l) + (l.tentative ? ' (tentative)' : ''));
+  const title = (l) => h('span', { class: 'pc-tw' }, h('b', { class: 'pc-t' }, catIcon(kindOf(l)), planText(l)), l.tentative ? badge('Tentative', 'tn') : null);
   // 가로로 길고 세로가 짧은 띠: 변경이 없으면 한 줄, 있으면 그 줄들만 아래에 이어 붙는다
   const status = needs.length ? `${needs.length} to review` : mine.length ? `${mine.length} waiting for approval` : 'nothing to review';
   const head = h('div', { class: 'pc-head' }, cardTitle('Changes'), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
@@ -1271,7 +1307,7 @@ function planChangesCard() {
       btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))),
     mine.map((l) => h('div', { class: 'prow' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) + (l.reason ? ' · Reason: ' + l.reason : '') })), badge('pending', 'warn'))),
     S.planHist ? done.map((l) => h('div', { class: 'prow' }, stIc(l.status), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.reason ? ' · Reason: ' + l.reason : ''}${l.status === 'cancelled' ? '' : ` · handled by ${l.decidedBy === me ? '0' : '1'}`}` })),
-      badge(l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : ''))) : null);
+      badge(l.action === 'edit' ? 'edited' : l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : ''))) : null);
   return el;
 }
 // ── Weekly Agenda: 승인 없이 각자 등록. 등록한 사람만 삭제하거나 "해결"할 수 있고, 해결하면 기록에 남는다 ──
@@ -1855,77 +1891,77 @@ async function gc() {
 
 // ───────── 설명서 ─────────
 const HELP_W = [
-  { t: '🏁 **시작하기**', why: '회사에서 쌓인 감정을 한 줄로 털어놓는 공간. 상대에게 부담을 주지 않고, 상태만 전달.',
+  { t: '**시작하기**', why: '회사에서 쌓인 감정을 한 줄로 털어놓는 공간. 상대에게 부담을 주지 않고, 상태만 전달.',
     how: ['**Console**에 한 줄 입력', '말하고 싶은 줄만 골라 **공유**', '새벽 4시에 자동 정리 (기록은 **Archive**에 보관)'], tip: ['공유하지 않은 원문은 나만 열람', '공유한 줄은 원문과 함께 상대에게 전달', '상태 색·숫자는 자동으로 전달'] },
-  { t: '✍️ **Console**', why: '입력한 한 줄을 서버 에러 로그로 바꿔 감정을 가볍게 표현.',
+  { t: '**Console**', why: '입력한 한 줄을 서버 에러 로그로 바꿔 감정을 가볍게 표현.',
     how: ['입력창에 한 줄 입력 후 **Enter**', '귀찮을 땐 **+WARN** **+ERROR** **+FATAL** 버튼 클릭', '줄 클릭 시 원문 확인 (나만 열람)'],
     tip: ['로그 문장은 영어로 변환 (이 기기 안의 규칙으로 처리, 원문이 외부 AI로 나가지 않음)', '가만히 있으면 올라오는 파란 줄은 재미 문구·안부·명언 (기록·통계에 미포함)', '위험한 표현을 쓰면 안내 문구 표시'] },
-  { t: '📤 **공유**', why: '말하고 싶은 한 줄만 골라 상대에게 알림.',
+  { t: '**공유**', why: '말하고 싶은 한 줄만 골라 상대에게 알림.',
     how: ['줄 클릭 후 **이 로그 공유 (리뷰 요청)**', '한마디 입력 (선택)', '**공유** 클릭 (원문도 함께 전송)'],
     tip: ['**공유 취소**로 언제든 회수', '공유한 줄은 다음 날 새벽 4시에 자동 정리', '공유 전에 상대에게 보일 원문을 화면에서 확인'] },
-  { t: '🫁 **진정하기**', why: '감정이 높아졌을 때 잠깐 식히기.',
+  { t: '**진정하기**', why: '감정이 높아졌을 때 잠깐 식히기.',
     how: ['**restart**: 호흡 타이머 (약 40초), 종료 시 CPU·MEM 소폭 하락', '**clear**: 화면만 비움 (기록은 유지)', '**grep**: 줄 검색'],
     tip: ['명령어도 사용 가능: **/restart** **/clear** **/grep** 단어'] },
-  { t: '📊 **Dashboard**', why: '오늘 내 상태를 숫자와 색으로 확인. 상대 화면에도 같은 색이 전달.',
+  { t: '**Dashboard**', why: '오늘 내 상태를 숫자와 색으로 확인. 상대 화면에도 같은 색이 전달.',
     how: ['보기 전용 (입력 없음)', '**CPU** 인내심: 짜증·화 (터지기 직전의 감정)', '**MEM** 멘탈: 피로·불안 (마음이 무거워지는 상태)', '**DISK** 이번 주 쌓인 짜증 (월요일 새벽 4시 초기화)'],
     tip: ['상태 색: green (여유) · yellow (50 이상) · red (80 이상 또는 FATAL 3줄 이상)', '**CPU**·**MEM**은 오늘 쓴 줄의 점수 합이며 새벽 4시에 초기화'] },
-  { t: '📥 **Inbox**', why: '상대가 보낸 응원 메시지와 코드 리뷰 댓글 확인.',
+  { t: '**Inbox**', why: '상대가 보낸 응원 메시지와 코드 리뷰 댓글 확인.',
     how: ['**배포 성공 ✓** 클릭 시 "잘 받았다" 신호만 상대에게 전송', '**⭐ 남기기**로 좋은 말 보관 (good-things)'],
     tip: ['**Settings**의 방해금지를 켜면 응원 메시지 숨김', '보관한 말은 새벽 4시 정리 뒤에도 유지'] },
-  { t: '📅 **Plan**', why: '야근·회식·출장 같은 일정을 상대와 공유하고 합의.',
+  { t: '**Plan**', why: '야근·회식·출장 같은 일정을 상대와 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타**', '메모·종료일 입력 (선택, **기타**는 일정 이름 필수)', '**상대에게 전송** 클릭', '상대가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
     tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (상대 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 다음 대화의 주제를 승인 없이 바로 등록 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
-  { t: '📈 **Weekly report**', why: '한 주를 숫자로 돌아보기. **Dashboard** 아래에 있어요.',
+  { t: '**Weekly report**', why: '한 주를 숫자로 돌아보기. **Dashboard** 아래에 있어요.',
     how: ['보기 전용 (요일별 사고 수 막대와 조언 한 줄)'],
     tip: ['집계 숫자만으로 작성 (원문 미사용)', '상대도 같은 보고서 확인'] },
-  { t: '🗂 **Archive**', why: '지난 기록을 날짜별로 되돌아보기. **Dashboard** 맨 아래에 있고, 새벽 4시 정리 뒤에도 기록은 보관.',
+  { t: '**Archive**', why: '지난 기록을 날짜별로 되돌아보기. **Dashboard** 맨 아래에 있고, 새벽 4시 정리 뒤에도 기록은 보관.',
     how: ['달력에서 날짜 클릭 시 그날의 로그 전체 확인', '줄 클릭 시 원문 확인 (나만 열람)', '**이 날 기록 모두 삭제**로 직접 정리'],
     tip: ['달력 점 색은 그날의 상태 (green / yellow / red)', '지운 기록은 복구 불가'] },
-  { t: '⚙️ **Settings · 기타**', why: '알림과 화면 설정, 알아두면 좋은 기능. 상단 오른쪽 **톱니** 아이콘으로 열어요.',
+  { t: '**Settings · 기타**', why: '알림과 화면 설정, 알아두면 좋은 기능. 상단 오른쪽 **톱니** 아이콘으로 열어요.',
     how: ['**Do not disturb**: 응원 메시지 숨김', '**위험 신호 알림**: 위험한 표현 입력 시 상대에게 안부 확인 신호만 전송 (내용 미전송, 끌 수 있음)', '**Theme**: Dark · Light · Excel(스프레드시트 위장) · Auto (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '**Esc**: 엑셀 화면으로 위장 (한 번 더 누르면 복귀)', '**/exit**: 엑셀 화면으로 위장'] },
-  { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
+  { t: '**상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
     tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
-  { t: '💬 **Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
+  { t: '**Check-in**', why: '상대가 무슨 일 있는지 물어보면 가볍게 답하기.',
     how: ['화면 위쪽 안내나 **Inbox**의 **Check-in** 카드에서 **Reply**', '한마디를 쓰고, 같이 보여줄 오늘 로그를 하나 이상 골라 **Send**', '답하고 싶지 않으면 **Not now**'],
     tip: ['고른 로그는 원문까지 함께 상대에게 보여요', '로그 없이 한마디만 보내도 돼요', '내가 먼저 보내는 게 아니라 상대가 물어볼 때만 와요'] },
-  { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
+  { t: '**Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
     how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, **Keep**'],
     tip: ['**Notify**로 이 게시판 알림을 끄고 켤 수 있어요', '**Esc**로 엑셀 화면 위장'] },
-  { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
+  { t: '**앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 commit이 도착했어요" 같은 안내만)', '방해금지를 켜면 commit 알림은 오지 않아요'] },
 ];
 const HELP_L = [
-  { t: '🏁 **시작하기**', why: '친구가 부담 없이 털어놓을 수 있게 하고, 나는 상태만 가볍게 확인.',
+  { t: '**시작하기**', why: '친구가 부담 없이 털어놓을 수 있게 하고, 나는 상태만 가볍게 확인.',
     how: ['**Overview**에서 친구 상태 확인', '**Queue**에서 공유된 줄에 댓글', '**Send**로 응원 메시지 전송'], tip: ['친구가 공유한 줄은 원문도 함께 보여요', '공유하지 않은 원문은 볼 수 없어요'] },
-  { t: '👀 **Overview**', why: '친구의 현재 상태를 확인하고, 내 상태를 친구에게 알림.',
+  { t: '**Overview**', why: '친구의 현재 상태를 확인하고, 내 상태를 친구에게 알림.',
     how: ['상태 색과 **CPU** · **MEM** · **DISK** 수치 확인', '**확인 필요** 카드가 보이면 가볍게 안부 연락 후 **확인했어요** 클릭'],
     tip: ['**안부 확인 신호**는 내용 없이 신호만 도착', '**Overview** 숫자는 **확인했어요**를 누를 때까지 유지'] },
-  { t: '🎫 **Queue**', why: '친구가 공유한 로그를 확인하고 짧게 반응.',
+  { t: '**Queue**', why: '친구가 공유한 로그를 확인하고 짧게 반응.',
     how: ['공유된 줄과 **친구의 한마디** 확인', '공유된 줄은 친구의 원문도 함께 표시', '댓글 입력 후 **Comment** 클릭'],
     tip: ['공유된 줄은 하루가 지나면 함께 정리', '댓글은 코드 리뷰처럼 짧게'] },
-  { t: '💌 **Send**', why: '친구가 힘든 시간에 맞춰 응원 메시지 전달.',
+  { t: '**Send**', why: '친구가 힘든 시간에 맞춰 응원 메시지 전달.',
     how: ['메시지 입력', '시점 선택: 지금 / 1시간 뒤 / 3시간 뒤 / 내일 아침 9시 / 주말 아침 10시', '**Commit** 클릭', '**Sent**에서 전달 상태 확인, 예약은 **예약 취소** 가능'],
     tip: ['친구가 **배포 성공 ✓**을 누르면 "deployed ✓" 표시', '친구가 방해금지를 켜면 도착해도 숨김'] },
-  { t: '📅 **Plan**', why: '친구와 일정을 공유하고 합의.',
+  { t: '**Plan**', why: '친구와 일정을 공유하고 합의.',
     how: ['달력에서 날짜 클릭', '종류 선택: **야근** **회식** **출장** **약속** **휴가** **기타** (**기타**는 일정 이름 필수)', '**친구에게 전송** 클릭', '친구가 올린 변경은 **변경사항**에서 **Approve** 또는 **Reject**'],
     tip: ['점선 일정은 승인 대기, 승인되면 실선', '승인된 일정 삭제는 **삭제 요청** (친구 승인 필요)', '승인·거절 결과는 알림으로 와요 (내역은 계속 보관)', '**Weekly Agenda**: 맨 위 칸. 나도 주제를 바로 등록 가능 (등록한 사람이 **해결** 또는 **삭제**, 해결된 것은 기록으로 보관). 항목마다 **Comment**로 둘 다 댓글을 달 수 있고 내 댓글만 삭제'] },
-  { t: '📈 **Weekly report**', why: '친구의 한 주를 숫자로 확인. **Overview** 안에 있어요.',
+  { t: '**Weekly report**', why: '친구의 한 주를 숫자로 확인. **Overview** 안에 있어요.',
     how: ['보기 전용 (요일별 사고 수 막대와 조언 한 줄)'], tip: ['집계 숫자만으로 작성 (원문 미사용)'] },
-  { t: '⚙️ **Settings · 기타**', why: '화면 설정과 알림 안내. 상단 오른쪽 **톱니** 아이콘으로 열어요.',
+  { t: '**Settings · 기타**', why: '화면 설정과 알림 안내. 상단 오른쪽 **톱니** 아이콘으로 열어요.',
     how: ['**Theme**: Dark · Light · Excel(스프레드시트 위장) · Auto (이 기기에만 저장)'],
     tip: ['탭 옆 빨간 숫자: 새로 온 항목 (그 탭을 열면 사라짐, **Plan**은 처리할 때까지 유지)', '다른 탭을 보는 중 새 항목이 오면 화면 아래에 짧은 안내', '어제 공유된 줄·리뷰·전달된 메시지는 새벽 4시 기준 자동 정리'] },
-  { t: '🙂 **상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
+  { t: '**상태 표시**', why: '지금 내 상태를 이모지로 알리고, 상대의 상태를 확인.',
     how: ['화면 맨 위 **0** 칩을 눌러 이모지와 한마디 선택 후 **Save**', '**1** 칩을 누르면 상대의 상태 확인', '**Clear**로 상태 지우기'],
     tip: ['상대가 상태를 바꾸면 안내와 알림이 와요', '1 칩의 빨간 점은 새로 바뀐 상태 (눌러서 확인하면 사라져요)', '1 칩을 누르면 **React**로 👍 ❤️ 😢 😡 💪 🙏 반응을 남길 수 있어요 (상대가 상태를 바꾸면 반응은 사라져요)'] },
-  { t: '💬 **Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
+  { t: '**Check in**', why: '친구의 CPU가 올라갔을 때 무슨 일인지 가볍게 물어보기.',
     how: ['**Overview**의 **Check in** 카드에서 **Ask what\'s up** (작성자 CPU가 10% 이상일 때)', '친구의 답장은 같은 카드에, 공유된 로그는 **Queue** 탭에서 확인', '물어본 뒤 CPU가 10% 더 쌓이면 다시 물어볼 수 있어요'],
     tip: ['답이 올 때까지는 다시 물어볼 수 없어요', '하루가 바뀌면 처음부터 다시 10%예요'] },
-  { t: '🗒 **Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
+  { t: '**Syslog**', why: '둘이 자유롭게 글을 남기는 게시판. 시스템 로그처럼 보여서 회사에서도 부담이 적어요.',
     how: ['**Syslog** 탭에서 **new entry** 칸에 글 쓰기 (폰은 누르면 팝업, PC는 여러 줄 가능)', '**Enter**는 줄바꿈, 올리기는 **Post** 또는 **Ctrl/⌘+Enter**', '글을 누르면 열려요 (PC는 오른쪽). 댓글, **Keep**'],
     tip: ['**Notify**로 이 게시판 알림을 끄고 켤 수 있어요', '**Esc**로 엑셀 화면 위장'] },
-  { t: '📲 **앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
+  { t: '**앱 설치 · 알림**', why: '앱이 꺼져 있어도 상대의 활동을 알림으로 받기.',
     how: ['아이폰은 Safari → **공유** → **홈 화면에 추가**', '홈 화면 앱을 열고 **Settings**의 **Push notifications**에서 **Turn on**'], tip: ['알림은 기기마다 따로 켜야 해요', '알림 문구에는 내용이 들어가지 않아요 ("새 공유 로그가 있어요" 같은 안내만)'] },
 ];
 // **강조** 표기를 하이라이트 태그로 바꾼다 (모두 textContent 기반)

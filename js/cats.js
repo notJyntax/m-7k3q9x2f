@@ -28,7 +28,7 @@ function place() {   // 줄의 위치: 폰은 탭바 위, PC 는 메뉴 오른�
   if (!tabs) { layer.style.display = 'none'; return; }
   layer.style.display = '';
   const t = tabs.getBoundingClientRect(), phone = window.innerWidth < 760, d = dock && dock.getBoundingClientRect();
-  const bottomEdge = phone ? t.top : d && d.height ? d.top : window.innerHeight;
+  const bottomEdge = d && d.height ? d.top : phone ? t.top : window.innerHeight;   // 입력줄이 있으면 폰도 PC 도 그 위로 (입력칸을 가리지 않게)
   layer.style.left = (phone ? 0 : t.right) + 'px'; layer.style.right = '0'; layer.style.bottom = Math.max(0, window.innerHeight - bottomEdge) + 'px';
 }
 function frame() {
@@ -82,8 +82,8 @@ export function startCats() {
     const el = document.createElement('div'); el.className = 'kitty'; const inner = document.createElement('div'); el.append(inner); layer.append(el);
     const k = { ...c, el, mode: 'sit', until: 0, look: '', pet: 0, last: -1 }; wire(k); return k;
   });
-  document.body.append(layer); place();
+  document.body.append(layer); document.body.classList.add('has-cats'); place();
   timer = setInterval(frame, 120);
   window.addEventListener('resize', place);
 }
-export function stopCats() { clearInterval(timer); window.removeEventListener('resize', place); layer?.remove(); layer = null; cats = []; }
+export function stopCats() { document.body.classList.remove('has-cats'); clearInterval(timer); window.removeEventListener('resize', place); layer?.remove(); layer = null; cats = []; }

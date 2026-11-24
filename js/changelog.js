@@ -2,6 +2,17 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-24-c', date: '11/24', title: '화면 점검 고치기', items: [
+    ['fix', '고양이가 입력창과 퀵 버튼을 가리던 것 (입력줄 위로 다님)'],
+    ['fix', '연한 글씨가 흐려 읽기 어렵던 것, 11px 이하 글씨를 12px로'],
+    ['fix', '폰에서 누르는 칸을 40px 이상으로, 입력할 때 화면이 커지던 것'],
+    ['fix', '두 손가락으로 확대가 막혀 있던 것'],
+    ['change', '설정 버튼을 해 모양에서 조절 모양으로, 엔진·모드 아이콘'],
+    ['change', '가이드 제목의 이모지 제거'],
+    ['new', '/warn · /error · /fatal 내용 으로 레벨을 정해 기록'],
+    ['new', '일정 줄에 Edit 으로 날짜·메모·Tentative 수정'],
+    ['change', 'Tentative 를 빈 칩 모양, 스위치 카드, 정돈된 버튼 줄로'],
+  ] },
   { id: '2026-11-24-b', date: '11/24', title: '변동 가능 일정', items: [
     ['new', '일정 등록 때 Tentative 로 표시, 달력에는 사선 줄무늬+물음표'],
     ['new', 'Tentative 일정은 Mark firm 으로 확정'],
