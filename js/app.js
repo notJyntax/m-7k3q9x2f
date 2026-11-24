@@ -222,7 +222,8 @@ function errText(e) {
   if (e?.code === '23514') return '내용이 너무 길어요. 조금 줄여서 다시 시도해 주세요.';
   return '저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.';
 }
-const act = (fn) => async (...a) => { try { await fn(...a); } catch (e) { console.warn(e); toast(errText(e)); } };
+// 같은 버튼을 연달아 눌러도(더블·트리플 클릭) 앞의 동작이 끝나기 전에는 한 번만 실행한다
+const act = (fn) => { let busy = false; return async (...a) => { if (busy) return; busy = true; try { await fn(...a); } catch (e) { console.warn(e); toast(errText(e)); } finally { busy = false; } }; };
 let toastT;
 function toast(msg) {
   const t = $('#toast'); if (!t) return;
@@ -1183,7 +1184,8 @@ async function removeEvent(e, reason = '') {
     await S.store.del('events', e.id);
     return;
   }
-  if (e.state !== 'approved') return;
+  const cur = S.store.get('events', e.id) || e;   // 화면에 들고 있던 값이 아니라 지금 값으로 확인 (이미 삭제 요청 중이면 또 만들지 않음)
+  if (cur.state !== 'approved') return;
   await S.store.patch('events', e.id, { state: 'removing' });
   await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'remove', by: roleName(), ts: now, status: 'pending', date: e.date, endDate: e.endDate || null, label: e.label, memo: e.memo || '', reason: reason.slice(0, 80) });
 }
@@ -1255,18 +1257,22 @@ function openDayModal(key) {
   } } }, catIcon(id), t); return [id, b]; });
   const list = es.length ? es.map((e) => {
     const canDel = e.state === 'approved' || (e.state === 'pending' && e.by === me), live = e.state !== 'removing';
-    // 윗줄: 종류 아이콘·이름·메모·누가 + 오른쪽에 상태 배지 / 아랫줄: 버튼을 오른쪽 끝에 같은 높이로 (Edit · Mark firm · Delete)
+    // 한 줄 = 머리(종류 아이콘 · 이름 · 상태 배지) → 메모 → 누가·기간 → 구분선 → 버튼 줄(왼쪽: 고치기·확정 / 오른쪽 끝: 삭제)
+    const memo = (e.memo || '').trim();
     return h('div', { class: 'prow ev-row' },
-      h('div', { class: 'pr-l1' }, h('span', { class: 'pr-k', style: `color:${CATCOL[e.kind] || CATCOL.etc}` }, catIcon(e.kind in CATICON ? e.kind : 'etc')), h('b', { text: e.label }), e.memo ? h('span', { class: 'sub', text: '· ' + e.memo }) : null, h('span', { class: 'sub', text: `· by ${e.by === me ? '0' : '1'}${e.endDate ? ' · ~' + fmtMD(e.endDate) : ''}` }),
+      h('div', { class: 'er-head' }, h('span', { class: 'pr-k', style: `color:${CATCOL[e.kind] || CATCOL.etc}` }, catIcon(e.kind in CATICON ? e.kind : 'etc')), h('b', { text: e.label }),
         h('span', { class: 'pr-bg' }, stBadge(e), e.tentative ? badge('Tentative', 'tn') : null)),
-      live || canDel ? h('div', { class: 'pr-l2' },
-        live ? btn('Edit', act(async () => { close(); openEditEvent(e, () => openDayModal(key)); }), 'small') : null,
-        e.tentative && live ? btn('Mark firm', act(async () => { await S.store.patch('events', e.id, { tentative: false }); renderView(); close(); openDayModal(key); }), 'small txt') : null,
+      memo ? h('div', { class: 'er-memo', text: memo }) : null,
+      h('div', { class: 'er-meta', text: `by ${e.by === me ? '0' : '1'}${e.endDate ? ` · ~${fmtMD(e.endDate)}` : ''}` }),
+      e.state === 'removing' && removeReason(e) ? h('div', { class: 'er-meta', text: 'Reason: ' + removeReason(e) }) : null,
+      live || canDel ? h('div', { class: 'er-acts' },
+        h('span', { class: 'er-main' },
+          live && (e.state === 'approved' || e.by === me) ? btn('Edit', act(async () => { close(); openEditEvent(e, () => openDayModal(key)); }), 'small txt') : null,   // 상대가 올린 승인 전 일정은 승인·거절만 (고치기 숨김)
+          e.tentative && live && (e.state === 'approved' || e.by === me) ? btn('Mark firm', act(async () => { await S.store.patch('events', e.id, { tentative: false }); renderView(); close(); openDayModal(key); }), 'small txt') : null),
         canDel ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => {
           if (e.state !== 'approved') { await removeEvent(e); renderView(); close(); openDayModal(key); return; }
           askDeleteReason(e, () => openDayModal(key));   // 승인된 일정은 지우는 사유를 적어야 한다
-        }), 'small danger txt') : null) : null,
-      e.state === 'removing' && removeReason(e) ? h('div', { class: 'sub', text: 'Reason: ' + removeReason(e) }) : null);
+        }), 'small danger txt') : null) : null);
   }) : [];
   const body = h('div', { class: 'daymodal' }, h('button', { type: 'button', class: 'btn small quiet ic dm-x', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x')), list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
   close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [] });
@@ -1295,7 +1301,7 @@ function openEditEvent(e, after) {
     else await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'edit', by: me, ts: Date.now(), status: 'approved', decidedAt: Date.now(), decidedBy: me, date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent });
     renderView(); toast('Saved'); after();
   };
-  const close = modal({ title: `Edit ${e.label}`, body: h('div', { class: 'share' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'From' }), from), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), memo, tb),
+  const close = modal({ title: `Edit ${e.label}`, body: h('div', { class: 'dm-form' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'From' }), from), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), memo, tb),
     actions: [{ label: 'Cancel', cls: 'small', fn: () => after() }, { label: 'Save', cls: 'primary', close: false, fn: () => save(close) }] });
   onEnter(memo, () => save(close));
 }

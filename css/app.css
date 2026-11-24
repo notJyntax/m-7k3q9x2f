@@ -559,6 +559,7 @@ html[data-theme="ops-light"] .pl-scene::after, html[data-theme="ops-excel"] .pl-
 .share input { width: 100%; }
 .share textarea { width: 100%; }
 .share input[type=checkbox] { width: auto; flex: none; margin: 3px 0 0; }
+.share .switch input[type=checkbox], .dm-form .switch input[type=checkbox] { width: 36px; margin: 0; }
 .mlab { font: 600 12px var(--sans); color: var(--mute); letter-spacing: .07em; text-transform: uppercase; margin: 2px 0 2px; }
 .mgrid + .mlab { margin-top: 10px; }
 .msgrow { display: flex; gap: 6px; align-items: center; }
@@ -1022,3 +1023,15 @@ html .btn.primary:active:not(:disabled) { filter: brightness(.92); }
   .overlay, .dialog { animation: none; }
 }
 .sbchip .btn.small { min-width: 44px; }
+
+/* 일정 한 줄(날짜 창): 머리 → 메모 → 메타 → 구분선 → 버튼 줄 */
+.prow.ev-row { gap: 6px; padding: 12px 14px; }
+.er-head { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.er-head b { color: var(--hi); font-size: 14px; }
+.er-head .pr-bg { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.er-memo { color: var(--text); font-size: 13px; line-height: 1.45; padding-left: 23px; overflow-wrap: anywhere; }
+.er-meta { color: var(--sub); font-size: 12px; padding-left: 23px; }
+.er-acts { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.er-main { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+.er-acts .btn { flex: none; }
+.dm-form > input[type=text] { flex: none; }
