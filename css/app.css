@@ -948,3 +948,9 @@ html[data-theme="ops-dark"] .w-hl { background: linear-gradient(transparent 62%,
 
 /* 답글 입력칸: 좁은 폰에서는 입력칸이 한 줄을 다 쓰고, Send·Cancel 은 그 아래 줄 오른쪽에 */
 @media (max-width: 430px) { .c-box .c-new.rv-form { flex-wrap: wrap; justify-content: flex-end; } .c-box .c-new.rv-form input { flex: 1 1 100%; } }
+
+/* 변동 가능 일정: 사선 줄무늬 + 물음표 (승인 대기의 점선과 겹쳐도 구분됨) */
+.ev.tent { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 30%, transparent) 0 3px, transparent 3px 6px); }
+.ev.tent::after { content: '?'; margin-left: auto; font-weight: 700; flex: none; }
+.catb.tentb { align-self: flex-start; --c: var(--warn, #b7791f); }
+.catb.tentb .ci, .catb.tentb .ico { width: 14px; height: 14px; }
