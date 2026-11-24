@@ -2,6 +2,9 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-24-a', date: '11/24', title: '일정 한꺼번에 승인', items: [
+    ['new', '상대가 올린 새 일정을 Approve all 로 한 번에 승인'],
+  ] },
   { id: '2026-11-20-c', date: '11/20', title: '일정 삭제 사유', items: [
     ['new', '승인된 일정을 지우려면 사유를 적고, 상대도 읽을 수 있음'],
     ['fix', '날짜 창에서 종류 버튼이 일정 줄 위에 겹치던 것'],

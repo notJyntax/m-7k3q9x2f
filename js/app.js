@@ -1253,6 +1253,7 @@ function planChangesCard() {
   const me = roleName(), logs = rows('plan_log').sort((a, b) => b.ts - a.ts);
   const needs = logs.filter((l) => l.status === 'pending' && l.by !== me), mine = logs.filter((l) => l.status === 'pending' && l.by === me);
   const done = logs.filter((l) => l.status !== 'pending').sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0)).slice(0, 40);
+  const adds = needs.filter((l) => l.action === 'add');   // 한꺼번에 승인은 새 일정만 (삭제 요청은 사유를 읽고 하나씩)
   const who = (l) => `by ${l.by === me ? '0' : '1'}`;
   // 줄 앞의 둥근 상태 아이콘(승인 ✓ · 거절 ✕ · 취소 − · 대기 시계)과 일정 종류 아이콘(야근 달·회식 잔·출장 가방…)
   const kindOf = (l) => Object.entries(KINDS).find(([, v]) => v === l.label)?.[0] || 'etc';
@@ -1261,6 +1262,7 @@ function planChangesCard() {
   // 가로로 길고 세로가 짧은 띠: 변경이 없으면 한 줄, 있으면 그 줄들만 아래에 이어 붙는다
   const status = needs.length ? `${needs.length} to review` : mine.length ? `${mine.length} waiting for approval` : 'nothing to review';
   const head = h('div', { class: 'pc-head' }, cardTitle('Changes'), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
+    adds.length > 1 ? btn(`Approve all (${adds.length})`, act(async () => { for (const l of adds) await decidePlan(l, true); toast(`${adds.length} approved`); renderView(); }), 'small') : null,
     done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
   const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
     needs.map((l) => h('div', { class: 'prow need' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}${l.reason ? ' · Reason: ' + l.reason : ''}` })),
