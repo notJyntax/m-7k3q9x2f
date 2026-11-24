@@ -193,7 +193,7 @@ function onEnter(el, fn, { shift = false } = {}) {
   });
   el.addEventListener('compositionend', () => { endedAt = performance.now(); if (pend) { pend = false; setTimeout(fn, 0); } });
 }
-const empty = (t) => h('p', { class: 'empty', text: t });
+const empty = (t) => h('p', { class: 'empty' }, icon('note'), h('span', { text: t }));
 const note = (t) => h('p', { class: 'note', text: t });
 const MH_ICON = { CPU: 'cpu', CACHE: 'layers', DISK: 'disk' };   // 막대 이름 앞 작은 아이콘
 const mhName = (name) => h('b', {}, MH_ICON[name] ? icon(MH_ICON[name]) : null, name);
@@ -229,11 +229,22 @@ function toast(msg) {
   t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3200);
 }
 function modal({ title, body, actions, sticky = false }) {
-  const root = $('#modal-root');
-  const close = () => root.replaceChildren();
-  root.replaceChildren(h('div', { class: 'overlay', on: { click: (e) => { if (e.target === e.currentTarget && !sticky) close(); } } },
-    h('div', { class: 'dialog', role: 'dialog' }, h('h3', { text: title }), body,
-      h('div', { class: 'actions' }, actions.map((a) => btn(a.label, act(async () => { if (a.close !== false) close(); await a.fn?.(close); }), a.cls || ''))))));
+  const root = $('#modal-root'), prev = document.activeElement;
+  const close = () => { root.replaceChildren(); S.modalClose = null; if (prev && document.contains(prev) && prev.focus) prev.focus({ preventScroll: true }); };
+  const tid = 'dlg-t-' + uid();
+  const dlg = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid, tabindex: '-1' }, h('h3', { id: tid, text: title }), body,
+    h('div', { class: 'actions' }, actions.map((a) => btn(a.label, act(async () => { if (a.close !== false) close(); await a.fn?.(close); }), a.cls || ''))));
+  // Tab 은 창 안에서만 돌고, Esc 는 창을 닫는다 (sticky 창은 닫지 않음)
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const f = [...dlg.querySelectorAll('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+    if (!f.length) { e.preventDefault(); return; }
+    const a = document.activeElement, first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && (a === first || a === dlg)) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+  });
+  root.replaceChildren(h('div', { class: 'overlay', on: { click: (e) => { if (e.target === e.currentTarget && !sticky) close(); } } }, dlg));
+  S.modalClose = sticky ? null : close;
+  setTimeout(() => { if (!dlg.contains(document.activeElement)) ([...dlg.querySelectorAll('input:not([type=hidden]), textarea')].find((x) => x.offsetParent !== null) || dlg).focus({ preventScroll: true }); }, 0);
   return close;
 }
 
@@ -274,7 +285,8 @@ function buildShell() {
     if (S.dirty && !(a && $('#view').contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) refresh();
   }, 200));
   buildBoss();
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const b = $('#boss'); b.hidden = !b.hidden; } });
+  document.addEventListener('touchstart', () => {}, { passive: true });   // iOS Safari 에서 :active(눌린 느낌)가 동작하게 하는 관례
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if ($('#modal-root').childElementCount) { if (S.modalClose) S.modalClose(); return; } const b = $('#boss'); b.hidden = !b.hidden; });
 }
 const autoGrow = (ta) => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; };
 
@@ -417,7 +429,15 @@ function collapseAll() {
   if (S.cal) { S.cal.end = null; S.cal.range = false; }
 }
 function go(tab, keep = false) { if (S.tab !== tab && !keep) collapseAll();
-  S.tab = tab; renderChrome(); renderView(); $('#view').scrollTop = 0; if (tab === 'report') ensureReport(false); }
+  const prev = S.tab;
+  S.tab = tab; renderChrome(); renderView(); $('#view').scrollTop = 0; if (tab === 'report') ensureReport(false); tabMotion(prev, tab); }
+// 탭을 바꿀 때: 내용이 새로 들어오고(폰은 눌러 간 방향에서 옆으로, PC 는 아래에서 살짝 위로), 켜진 탭 아이콘이 톡 튄다
+function tabMotion(prev, tab) {
+  if (prev === tab || reduceFx()) return;
+  const ids = (isWriter() ? TABS_W : TABS_L).map((t) => t[0]), dir = ids.indexOf(tab) >= ids.indexOf(prev) ? 1 : -1, phone = window.innerWidth < 760;
+  $('#view')?.animate?.([{ opacity: 0, transform: phone ? `translateX(${14 * dir}px)` : 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: phone ? 240 : 200, easing: 'cubic-bezier(.2,.7,.2,1)' });
+  document.querySelector('#tabs .tab.on .ico')?.animate?.([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.3,1.5,.5,1)' });
+}
 
 // ── 새 항목 알림: 탭 옆 빨간 숫자 (그 탭을 열면 사라짐, 기기별로 기억) ──
 const seenKey = (tab) => `svcmon.seen.${S.sandbox ? 'sb' : S.cloud ? 'c' : 'l'}.${S.role}.${tab}`;
@@ -742,8 +762,8 @@ function renderView() {
     if (S.updateReady) banners.push(h('div', { class: 'banner warn upd' }, h('span', { text: '앱이 업데이트됐어요. 새로고침해 주세요.' }), btn('Refresh', doRefresh, 'small primary')));   // 열려 있던 앱에 새 버전을 알린다
     if (isWriter() && S.tab !== 'inbox' && pendingCheckin()) banners.push(h('div', { class: 'banner warn' }, h('span', { text: '상대가 무슨 일 있는지 물어봤어요.' }), btn('Reply', () => openCheckinReply(pendingCheckin()), 'small primary')));
     if (!S.canWrite) banners.push(h('div', { class: 'banner warn', text: '읽기 전용이에요. 쓰려면 소유자가 "편집 가능(Contributor)"으로 초대해야 해요.' }));
-    if (clUnread().length) banners.push(h('div', { class: 'banner' }, h('span', { text: `What's new · ${clUnread().length} update${clUnread().length === 1 ? '' : 's'}` }), h('span', { class: 'row' }, btn('See', seeUpdates, 'small'), btn('Confirm all', () => clConfirm(CHANGELOG.map((e) => e.id)), 'small quiet'))));
-    if (S.sandbox) banners.push(h('div', { class: 'banner', text: '체험 모드: 이 기기에만 저장되고 상대에게 전달되지 않아요.' }, btn('Exit', () => boot(), 'small')));
+    if (clUnread().length) banners.push(h('div', { class: 'banner' }, h('span', { text: `What's new · ${clUnread().length} update${clUnread().length === 1 ? '' : 's'}` }), h('span', { class: 'row' }, btn('See', seeUpdates, 'small'), btn('Confirm all', () => clConfirm(CHANGELOG.map((e) => e.id)), 'small'))));
+    if (S.sandbox) banners.push(h('div', { class: 'sbchip', title: '이 기기에만 저장되고 상대에게 전달되지 않아요' }, h('span', { text: 'Sandbox · saved on this device only' }), btn('Exit', () => boot(), 'small quiet')));
     else if (!S.cloud) banners.push(h('div', { class: 'banner', text: '혼자 쓰는 모드: 공유 저장소에 연결되지 않아 이 기기에만 저장돼요.' }));
     else if (S.push === 'need-install') banners.push(h('div', { class: 'banner', text: '홈 화면에 추가하면 앱이 꺼져 있어도 알림을 받을 수 있어요.' }, btn('How to', openInstall, 'small')));
     const V = isWriter() ? VW : VL;
@@ -808,7 +828,7 @@ function renderLog() {
   const view = $('#view');
   const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 90;
   const shown = list.slice(-300);
-  box.replaceChildren(...(list.length ? shown.map(logRow) : [empty(f ? 'no match' : 'No entries yet. 아래 입력창에 한 줄만 적으면 돼요.')]));
+  box.replaceChildren(...(list.length ? shown.map(logRow) : [empty(f ? 'no match' : 'No entries yet · type one line below')]));
   tailFx(box, shown);
   if (stick) view.scrollTop = view.scrollHeight;
 }
@@ -1115,13 +1135,13 @@ function commitPanel() {
     card('Commit', h('textarea', { id: 'cm-text', rows: 2, maxLength: 200, placeholder: 'commit message' }),
       h('div', { class: 'row' }, wr ? null : h('select', { id: 'cm-when' }, [['now', '지금'], ['1h', '1시간 뒤'], ['3h', '3시간 뒤'], ['tomorrow', '내일 아침 9시'], ['sat', '주말 아침 10시']].map(([v, t]) => h('option', { value: v, text: t }))), h('span', { class: 'sp' }), btn('Commit', send, 'primary'))),
     h('div', { class: 'cm-pair' },
-      col('cm-in', 'Received', 'arrowIn', dnd ? [note('Do not disturb 가 켜져 있어요. 도착한 메시지는 끌 때까지 숨겨져요.')] : list(got), '받은 메시지 없음'),
-      col('cm-out', 'Sent by me', 'arrowOut', list(sent), '보낸 메시지 없음')));
+      col('cm-in', 'Received', 'arrowIn', dnd ? [note('Do not disturb 가 켜져 있어요. 도착한 메시지는 끌 때까지 숨겨져요.')] : list(got), 'No messages received'),
+      col('cm-out', 'Sent by me', 'arrowOut', list(sent), 'No messages sent')));
 }
 function viewInbox() {
   const kp = keeps();
   return h('div', { class: 'grid' }, commitPanel(), checkinCardW(), updatesCard(),
-    card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), h('span', { class: 'sp' }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => S.store.del('@', k.id)) }])))) : empty('아직 없음'),
+    card('Good things', kp.filter((k) => k.kind === 'good').length ? kp.filter((k) => k.kind === 'good').map((k) => h('div', { class: 'item' }, h('p', { class: 'msgtext', text: k.text }), h('div', { class: 'row' }, h('span', { class: 'sub', text: mdhm(k.ts) }), h('span', { class: 'sp' }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => S.store.del('@', k.id)) }])))) : empty('None yet'),
       kp.some((k) => k.kind === 'learned') ? h('div', { class: 'learned' }, h('b', { text: 'Learned today' }), kp.filter((k) => k.kind === 'learned').slice(0, 7).map((k) => h('p', { class: 'msgtext', text: `${k.day} · ${k.text}` }))) : null),
     updateHistoryCard());
 }
@@ -1405,7 +1425,7 @@ function viewArchive() {
         return open ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-detail' }, h('div', { class: 'raw' }, h('span', { class: 'k', text: 'raw (private)' }), h('span', { text: l.raw || '(quick entry)' })), h('div', { class: 'row' }, h('span', { class: 'sp' }), moreMenu([{ label: 'Delete', icon: 'trash', danger: true, fn: act(() => deleteLog(l)) }])))) : A.raw ? h('div', { class: 'ln-wrap' }, row, h('div', { class: 'ln-rawline' }, '↳ ' + (l.raw || '(quick entry)'))) : row;
       }),
       h('div', { class: 'row' }, btn('Delete all for this day', () => modal({ title: `${fmtMD(sel)} 기록을 모두 지울까요?`, body: note('지운 기록은 복구되지 않아요. 통계 숫자는 남아요.'), actions: [{ label: 'Cancel', cls: 'small' }, { label: 'Delete', cls: 'primary', fn: act(async () => { for (const l of ls) await deleteLog(l); }) }] }), 'small danger'))]
-      : empty('이 날은 기록이 없어요'));
+      : empty('No records for this day'));
   return h('div', { class: 'grid' },
     card('Archive',
       h('div', { class: 'row' }, h('b', { text: `${A.y}년 ${A.m + 1}월` }), h('span', { class: 'sp' }), btn('<', move(-1), 'small', { 'aria-label': '이전 달' }), btn('>', move(1), 'small', { 'aria-label': '다음 달' })),
@@ -1479,7 +1499,7 @@ const updateHistoryCard = () => {
   const read = CHANGELOG.filter((e) => clAcked().has(e.id)), open = !!S.uhOpen;
   const head = h('button', { type: 'button', class: 'fold-h', 'aria-expanded': String(open), on: { click: () => { if (open) for (const k of Object.keys(S.clOpen ?? {})) if (k.startsWith('h:')) delete S.clOpen[k]; S.uhOpen = !open; renderView(); } } },
     cardTitle('Update history'), h('span', { class: 'cm-n', text: String(read.length) }), icon(open ? 'chevU' : 'chevD'));
-  return h('section', { class: 'card' + (open ? '' : ' folded') }, head, ...(open ? (read.length ? read.map((e) => clFold(e, true)) : [empty('아직 읽은 업데이트가 없어요')]) : []));
+  return h('section', { class: 'card' + (open ? '' : ' folded') }, head, ...(open ? (read.length ? read.map((e) => clFold(e, true)) : [empty('No read updates yet')]) : []));
 };
 // 떠 있는 고양이 켜기/끄기 (이 기기에만 저장)
 const catsCard = () => card('Cats', h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: catsOn(), on: { change: (e) => setCatsOn(e.target.checked) } }), h('span', {}, h('b', { text: 'Show cats' }), h('small', { text: '화면 맨 아래 줄을 오가는 고양이 두 마리' }))));
@@ -1608,7 +1628,7 @@ function viewQueue() {
       ln.raw ? h('div', { class: 'gloss note-by' }, h('span', { class: 'k', text: 'Raw (shared)' }), h('span', { text: ln.raw })) : null,
       h('div', { class: 'c-box' }, rv.length ? h('div', { class: 'sl-thread' }, rv.map((r) => reviewRow(ln, r, 'listener'))) : null, h('div', { class: 'row c-new' }, box, btn('Comment', send, 'small dark txt')))));
   };
-  return h('div', { class: 'grid' }, h('section', { class: 'card cm-col span-all' }, cardTitle('Shared log lines'), lines.length ? lines.map(item) : empty('공유된 로그 없음')));
+  return h('div', { class: 'grid' }, h('section', { class: 'card cm-col span-all' }, cardTitle('Shared log lines'), lines.length ? lines.map(item) : empty('No shared lines')));
 }
 function whenTs(v) {
   const n = new Date(), now = n.getTime();
@@ -1794,7 +1814,7 @@ function winsView(st) {
   return [
     h('section', { class: 'card span-all' }, cardTitle('Wins'),
       h('div', { class: 'row win-cmp' }, box, btn('Post', post, 'primary'))),
-    h('section', { class: 'card span-all w-list' }, all.length ? all.map((p) => winRow(p, st)) : empty('아직 자랑이 없어요. 오늘 잘한 걸 하나 적어 보세요.')),
+    h('section', { class: 'card span-all w-list' }, all.length ? all.map((p) => winRow(p, st)) : empty('No wins yet · add one good thing from today')),
   ];
 }
 function sysSeg(st, nLog, nWin) {
