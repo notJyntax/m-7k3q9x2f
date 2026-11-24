@@ -229,11 +229,12 @@ function toast(msg) {
   const t = $('#toast'); if (!t) return;
   t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3200);
 }
-function modal({ title, body, actions, sticky = false }) {
+function modal({ title, body, actions, sticky = false, x = false }) {
   const root = $('#modal-root'), prev = document.activeElement;
   const close = () => { root.replaceChildren(); S.modalClose = null; if (prev && document.contains(prev) && prev.focus) prev.focus({ preventScroll: true }); };
   const tid = 'dlg-t-' + uid();
-  const dlg = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid, tabindex: '-1' }, h('h3', { id: tid, text: title }), body,
+  const dlg = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid, tabindex: '-1' },
+    x ? h('div', { class: 'dlg-hd' }, h('h3', { id: tid, text: title }), h('button', { type: 'button', class: 'btn small quiet ic', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x'))) : h('h3', { id: tid, text: title }), body,
     h('div', { class: 'actions' }, actions.map((a) => btn(a.label, act(async () => { if (a.close !== false) close(); await a.fn?.(close); }), a.cls || ''))));
   // Tab 은 창 안에서만 돌고, Esc 는 창을 닫는다 (sticky 창은 닫지 않음)
   dlg.addEventListener('keydown', (e) => {
@@ -1274,8 +1275,8 @@ function openDayModal(key) {
           askDeleteReason(e, () => openDayModal(key));   // 승인된 일정은 지우는 사유를 적어야 한다
         }), 'small danger txt') : null) : null);
   }) : [];
-  const body = h('div', { class: 'daymodal' }, h('button', { type: 'button', class: 'btn small quiet ic dm-x', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x')), list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
-  close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [] });
+  const body = h('div', { class: 'daymodal' }, list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
+  close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [], x: true });
 }
 // Tentative 스위치 카드: 설정 화면의 스위치와 같은 모양 (아이콘 · 제목+설명 · 오른쪽 스위치)
 function tentRow(on, onChange) {
