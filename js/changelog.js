@@ -2,6 +2,10 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-24-g', date: '11/24', title: '꾸밈 덜기', items: [
+    ['change', '말풍선·인용 상자의 왼쪽 색 띠와 프로필 둘레 색 링을 없앰'],
+    ['change', '새 글·새 알림 표시를 띠 대신 옅은 배경색으로'],
+  ] },
   { id: '2026-11-24-f', date: '11/24', title: 'Excel 테마 다듬기', items: [
     ['change', 'Excel 테마에 열 머리글 A–Z와 행 번호, 셀 격자 추가 (PC)'],
     ['change', '표처럼 각진 카드, 리본 단추 같은 버튼, 초록 입력 테두리'],
