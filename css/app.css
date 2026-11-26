@@ -1098,3 +1098,46 @@ html[data-theme="ops-excel"] .tab { border-right: 0; }
 .dlg-hd .btn { margin-right: -6px; }
 html[data-theme="ops-excel"] .dialog > .dlg-hd { margin: -18px -18px 4px; padding: 5px 12px 5px 18px; background: #f3f3f3; border-bottom: 1px solid #d4d4d4; }
 html[data-theme="ops-excel"] .dlg-hd h3 { margin: 0; padding: 0; background: none; border: 0; }
+
+/* ───────── 움직임 더하기: 창 닫힘 · 폰 아래 시트 · 줄 접힘 · 흔들기 · 뼈대 로딩 ───────── */
+@keyframes fadeOut { to { opacity: 0; } }
+@keyframes dlgOut { to { opacity: 0; transform: translateY(6px) scale(.98); } }
+@keyframes sheetIn { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheetOut { to { transform: translateY(100%); } }
+.overlay.out { animation: fadeOut .16s ease-in forwards; pointer-events: none; }
+.overlay.out .dialog { animation: dlgOut .14s ease-in forwards; }
+.overlay.quiet, .overlay.quiet .dialog { animation: none; }
+@media (max-width: 759px) {
+  .overlay { align-items: flex-end; padding: 0; }
+  .dialog { width: 100%; border-radius: 16px 16px 0 0; max-height: 88dvh; padding-bottom: calc(16px + env(safe-area-inset-bottom)); animation: sheetIn .32s cubic-bezier(.2,.8,.2,1); }
+  .dialog::before { content: ''; flex: none; width: 36px; height: 4px; border-radius: 2px; background: var(--line); align-self: center; margin: -4px 0 -2px; }
+  .overlay.out .dialog { animation: sheetOut .2s cubic-bezier(.4,0,1,1) forwards; }
+  .overlay.quiet .dialog { animation: none; }
+}
+html[data-theme="ops-excel"] .dialog::before { display: none; }
+@media (prefers-reduced-motion: reduce) { .overlay, .dialog, .overlay.out, .overlay.out .dialog { animation: none !important; } .skl i::after { animation: none; } }
+
+/* 승인한 줄: 버튼이 ✓ 로 · 줄이 연한 초록으로 */
+.prow.okflash { background: var(--okbg); box-shadow: none; transition: background-color .12s; }
+.btn.okd, html .btn.okd:hover { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
+.btn.okd .ico { animation: pop .3s cubic-bezier(.3,1.5,.5,1); }
+/* 지우는 줄: 취소선 */
+.er-head b { position: relative; }
+.er-head b.strike::after { content: ''; position: absolute; left: 0; top: 50%; height: 1.5px; background: var(--crit); animation: strikeIn .17s ease-out forwards; }
+@keyframes strikeIn { from { width: 0; } to { width: 100%; } }
+/* 삭제 요청을 보낸 뒤 줄의 배지 */
+.ev-row.fx-in .badge.warn { animation: badgePop .4s cubic-bezier(.3,1.5,.5,1); }
+@keyframes badgePop { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: none; } }
+/* Mark firm 직후 달력 칩: 한 번 커지며 파동 */
+.ev.firmed { animation: firmPop .55s cubic-bezier(.2,.8,.2,1); }
+@keyframes firmPop { 0% { transform: scale(.92); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c, var(--accent)) 70%, transparent); } 40% { transform: scale(1.08); } 100% { transform: none; box-shadow: 0 0 0 9px transparent; } }
+/* 입력이 잘못됐을 때 */
+input.invalid, textarea.invalid, .invalid.cat { border-color: var(--crit); box-shadow: 0 0 0 3px color-mix(in srgb, var(--crit) 16%, transparent); border-radius: var(--r); }
+/* 연결하는 동안 뼈대 */
+.skl { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.skl i { display: block; height: 36px; border-radius: var(--r); background: var(--panel2); position: relative; overflow: hidden; }
+.skl i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--text) 9%, transparent) 50%, transparent 80%); transform: translateX(-100%); animation: shim 1.2s infinite; }
+@keyframes shim { to { transform: translateX(100%); } }
+/* 창(시트)이 열려 있는 동안: 고양이는 숨기고, 안내 글은 위쪽에 */
+body:has(#modal-root .overlay) .cat-layer { visibility: hidden; }
+@media (max-width: 759px) { body:has(#modal-root .overlay) .toast { bottom: auto; top: calc(14px + env(safe-area-inset-top)); } }

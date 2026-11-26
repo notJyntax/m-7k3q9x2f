@@ -224,6 +224,45 @@ function errText(e) {
 }
 // 같은 버튼을 연달아 눌러도(더블·트리플 클릭) 앞의 동작이 끝나기 전에는 한 번만 실행한다
 const act = (fn) => { let busy = false; return async (...a) => { if (busy) return; busy = true; try { await fn(...a); } catch (e) { console.warn(e); toast(errText(e)); } finally { busy = false; } }; };
+// ── 동작 효과: 줄 접기 · 입력칸 흔들기 · 목록 차례로 나타나기. '동작 줄이기' 설정이면 모두 건너뛴다 ──
+const EASE = 'cubic-bezier(.2,.8,.2,1)';
+// 먼저 흐려지고(앞 절반) 그다음 접힌다(뒤 절반). 둘을 동시에 하면 깜빡임처럼 보인다. slide: 흐려지며 옆으로 밀리는 거리(px)
+function collapseRow(row, { slide = 0, ms = 400 } = {}) {
+  if (!row || !row.animate || reduceFx()) return Promise.resolve();
+  const gap = parseFloat(getComputedStyle(row.parentElement || row).rowGap) || 0, h0 = row.offsetHeight + 'px';
+  row.style.overflow = 'hidden'; row.style.pointerEvents = 'none';
+  const a = row.animate([
+    { height: h0, opacity: 1, transform: 'none' },
+    { height: h0, opacity: 0, transform: `translateX(${slide}px)`, offset: .5 },
+    { height: 0, opacity: 0, transform: `translateX(${slide}px)`, paddingTop: 0, paddingBottom: 0, marginBottom: -gap + 'px', borderWidth: 0 },
+  ], { duration: ms, easing: 'ease-out', fill: 'forwards' });
+  return a.finished.then(() => {}, () => {});
+}
+// 칸을 좌우로 흔들고 빨간 테두리를 잠깐 보인다 (글을 쓰면 바로 풀린다)
+function shake(el) {
+  if (!el) return;
+  el.classList.add('invalid');
+  const clear = () => { el.classList.remove('invalid'); el.removeEventListener('input', clear); };
+  el.addEventListener('input', clear); setTimeout(clear, 2600);
+  if (!reduceFx()) el.animate?.([{ transform: 'none' }, { transform: 'translateX(-7px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(2px)' }, { transform: 'none' }], { duration: 360, easing: 'ease-out' });
+}
+// 승인/거절한 줄: 눌린 버튼이 ✓ 로 바뀌고 줄이 연한 색으로 깜빡인 뒤 접힌다
+async function settleRow(row, ok, b) {
+  if (!row || reduceFx()) return;
+  if (ok) { if (b) { b.classList.add('okd'); b.replaceChildren(icon('check')); } row.classList.add('okflash'); await sleep(340); }
+  await collapseRow(row, { slide: ok ? 0 : 40 });
+}
+// 지우는 줄: 제목에 취소선이 그어지고 → 옆으로 밀리며 사라지고 → 접힌다
+async function vanishRow(row) {
+  if (!row || reduceFx()) return;
+  row.querySelector('.er-head b')?.classList.add('strike'); await sleep(170);
+  await collapseRow(row, { slide: 40 });
+}
+// 처음 여는 화면의 카드가 위에서부터 60ms 간격으로 올라오며 나타난다
+function stagger(node) {
+  if (reduceFx() || !node?.children) return;
+  [...node.children].slice(0, 7).forEach((c, i) => c.animate?.([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 180, delay: i * 60, easing: EASE, fill: 'backwards' }));
+}
 let toastT;
 function toast(msg) {
   const t = $('#toast'); if (!t) return;
@@ -231,7 +270,13 @@ function toast(msg) {
 }
 function modal({ title, body, actions, sticky = false, x = false }) {
   const root = $('#modal-root'), prev = document.activeElement;
-  const close = () => { root.replaceChildren(); S.modalClose = null; if (prev && document.contains(prev) && prev.focus) prev.focus({ preventScroll: true }); };
+  let ov = null;
+  // 닫을 때: 배경이 흐려지며 창이 내려간다(폰은 시트가 아래로). 그 사이에 새 창이 열리면 그 창은 건드리지 않는다
+  const close = () => {
+    if (S.modalClose === close) S.modalClose = null;
+    if (ov && ov.parentNode === root) { if (reduceFx()) root.replaceChildren(); else { ov.classList.add('out'); setTimeout(() => { if (ov.parentNode === root) ov.remove(); }, 200); } }
+    if (prev && document.contains(prev) && prev.focus) prev.focus({ preventScroll: true });
+  };
   const tid = 'dlg-t-' + uid();
   const dlg = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': tid, tabindex: '-1' },
     x ? h('div', { class: 'dlg-hd' }, h('h3', { id: tid, text: title }), h('button', { type: 'button', class: 'btn small quiet ic', title: 'Close', 'aria-label': 'Close', on: { click: () => close() } }, icon('x'))) : h('h3', { id: tid, text: title }), body,
@@ -244,7 +289,8 @@ function modal({ title, body, actions, sticky = false, x = false }) {
     const a = document.activeElement, first = f[0], last = f[f.length - 1];
     if (e.shiftKey && (a === first || a === dlg)) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
   });
-  root.replaceChildren(h('div', { class: 'overlay', on: { click: (e) => { if (e.target === e.currentTarget && !sticky) close(); } } }, dlg));
+  ov = h('div', { class: 'overlay', on: { click: (e) => { if (e.target === e.currentTarget && !sticky) close(); } } }, dlg);
+  root.replaceChildren(ov);
   S.modalClose = sticky ? null : close;
   setTimeout(() => { if (!dlg.contains(document.activeElement)) ([...dlg.querySelectorAll('input:not([type=hidden]), textarea')].find((x) => x.offsetParent !== null) || dlg).focus({ preventScroll: true }); }, 0);
   return close;
@@ -436,8 +482,9 @@ function go(tab, keep = false) { if (S.tab !== tab && !keep) collapseAll();
 // 탭을 바꿀 때: 내용이 새로 들어오고(폰은 눌러 간 방향에서 옆으로, PC 는 아래에서 살짝 위로), 켜진 탭 아이콘이 톡 튄다
 function tabMotion(prev, tab) {
   if (prev === tab || reduceFx()) return;
+  const first = S.staggered; S.staggered = false;   // 처음 여는 탭은 카드가 차례로 올라오므로 화면 전체 이동은 생략
   const ids = (isWriter() ? TABS_W : TABS_L).map((t) => t[0]), dir = ids.indexOf(tab) >= ids.indexOf(prev) ? 1 : -1, phone = window.innerWidth < 760;
-  $('#view')?.animate?.([{ opacity: 0, transform: phone ? `translateX(${14 * dir}px)` : 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: phone ? 240 : 200, easing: 'cubic-bezier(.2,.7,.2,1)' });
+  if (!first) $('#view')?.animate?.([{ opacity: 0, transform: phone ? `translateX(${14 * dir}px)` : 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: phone ? 240 : 200, easing: 'cubic-bezier(.2,.7,.2,1)' });
   document.querySelector('#tabs .tab.on .ico')?.animate?.([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'cubic-bezier(.3,1.5,.5,1)' });
 }
 
@@ -758,7 +805,7 @@ function renderView() {
   const drafts = view.dataset.tab === S.tab ? snapshotDrafts(view) : new Map();
   let node;
   if (S.gate) node = S.gate();
-  else if (!S.ready) node = card('Connecting…', note(S.slow ? '연결이 늦어지고 있어요. 잠시 뒤에도 안 되면 새로고침해 주세요.' : 'prod-api-02 에 연결하는 중…'));
+  else if (!S.ready) node = card('Connecting…', h('div', { class: 'skl', 'aria-hidden': 'true' }, h('i'), h('i'), h('i')), note(S.slow ? '연결이 늦어지고 있어요. 잠시 뒤에도 안 되면 새로고침해 주세요.' : 'prod-api-02 에 연결하는 중…'));
   else {
     const banners = [];
     if (S.updateReady) banners.push(h('div', { class: 'banner warn upd' }, h('span', { text: '앱이 업데이트됐어요. 새로고침해 주세요.' }), btn('Refresh', doRefresh, 'small primary')));   // 열려 있던 앱에 새 버전을 알린다
@@ -772,6 +819,8 @@ function renderView() {
     node = h('div', { class: 'page' }, banners, (V[S.tab] || V[Object.keys(V)[0]])());
   }
   view.replaceChildren(node);
+  S.staggered = false;
+  if (S.ready && !S.gate && !(S.seenFx ||= new Set()).has(S.tab)) { S.seenFx.add(S.tab); S.staggered = true; stagger(node); }
   view.dataset.tab = S.tab; restoreDrafts(view, drafts);
   if (S.ready && isWriter() && S.tab === 'console') { renderLog(); view.scrollTop = view.scrollHeight; } else view.scrollTop = keepTop;
   fitSysDetail(); const det = view.querySelector('.sl-detail'); if (det && keepDet) det.scrollTop = keepDet;
@@ -1216,7 +1265,7 @@ function calendarCard() {
     // 날짜를 누르면 바로 그 날의 일정 추가 창이 열린다
     cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : ''), on: { click: (e) => markWhileModal(e.currentTarget, 'sel', () => openDayModal(key)) } },
       h('b', { text: String(d) }),
-      es.slice(0, 3).map((e) => h('span', { class: `ev u${e.by === roleName() ? 0 : 1}${e.tentative ? ' tent' : ''}${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}`, title: (e.by === roleName() ? '0 (me)' : '1') + (e.tentative ? ' · Tentative' : '') }, catIcon(e.kind in CATICON ? e.kind : 'etc'), h('i', { text: e.label }))),
+      es.slice(0, 3).map((e) => h('span', { class: `ev u${e.by === roleName() ? 0 : 1}${e.tentative ? ' tent' : ''}${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}${S.firmFx === e.id ? ' firmed' : ''}`, title: (e.by === roleName() ? '0 (me)' : '1') + (e.tentative ? ' · Tentative' : ''), 'data-eid': e.id }, catIcon(e.kind in CATICON ? e.kind : 'etc'), h('i', { text: e.label }))),
       es.length > 3 ? h('span', { class: 'more', text: '+' + (es.length - 3) }) : null));
   }
   const move = (n) => () => { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); renderView(); };
@@ -1232,7 +1281,7 @@ function toastUndo(msg, label, fn) {
   t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 6000);
 }
 // 날짜를 누르면 열리는 창: 그 날의 일정 목록 + 종류를 한 번 누르면 바로 추가 (메모·끝나는 날짜는 선택)
-function openDayModal(key) {
+function openDayModal(key, opts = {}) {
   const me = roleName(), dow = DOW_EN[new Date(key + 'T12:00:00').getDay()];
   const es = rows('events').filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort((a, b) => a.ts - b.ts);
   const stBadge = (e) => (e.state === 'approved' ? badge('approved', 'ok') : e.state === 'removing' ? badge('Delete pending', 'warn') : badge('Pending', 'warn'));
@@ -1241,9 +1290,9 @@ function openDayModal(key) {
   let close = () => {}, kind = null, tent = false;
   // 종류를 먼저 고르면 그 아래에 메모(선택)·끝나는 날짜·Add 가 나타난다 (기타는 이름이 필수)
   const save = act(async () => {
-    if (!kind) return toast('종류를 먼저 골라 주세요');
+    if (!kind) { shake(dmCat); return toast('종류를 먼저 골라 주세요'); }
     const txt = memo.value.trim(); let label = KINDS[kind], m = txt.slice(0, 40);
-    if (kind === 'etc') { label = txt.slice(0, 12); m = ''; if (!label) { toast('기타는 이름을 적어 주세요'); memo.focus(); return; } }
+    if (kind === 'etc') { label = txt.slice(0, 12); m = ''; if (!label) { toast('기타는 이름을 적어 주세요'); shake(memo); memo.focus(); return; } }
     const end = until.value && until.value > key ? until.value : null, k = kind;
     const eid = await addEvent({ date: key, endDate: end, kind: k, label, memo: m, tentative: tent });
     close(); renderView();
@@ -1260,7 +1309,7 @@ function openDayModal(key) {
     const canDel = e.state === 'approved' || (e.state === 'pending' && e.by === me), live = e.state !== 'removing';
     // 한 줄 = 머리(종류 아이콘 · 이름 · 상태 배지) → 메모 → 누가·기간 → 구분선 → 버튼 줄(왼쪽: 고치기·확정 / 오른쪽 끝: 삭제)
     const memo = (e.memo || '').trim();
-    return h('div', { class: 'prow ev-row' },
+    return h('div', { class: 'prow ev-row' + (opts.fx === e.id ? ' fx-in' : '') },
       h('div', { class: 'er-head' }, h('span', { class: 'pr-k', style: `color:${CATCOL[e.kind] || CATCOL.etc}` }, catIcon(e.kind in CATICON ? e.kind : 'etc')), h('b', { text: e.label }),
         h('span', { class: 'pr-bg' }, stBadge(e), e.tentative ? badge('Tentative', 'tn') : null)),
       memo ? h('div', { class: 'er-memo', text: memo }) : null,
@@ -1269,14 +1318,21 @@ function openDayModal(key) {
       live || canDel ? h('div', { class: 'er-acts' },
         h('span', { class: 'er-main' },
           live && (e.state === 'approved' || e.by === me) ? btn('Edit', act(async () => { close(); openEditEvent(e, () => openDayModal(key)); }), 'small txt') : null,   // 상대가 올린 승인 전 일정은 승인·거절만 (고치기 숨김)
-          e.tentative && live && (e.state === 'approved' || e.by === me) ? btn('Mark firm', act(async () => { await S.store.patch('events', e.id, { tentative: false }); renderView(); close(); openDayModal(key); }), 'small txt') : null),
-        canDel ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async () => {
-          if (e.state !== 'approved') { await removeEvent(e); renderView(); close(); openDayModal(key); return; }
-          askDeleteReason(e, () => openDayModal(key));   // 승인된 일정은 지우는 사유를 적어야 한다
+          e.tentative && live && (e.state === 'approved' || e.by === me) ? btn('Mark firm', act(async (ev) => {
+            const row = ev?.currentTarget?.closest('.prow');
+            if (row && !reduceFx()) { row.classList.add('okflash'); row.querySelector('.badge.tn')?.animate?.([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.6)' }], { duration: 180, easing: 'ease-in', fill: 'forwards' }); await sleep(200); }
+            await S.store.patch('events', e.id, { tentative: false }); S.firmFx = e.id; setTimeout(() => { if (S.firmFx === e.id) S.firmFx = null; }, 900);
+            renderView(); close(); openDayModal(key, { quiet: true });
+          }), 'small txt') : null),
+        canDel ? btn(e.state === 'approved' ? 'Request delete' : 'Cancel', act(async (ev) => {
+          if (e.state !== 'approved') { await vanishRow(ev?.currentTarget?.closest('.prow')); await removeEvent(e); renderView(); close(); openDayModal(key, { quiet: true }); return; }
+          askDeleteReason(e, () => openDayModal(key, { fx: e.id }));   // 승인된 일정은 지우는 사유를 적어야 한다
         }), 'small danger txt') : null) : null);
   }) : [];
-  const body = h('div', { class: 'daymodal' }, list.length ? h('div', { class: 'dm-list' }, list) : null, h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b)), form);
+  const dmCat = h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b));
+  const body = h('div', { class: 'daymodal' }, list.length ? h('div', { class: 'dm-list' }, list) : null, dmCat, form);
   close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [], x: true });
+  if (opts.quiet) $('#modal-root .overlay')?.classList.add('quiet');   // 같은 창을 다시 그릴 때는 또 팝업이 뜨지 않게
 }
 // Tentative 스위치 카드: 설정 화면의 스위치와 같은 모양 (아이콘 · 제목+설명 · 오른쪽 스위치)
 function tentRow(on, onChange) {
@@ -1294,7 +1350,7 @@ function openEditEvent(e, after) {
   const save = async (close) => {
     const t = memo.value.trim(), d = from.value, end = until.value && until.value > d ? until.value : null;
     if (!d) { toast('날짜를 골라 주세요'); return false; }
-    if (e.kind === 'etc' && !t) { toast('기타는 이름을 적어 주세요'); memo.focus(); return false; }
+    if (e.kind === 'etc' && !t) { toast('기타는 이름을 적어 주세요'); shake(memo); memo.focus(); return false; }
     const patch = { date: d, endDate: end, tentative: tent, ...(e.kind === 'etc' ? { label: t.slice(0, 12), memo: '' } : { memo: t.slice(0, 40) }) };
     close(); await S.store.patch('events', e.id, patch);
     const merged = { ...e, ...patch};
@@ -1309,7 +1365,7 @@ function openEditEvent(e, after) {
 const removeReason = (e) => rows('plan_log').find((l) => l.eventId === e.id && l.action === 'remove' && l.status === 'pending')?.reason || '';
 function askDeleteReason(e, after) {
   const why = h('input', { type: 'text', maxLength: 80, autocomplete: 'off', placeholder: 'Reason (required)', 'aria-label': 'Reason' });
-  const go = async (close) => { const t = why.value.trim(); if (!t) { toast('사유를 적어 주세요'); why.focus(); return false; } close(); await removeEvent(e, t); renderView(); after(); };
+  const go = async (close) => { const t = why.value.trim(); if (!t) { toast('사유를 적어 주세요'); shake(why); why.focus(); return false; } close(); await removeEvent(e, t); renderView(); after(); };
   const close = modal({ title: 'Delete reason', body: h('div', { class: 'share' }, h('div', { class: 'mlab', text: `${e.label} · ${fmtMD(e.date)}` }), why, h('div', { class: 'mlab', text: 'The other person will see this' })),
     actions: [{ label: 'Cancel', cls: 'small', fn: () => after() }, { label: 'Send request', cls: 'primary', close: false, fn: () => go(close) }] });
   onEnter(why, () => go(close)); why.focus();
@@ -1327,11 +1383,15 @@ function planChangesCard() {
   // 가로로 길고 세로가 짧은 띠: 변경이 없으면 한 줄, 있으면 그 줄들만 아래에 이어 붙는다
   const status = needs.length ? `${needs.length} to review` : mine.length ? `${mine.length} waiting for approval` : 'nothing to review';
   const head = h('div', { class: 'pc-head' }, cardTitle('Changes'), h('span', { class: 'sub' + (needs.length ? ' pc-need' : ''), text: status }), h('span', { class: 'sp' }),
-    adds.length > 1 ? btn(`Approve all (${adds.length})`, act(async () => { for (const l of adds) await decidePlan(l, true); toast(`${adds.length} approved`); renderView(); }), 'small') : null,
+    adds.length > 1 ? btn(`Approve all (${adds.length})`, act(async (ev) => {
+      const ids = new Set(adds.map((l) => l.id)), rws = [...(ev?.currentTarget?.closest('.pc-bar')?.querySelectorAll('.prow.need') || [])].filter((r) => ids.has(r.dataset.lid));
+      await Promise.all(rws.map((r) => settleRow(r, true, r.querySelector('.btn'))));
+      for (const l of adds) await decidePlan(l, true); toast(`${adds.length} approved`); renderView();
+    }), 'small') : null,
     done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
   const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
-    needs.map((l) => h('div', { class: 'prow need' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}${l.reason ? ' · Reason: ' + l.reason : ''}` })),
-      btn('Approve', act(() => decidePlan(l, true)), 'small'), btn('Reject', act(() => decidePlan(l, false)), 'small'))),
+    needs.map((l) => h('div', { class: 'prow need', 'data-lid': l.id }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}${l.reason ? ' · Reason: ' + l.reason : ''}` })),
+      btn('Approve', act(async (ev) => { const b = ev?.currentTarget; await settleRow(b?.closest('.prow'), true, b); await decidePlan(l, true); }), 'small'), btn('Reject', act(async (ev) => { await settleRow(ev?.currentTarget?.closest('.prow'), false); await decidePlan(l, false); }), 'small'))),
     mine.map((l) => h('div', { class: 'prow' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) + (l.reason ? ' · Reason: ' + l.reason : '') })), badge('pending', 'warn'))),
     S.planHist ? done.map((l) => h('div', { class: 'prow' }, stIc(l.status), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.reason ? ' · Reason: ' + l.reason : ''}${l.status === 'cancelled' ? '' : ` · handled by ${l.decidedBy === me ? '0' : '1'}`}` })),
       badge(l.action === 'edit' ? 'edited' : l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : ''))) : null);
