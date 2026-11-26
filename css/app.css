@@ -311,7 +311,7 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .btn .sw { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line2); display: inline-block; }
 .ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
-input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], input[type=datetime-local], select, textarea { height: 32px; border: 1px solid var(--line2); border-radius: 8px; padding: 0 10px; background: var(--bg); color: var(--text); min-width: 0; font-size: 13px; }
+input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], input[type=time], input[type=datetime-local], select, textarea { height: 32px; border: 1px solid var(--line2); border-radius: 8px; padding: 0 10px; background: var(--bg); color: var(--text); min-width: 0; font-size: 13px; }
 textarea { height: auto; padding: 8px 10px; resize: none; width: 100%; line-height: 1.5; }
 input::placeholder, textarea::placeholder { color: var(--mute); }
 input:focus, textarea:focus, select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
@@ -982,7 +982,7 @@ body.has-cats .view { margin-bottom: 40px; }   /* 고양이는 내용 위가 아
   .btn, .btn.small { height: auto; min-height: 40px; }
   .btn.ic, .btn.small.ic { min-width: 40px; }
   .catb { min-height: 40px; }
-  input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], input[type=datetime-local], select, textarea { font-size: 16px; min-height: 40px; }   /* 16px 미만이면 iOS 가 입력할 때 화면을 확대해 버림 */
+  input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], input[type=time], input[type=datetime-local], select, textarea { font-size: 16px; min-height: 40px; }   /* 16px 미만이면 iOS 가 입력할 때 화면을 확대해 버림 */
 }
 @media (pointer: coarse), (max-width: 760px) {
   .op, .pl-hd, .cl-toggle, .cl-status, .fold-h, .vseg-b { min-height: 40px; }
@@ -1141,3 +1141,41 @@ input.invalid, textarea.invalid, .invalid.cat { border-color: var(--crit); box-s
 /* 창(시트)이 열려 있는 동안: 고양이는 숨기고, 안내 글은 위쪽에 */
 body:has(#modal-root .overlay) .cat-layer { visibility: hidden; }
 @media (max-width: 759px) { body:has(#modal-root .overlay) .toast { bottom: auto; top: calc(14px + env(safe-area-inset-top)); } }
+
+/* ───────── 일정 시간 · 겹침 표시 · 검색 · 백업 ───────── */
+.dm-when { display: flex; flex-direction: column; gap: 8px; }
+.dm-seg { justify-self: auto; }
+.dm-seg .vseg-b { height: 32px; }
+.dm-times { display: flex; align-items: center; gap: 8px; padding-left: 52px; }
+.dm-times[hidden] { display: none; }
+.dm-times input[type=time] { flex: 1 1 0; width: auto; min-width: 0; max-width: 140px; }
+.dm-ovl { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r); background: var(--warnbg); color: var(--warn); font-size: 12.5px; line-height: 1.4; }
+.dm-ovl[hidden] { display: none; }
+.dm-ovl .ico { width: 16px; height: 16px; flex: none; }
+.cd b { display: flex; align-items: center; gap: 3px; }
+.cd-warn { display: inline-flex; color: var(--warn); margin-left: auto; }
+.cd-warn .ico { width: 12px; height: 12px; }
+.ev em { flex: none; font: 500 9px var(--mono); font-style: normal; color: var(--sub); }
+.sr-box { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.sr-box input[type=search] { width: 100%; }
+.sr-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.sr-ch { height: 32px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--panel); color: var(--text); font: 500 13px var(--sans); cursor: pointer; }
+.sr-ch.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.sr-list { display: flex; flex-direction: column; max-height: 50dvh; overflow-y: auto; }
+.sr-res { display: flex; flex-direction: column; gap: 2px; align-items: stretch; text-align: left; min-height: 44px; padding: 10px 4px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; color: var(--text); font: 400 13.5px/1.45 var(--sans); cursor: pointer; }
+.sr-res:last-child { border-bottom: 0; }
+.sr-res:active { background: var(--panel2); }
+.sr-src { font: 500 11px var(--mono); color: var(--sub); text-transform: uppercase; letter-spacing: .05em; }
+.res-t { overflow-wrap: anywhere; }
+.res-t.mask { font-family: var(--mono); color: var(--mute); }
+.sr-res mark { background: color-mix(in srgb, var(--warn) 32%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.sr-note { margin: 4px 0; color: var(--sub); font-size: 12.5px; line-height: 1.5; }
+.bk-list { display: flex; flex-direction: column; gap: 8px; }
+.bk-btn { justify-content: flex-start; width: 100%; }
+.bk-last { margin: 0; }
+.dm-times input[type=time] { padding: 0 8px; }
+.dm-times input[type=time]::-webkit-calendar-picker-indicator { display: none; }
+@media (max-width: 480px) {
+  .dm-times { padding-left: 0; }
+  .ev.timed .ci { display: none; }   /* 좁은 칸에서는 시각이 있는 칩의 아이콘을 빼서 시각과 이름이 보이게 */
+}

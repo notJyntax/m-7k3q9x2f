@@ -78,7 +78,7 @@ function weekDays() {
 
 // ───────── UI 부품 ─────────
 // 카드 제목 왼쪽 아이콘(색 없이 진한 선). 제목마다 정해 둔 아이콘, 없으면 아이콘 없이
-const CARD_ICON = { 'Weekly report': 'chart', Garden: 'leaf', Cats: 'spark', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'swap', Engine: 'engine', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
+const CARD_ICON = { Backup: 'download', 'Weekly report': 'chart', Garden: 'leaf', Cats: 'spark', Updates: 'spark', 'Update history': 'hist', 'Good things': 'star', Received: 'arrowIn', Sent: 'arrowOut', Commit: 'send', Commits: 'arrowIn', 'Check-in': 'chat', 'Check in': 'chat', Archive: 'tArchive', 'Shared calendar': 'calendar', 'Shared log lines': 'note', 'Service status': 'check', 'Needs attention': 'bell', Theme: 'spark', Notifications: 'bell', Privacy: 'eyeOff', Mode: 'swap', Engine: 'engine', Welcome: 'sun', Wins: 'star', Syslog: 'tSyslog', Entry: 'note', Changes: 'edit', 'Weekly Agenda': 'chat', 'Sign in': 'eye', 'Connecting…': 'refresh', 'Connection failed': 'x', 'Access denied': 'x' };
 const cardIc = (title) => CARD_ICON[title] || (/ Log$/.test(title) ? 'note' : null);   // 날짜가 붙는 제목('11/17 Log')도
 const cardTitle = (title) => h('h3', { class: 'h-ic' }, cardIc(title) ? icon(cardIc(title)) : null, title);
 const card = (title, ...kids) => h('section', { class: 'card' }, title ? cardTitle(title) : null, ...kids);
@@ -686,6 +686,7 @@ function renderChrome() {
     h('div', { class: 'right' },
       S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small ic bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, icon('inbox'), notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
       S.store ? notifyBtn() : null,
+      S.store ? h('button', { type: 'button', class: 'btn ghost small ic srch-b', title: 'Search', 'aria-label': 'Search', on: { click: () => openSearch() } }, icon('search')) : null,
       btn('↻', doRefresh, 'ghost small refresh' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
       btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' }),
       S.store ? h('button', { type: 'button', class: 'btn ghost small ic gear' + (S.tab === 'settings' ? ' on' : ''), title: 'Settings', 'aria-label': 'Settings', 'aria-pressed': String(S.tab === 'settings'), on: { click: () => go('settings') } }, icon('tSettings')) : null));
@@ -920,6 +921,91 @@ async function onSubmit() {
   if (text.startsWith('/')) return runCmd(text);
   await addLog(text);
 }
+// ── 검색: 기기 안의 데이터에서 찾는다 (서버 요청 없음). Syslog·Wins 는 마스크가 켜져 있으면 글자 대신 가린 모양으로 보여 준다 ──
+function openSearch(q0 = '') {
+  if (!S.store || !S.ready) return;
+  const me = roleName(), st = sysState(), now = Date.now();
+  const SRC = [['all', 'All'], ['plan', 'Plan'], ['syslog', 'Syslog'], ['wins', 'Wins'], ['commit', 'Commits'], ['agenda', 'Agenda']];
+  let src = 'all', timer = null, close = () => {};
+  const inp = h('input', { type: 'search', placeholder: 'Search…', 'aria-label': 'Search', enterkeyhint: 'search', autocomplete: 'off', autocapitalize: 'off', maxLength: 60 });
+  inp.value = q0;
+  const out = h('div', { class: 'sr-list' }), chips = h('div', { class: 'sr-chips', role: 'group', 'aria-label': 'Filter' });
+  const low = (x) => String(x || '').toLowerCase();
+  const find = (q) => {
+    const k = low(q.trim()); if (!k) return [];
+    const hit = (t) => low(t).includes(k), res = [];
+    const add = (r) => res.push(r);
+    for (const e of rows('events')) if (e.state !== 'removing' && (hit(e.label) || hit(e.memo))) add({ src: 'plan', tag: `Plan · ${fmtMD(e.date)}`, text: `${e.time ? e.time + ' ' : ''}${e.label}${e.memo ? ' · ' + e.memo : ''}`, ts: e.ts || 0, open: () => { go('plan', true); setTimeout(() => openDayModal(e.date), 80); } });
+    const visible = new Set();
+    for (const p of posts()) { visible.add(p.id); if (hit(p.text)) { const win = p.kind === 'win'; add({ src: win ? 'wins' : 'syslog', tag: `${win ? 'Wins' : 'Syslog'} · ${fmtMD(dayKey(p.ts))}`, text: p.text, masked: st.mask ? maskText(p.id) : '', ts: p.ts, open: () => { st.view = win ? 'wins' : 'log'; openActivity({ tab: 'syslog', post: p.id }); } }); } }
+    for (const c of rows('post_comments')) if (visible.has(c.postId) && hit(c.text)) add({ src: 'syslog', tag: `Syslog · comment · ${fmtMD(dayKey(c.ts))}`, text: c.text, masked: st.mask ? maskText(c.id) : '', ts: c.ts, open: () => { const p = posts().find((x) => x.id === c.postId); st.view = p?.kind === 'win' ? 'wins' : 'log'; openActivity({ tab: 'syslog', post: c.postId }); } });
+    for (const c of rows('commits')) if ((c.by === me || (c.deliverAt || 0) <= now) && hit(c.text)) add({ src: 'commit', tag: `Commit · ${fmtMD(dayKey(c.ts))}`, text: c.text, ts: c.ts || 0, open: () => openActivity({ tab: isWriter() ? 'inbox' : 'send', commit: c.id }) });
+    for (const a of rows('agendas')) if (hit(a.text)) add({ src: 'agenda', tag: `Agenda · ${fmtMD(dayKey(a.ts))}`, text: a.text, ts: a.ts || 0, open: () => openActivity({ tab: 'plan', agenda: a.id }) });
+    return res.filter((r) => src === 'all' || r.src === src).sort((a, b) => b.ts - a.ts);
+  };
+  const mark = (t, k) => { const i = low(t).indexOf(k); if (i < 0) return [t]; const a = Math.max(0, i - 24), b = Math.min(t.length, i + k.length + 44); return [a > 0 ? '…' : '', t.slice(a, i), h('mark', { text: t.slice(i, i + k.length) }), t.slice(i + k.length, b), b < t.length ? '…' : '']; };
+  const paint = () => {
+    chips.replaceChildren(...SRC.map(([id, label]) => h('button', { type: 'button', class: 'sr-ch' + (src === id ? ' on' : ''), 'aria-pressed': String(src === id), on: { click: () => { src = id; paint(); inp.focus(); } } }, label)));
+    const q = inp.value.trim(), k = low(q), res = find(q);
+    if (!q) return out.replaceChildren(h('p', { class: 'sr-note', text: 'Plan · Syslog · Wins · Commits · Agenda 에서 찾아요. 이 기기 안에서만 찾고 서버로 보내지 않아요.' }));
+    if (!res.length) return out.replaceChildren(empty('No matches'));
+    const rowsEl = res.slice(0, 40).map((r) => h('button', { type: 'button', class: 'sr-res', on: { click: () => { close(); r.open(); } } },
+      h('span', { class: 'sr-src', text: r.tag }), r.masked ? h('span', { class: 'res-t mask', text: r.masked }) : h('span', { class: 'res-t' }, mark(r.text, k))));
+    if (res.length > 40) rowsEl.push(h('p', { class: 'sr-note', text: `Showing 40 of ${res.length}` }));
+    out.replaceChildren(...rowsEl);
+  };
+  inp.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(paint, 120); });
+  close = modal({ title: 'Search', x: true, body: h('div', { class: 'sr-box' }, inp, chips, out), actions: [] });
+  paint(); setTimeout(() => inp.focus({ preventScroll: true }), 30);
+}
+
+// ── 백업: 이 기기에 있는 기록을 파일로 저장한다 (서버로 나가지 않고 기기에서 파일을 만든다) ──
+const BK_COLLS = ['events', 'plan_log', 'posts', 'post_comments', 'post_reactions', 'comment_likes', 'agendas', 'agenda_comments', 'commits', 'commit_replies', 'lines', 'reviews', 'review_replies', 'checkins', 'alerts', 'shared', '@'];
+function saveFile(name, mime, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: mime })), a = h('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  lsSet('svcmon.backup.at', Date.now());
+}
+const bkName = (ext) => { const d = new Date(); return `monitor-backup-${p2(d.getMonth() + 1)}${p2(d.getDate())}.${ext}`; };
+function exportAll() {
+  if (!S.store) return;
+  const data = {}; let n = 0;
+  for (const c of BK_COLLS) { const r = rows(c); if (r.length) { data[c] = r; n += r.length; } }
+  saveFile(bkName('json'), 'application/json', JSON.stringify({ app: 'monitor', exportedAt: new Date().toISOString(), role: S.role, data }, null, 1));
+  toast(`Saved ${n} records`);
+}
+function exportIcs() {
+  const d8 = (k) => k.replace(/-/g, ''), t6 = (t) => t.replace(':', '') + '00', esc = (x) => String(x || '').replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  const nextDay = (k) => { const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; };
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//monitor//plan//EN', 'CALSCALE:GREGORIAN'];
+  const list = rows('events').filter((e) => e.state === 'approved' || e.state === 'removing').sort(byTime);
+  for (const e of list) {
+    const last = e.endDate || e.date; L.push('BEGIN:VEVENT', `UID:${e.id}@monitor`, `DTSTAMP:${stamp}`, `SUMMARY:${esc(e.label)}${e.tentative ? ' (tentative)' : ''}`);
+    if (e.time) {
+      const end = e.endTime || (() => { const m = Math.min(tmin(e.time) + 60, 1439); return `${p2(Math.floor(m / 60))}:${p2(m % 60)}`; })();
+      L.push(`DTSTART:${d8(e.date)}T${t6(e.time)}`, `DTEND:${d8(last)}T${t6(end)}`);
+    } else L.push(`DTSTART;VALUE=DATE:${d8(e.date)}`, `DTEND;VALUE=DATE:${d8(nextDay(last))}`);
+    if (e.memo) L.push(`DESCRIPTION:${esc(e.memo)}`);
+    L.push(`STATUS:${e.tentative ? 'TENTATIVE' : 'CONFIRMED'}`, 'END:VEVENT');
+  }
+  L.push('END:VCALENDAR'); saveFile(bkName('ics'), 'text/calendar', L.join('\r\n') + '\r\n'); toast(`Saved ${list.length} events`);
+}
+function exportCsv() {
+  const me = roleName(), cell = (v) => { let t = v == null ? '' : String(v); if (/^[=+\-@]/.test(t)) t = "'" + t; return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const list = rows('events').slice().sort((a, b) => a.date.localeCompare(b.date) || byTime(a, b));
+  const lines = [['date', 'end_date', 'time', 'end_time', 'kind', 'label', 'memo', 'by', 'state', 'tentative'].join(',')];
+  for (const e of list) lines.push([e.date, e.endDate, e.time, e.endTime, e.kind, e.label, e.memo, e.by === me ? 0 : 1, e.state, e.tentative ? 'yes' : ''].map(cell).join(','));
+  saveFile(bkName('csv'), 'text/csv', '﻿' + lines.join('\r\n') + '\r\n'); toast(`Saved ${list.length} rows`);
+}
+function backupCard() {
+  const last = lsGet('svcmon.backup.at', 0), days = last ? Math.floor((Date.now() - last) / 864e5) : null;
+  const lastEl = h('p', { class: 'sub bk-last', text: last ? `Last backup · ${mdhm(last)}${days >= 14 ? ` · ${days}일 넘게 안 했어요` : ''}` : 'No backup yet' });
+  const b = (label, fn) => h('button', { type: 'button', class: 'btn bk-btn', on: { click: () => { fn(); lastEl.textContent = `Last backup · ${mdhm(Date.now())}`; } } }, icon('download'), label);
+  return card('Backup', note('이 기기에 있는 기록을 파일로 저장해요. 서버로 나가지 않고 기기에서 파일을 만들어요.'),
+    h('div', { class: 'bk-list' }, b('Export all (.json)', exportAll), b('Calendar (.ics)', exportIcs), b('Plan list (.csv)', exportCsv)),
+    lastEl,
+    note('파일에는 기록이 그대로 들어 있어요. 기기 밖으로 공유하지 마세요.'));
+}
 function runCmd(t) {
   const [c, ...a] = t.slice(1).split(/\s+/); const arg = a.join(' ');
   if (c === 'grep') { S.filter = arg; if (S.tab !== 'console') go('console'); else { $('#grep').value = arg; renderLog(); } }
@@ -928,7 +1014,9 @@ function runCmd(t) {
   else if (c === 'report') go(isWriter() ? 'dash' : 'overview');
   else if (c === 'status') go('dash');
   else if (['warn', 'error', 'fatal'].includes(c)) { const lv = c.toUpperCase(); (async () => { try { const tr = arg ? { ...(await L.translate(arg)), level: lv } : L.quickLine(lv); await saveLog(tr, arg); } catch (e) { toast(errText(e)); } })(); }
-  else if (c === 'help') toast('/warn · /error · /fatal [내용] · /grep 검색어 · /clear · /restart · /status · /report');
+  else if (c === 'find') openSearch(arg);
+  else if (c === 'export') exportAll();
+  else if (c === 'help') toast('/warn · /error · /fatal [내용] · /grep 검색어 · /find 검색어 · /export · /clear · /restart · /status · /report');
   else toast('알 수 없는 명령이에요: /' + c + ' (/help 로 목록)');
 }
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -1213,17 +1301,57 @@ const roleName = () => (isWriter() ? 'writer' : 'listener');
 const p2 = (n) => String(n).padStart(2, '0');
 const fmtMD = (k) => `${+k.slice(5, 7)}/${+k.slice(8, 10)}`;
 const planRange = (l) => fmtMD(l.date) + (l.endDate ? '~' + fmtMD(l.endDate) : '');
-const planText = (l) => `${planRange(l)} ${l.label} ${l.action === 'add' ? '추가' : l.action === 'edit' ? '수정' : '삭제'}`;
+const planText = (l) => `${planRange(l)}${l.time ? ' ' + l.time : ''} ${l.label} ${l.action === 'add' ? '추가' : l.action === 'edit' ? '수정' : '삭제'}`;
+Object.assign(ICONS, {
+  warn: '<path d="M12 4l9 15.5H3z" fill="currentColor" fill-opacity=".16"/><path d="M12 10v4.2"/><path d="M12 17.2v.1"/>',
+  search: '<circle cx="11" cy="11" r="6.5" fill="currentColor" fill-opacity=".16"/><path d="M16 16l4.5 4.5"/>',
+  download: '<path d="M12 4v11"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
+});
+// ── 일정의 시간 · 겹침 ──
+// time/endTime 은 'HH:MM' (없으면 종일). 시각순으로 정렬하고 종일 일정이 맨 위
+const tmin = (t) => { const [a, b] = String(t).split(':').map(Number); return a * 60 + b; };
+const timeText = (e) => (e.time ? (e.endTime ? `${e.time}–${e.endTime}` : e.time) : '');
+const timeChip = (e) => (e.time ? (e.time.endsWith(':00') ? String(+e.time.slice(0, 2)) : `${+e.time.slice(0, 2)}:${e.time.slice(3)}`) : '');
+const byTime = (a, b) => (a.time ? 1 : 0) - (b.time ? 1 : 0) || (a.time || '').localeCompare(b.time || '') || (a.ts || 0) - (b.ts || 0);
+// 겹침: ① 시각이 있는 일정끼리 시간대가 교차 ② 종일·기간 일정(여러 날 · 출장 · 휴가)이 같은 날 다른 일정과 함께 있을 때. 시각 없는 평범한 종일 일정끼리는 겹침이 아니다
+const spanEv = (e) => !e.time && ((e.endDate && e.endDate > e.date) || e.kind === 'trip' || e.kind === 'vacation');
+function clash(a, b) {
+  if (a === b || (a.id && a.id === b.id)) return false;
+  if (spanEv(a) || spanEv(b)) return true;
+  if (!a.time || !b.time) return false;
+  const as = tmin(a.time), ae = a.endTime ? tmin(a.endTime) : as + 60, bs = tmin(b.time), be = b.endTime ? tmin(b.endTime) : bs + 60;
+  return as < be && bs < ae;
+}
+function clashInfo(list) {
+  const set = new Set();
+  for (let i = 0; i < list.length; i += 1) for (let j = i + 1; j < list.length; j += 1) if (clash(list[i], list[j])) { set.add(list[i]); set.add(list[j]); }
+  const timed = [...set].filter((e) => e.time), lo = timed.map((e) => e.time).sort()[0], hi = timed.map((e) => e.endTime || e.time).sort().pop();
+  return { n: set.size, set, text: `${set.size} schedules overlap` + (timed.length ? ` · ${lo}${hi && hi !== lo ? '–' + hi : ''}` : '') };
+}
+// 시간 고르기: 평소엔 All day, At time 을 누르면 시작(·끝) 시각이 나온다
+function whenControl(time = '', endTime = '', onChange = () => {}) {
+  let at = !!time;
+  const t1 = h('input', { type: 'time', value: time || '', 'aria-label': 'Start time', on: { input: () => onChange() } }), t2 = h('input', { type: 'time', value: endTime || '', 'aria-label': 'End time (optional)', on: { input: () => onChange() } });
+  const times = h('div', { class: 'dm-times', hidden: !at }, t1, h('span', { class: 'sub', text: 'to' }), t2);
+  const mk = (label, v) => h('button', { type: 'button', class: 'vseg-b' + (at === v ? ' on' : ''), 'aria-pressed': String(at === v), on: { click: () => {
+    at = v; seg.querySelectorAll('.vseg-b').forEach((b, i) => { const on = (i === 1) === v; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    times.hidden = !v; if (v && !t1.value) { const d = new Date(); t1.value = `${p2((d.getHours() + 1) % 24)}:00`; if (!reduceFx()) times.animate?.([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: EASE }); } onChange();
+  } } }, label);
+  const seg = h('div', { class: 'vseg dm-seg', role: 'group', 'aria-label': 'When' }, mk('All day', false), mk('At time', true));
+  const el = h('div', { class: 'dm-when' }, h('div', { class: 'dm-until' }, h('span', { class: 'sub', text: 'When' }), seg), times);
+  return { el, t1, t2, get: () => ({ time: at ? t1.value || null : null, endTime: at && t1.value && t2.value ? t2.value : null }),
+    check: () => (at && !t1.value ? '시작 시각을 골라 주세요' : at && t2.value && t2.value <= t1.value ? '끝나는 시각은 시작보다 늦어야 해요' : '') };
+}
 const calState = () => (S.cal ??= { y: new Date().getFullYear(), m: new Date().getMonth(), sel: dayKey() });
 function planNeeds() { return rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName()).length; }
 const planNeedsNew = () => rows('plan_log').filter((l) => l.status === 'pending' && l.by !== roleName() && l.ts > notifBase()).length;   // 탭 숫자용: 모두 읽음 뒤에 온 승인 요청만
 const newAgendas = () => rows('agendas').filter((a) => a.status === 'open' && a.by !== roleName() && a.ts > seenAt('plan')).length + rows('agenda_comments').filter((c) => c.by !== roleName() && c.ts > seenAt('plan')).length + rows('comment_likes').filter((l) => l.on && l.agendaId && l.by !== roleName() && l.ts > seenAt('plan')).length;
 const otherName = () => '상대';
 
-async function addEvent({ date, endDate, kind, label, memo, tentative = false }) {
+async function addEvent({ date, endDate, kind, label, memo, tentative = false, time = null, endTime = null }) {
   const eid = 'ev_' + uid(), now = Date.now(), end = endDate && endDate > date ? endDate : null;
-  await S.store.set('events', eid, { date, endDate: end, kind, label, memo: memo || '', by: roleName(), state: 'pending', ts: now, tentative });
-  await S.store.set('plan_log', 'pl_' + uid(), { eventId: eid, action: 'add', by: roleName(), ts: now, status: 'pending', date, endDate: end, label, memo: memo || '', tentative });
+  await S.store.set('events', eid, { date, endDate: end, kind, label, memo: memo || '', by: roleName(), state: 'pending', ts: now, tentative, time, endTime });
+  await S.store.set('plan_log', 'pl_' + uid(), { eventId: eid, action: 'add', by: roleName(), ts: now, status: 'pending', date, endDate: end, label, memo: memo || '', tentative, time, endTime });
   return eid;
 }
 async function removeEvent(e, reason = '') {
@@ -1248,6 +1376,15 @@ async function decidePlan(l, ok) {
   else await S.store.patch('events', l.eventId, { state: 'approved' });
 }
 
+// 승인·거절을 되돌린다 (새 일정 요청만. 삭제 요청의 승인은 일정이 이미 지워져 되돌릴 수 없다).
+// 거절로 지워진 일정은 기록에 남은 값으로 다시 만든다 (종류는 이름으로 찾음)
+async function undoDecision(l, ok) {
+  await S.store.patch('plan_log', l.id, { status: 'pending', decidedAt: null, decidedBy: null });
+  if (ok) { if (rows('events').some((e) => e.id === l.eventId)) await S.store.patch('events', l.eventId, { state: 'pending', approvedAt: null }); return; }
+  if (rows('events').some((e) => e.id === l.eventId)) return;
+  const kind = Object.entries(KINDS).find(([, v]) => v === l.label)?.[0] || 'etc';
+  await S.store.set('events', l.eventId, { date: l.date, endDate: l.endDate || null, kind, label: l.label, memo: l.memo || '', by: l.by, state: 'pending', ts: l.ts, tentative: !!l.tentative });
+}
 // 창이 열려 있는 동안만 눌린 칸을 강조한다. 일정을 추가하지 않고 닫아도 파란 칸이 남지 않는다
 function markWhileModal(el, cls, open) {
   el.classList.add(cls); open();
@@ -1261,11 +1398,11 @@ function calendarCard() {
   for (let i = 0; i < off; i += 1) cells.push(h('div', { class: 'cd x' }));
   for (let d = 1; d <= dim; d += 1) {
     const key = `${c.y}-${p2(c.m + 1)}-${p2(d)}`;
-    const es = evs.filter((e) => e.date <= key && key <= (e.endDate || e.date));
+    const es = evs.filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort(byTime), warn = clashInfo(es.filter((e) => e.state !== 'removing')).n > 0;
     // 날짜를 누르면 바로 그 날의 일정 추가 창이 열린다
     cells.push(h('button', { type: 'button', class: 'cd' + (key === today ? ' today' : ''), on: { click: (e) => markWhileModal(e.currentTarget, 'sel', () => openDayModal(key)) } },
-      h('b', { text: String(d) }),
-      es.slice(0, 3).map((e) => h('span', { class: `ev u${e.by === roleName() ? 0 : 1}${e.tentative ? ' tent' : ''}${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}${S.firmFx === e.id ? ' firmed' : ''}`, title: (e.by === roleName() ? '0 (me)' : '1') + (e.tentative ? ' · Tentative' : ''), 'data-eid': e.id }, catIcon(e.kind in CATICON ? e.kind : 'etc'), h('i', { text: e.label }))),
+      h('b', {}, String(d), warn ? h('span', { class: 'cd-warn', role: 'img', 'aria-label': 'Overlapping schedules', title: 'Overlapping schedules' }, icon('warn')) : null),
+      es.slice(0, 3).map((e) => h('span', { class: `ev u${e.by === roleName() ? 0 : 1}${e.tentative ? ' tent' : ''}${e.state === 'approved' ? '' : ' pend'}${e.state === 'removing' ? ' rem' : ''}${S.firmFx === e.id ? ' firmed' : ''}${e.time ? ' timed' : ''}`, title: (e.by === roleName() ? '0 (me)' : '1') + (e.tentative ? ' · Tentative' : ''), 'data-eid': e.id }, catIcon(e.kind in CATICON ? e.kind : 'etc'), e.time ? h('em', { text: timeChip(e) }) : null, h('i', { text: e.label }))),
       es.length > 3 ? h('span', { class: 'more', text: '+' + (es.length - 3) }) : null));
   }
   const move = (n) => () => { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); renderView(); };
@@ -1283,7 +1420,8 @@ function toastUndo(msg, label, fn) {
 // 날짜를 누르면 열리는 창: 그 날의 일정 목록 + 종류를 한 번 누르면 바로 추가 (메모·끝나는 날짜는 선택)
 function openDayModal(key, opts = {}) {
   const me = roleName(), dow = DOW_EN[new Date(key + 'T12:00:00').getDay()];
-  const es = rows('events').filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort((a, b) => a.ts - b.ts);
+  const es = rows('events').filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort(byTime);
+  const dayClash = clashInfo(es.filter((e) => e.state !== 'removing'));
   const stBadge = (e) => (e.state === 'approved' ? badge('approved', 'ok') : e.state === 'removing' ? badge('Delete pending', 'warn') : badge('Pending', 'warn'));
   const memo = h('input', { id: 'cal-memo', type: 'text', maxLength: 40, autocomplete: 'off', enterkeyhint: 'done' });
   const until = h('input', { id: 'cal-until', type: 'date', min: key, 'aria-label': 'until' });
@@ -1291,19 +1429,30 @@ function openDayModal(key, opts = {}) {
   // 종류를 먼저 고르면 그 아래에 메모(선택)·끝나는 날짜·Add 가 나타난다 (기타는 이름이 필수)
   const save = act(async () => {
     if (!kind) { shake(dmCat); return toast('종류를 먼저 골라 주세요'); }
+    const werr = when.check(); if (werr) { toast(werr); shake(when.t1.parentElement.hidden ? null : (when.t1.value ? when.t2 : when.t1)); return; }
     const txt = memo.value.trim(); let label = KINDS[kind], m = txt.slice(0, 40);
     if (kind === 'etc') { label = txt.slice(0, 12); m = ''; if (!label) { toast('기타는 이름을 적어 주세요'); shake(memo); memo.focus(); return; } }
     const end = until.value && until.value > key ? until.value : null, k = kind;
-    const eid = await addEvent({ date: key, endDate: end, kind: k, label, memo: m, tentative: tent });
+    const eid = await addEvent({ date: key, endDate: end, kind: k, label, memo: m, tentative: tent, ...when.get() });
     close(); renderView();
     toastUndo(`Added ${fmtMD(key)}${end ? '~' + fmtMD(end) : ''} ${label}`, 'Undo', act(async () => { const e = S.store.get('events', eid); if (e) await removeEvent(e); renderView(); }));
   });
   onEnter(memo, save);
   const tentBtn = tentRow(false, (v) => { tent = v; });
-  const form = h('div', { class: 'dm-form', hidden: true }, h('div', { class: 'dm-row' }, memo, btn('Add', save, 'small primary')), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), tentBtn);
+  // 등록하는 중에 겹치는 일정이 있으면 Add 위에 알려 준다 (막지는 않는다)
+  const hint = h('div', { class: 'dm-ovl', role: 'status', hidden: true });
+  const refreshHint = () => {
+    const w = when.get(), cand = { date: key, endDate: until.value && until.value > key ? until.value : null, kind, time: w.time, endTime: w.endTime };
+    const hits = kind ? es.filter((e) => e.state !== 'removing' && clash(cand, e)) : [];
+    hint.hidden = !hits.length;
+    if (hits.length) hint.replaceChildren(icon('warn'), h('span', { text: `Overlaps ${hits[0].label}${hits[0].time ? ' ' + timeText(hits[0]) : ''} (by ${hits[0].by === me ? '0' : '1'})${hits.length > 1 ? ` +${hits.length - 1}` : ''}` }));
+  };
+  until.addEventListener('change', refreshHint);
+  const when = whenControl('', '', refreshHint);
+  const form = h('div', { class: 'dm-form', hidden: true }, h('div', { class: 'dm-row' }, memo, btn('Add', save, 'small primary')), when.el, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), hint, tentBtn);
   const chips = Object.entries(KINDS).map(([id, t]) => { const b = h('button', { type: 'button', class: 'catb', style: `--c:${CATCOL[id]}`, on: { click: () => {
     kind = id; chips.forEach(([k2, el]) => el.classList.toggle('on', k2 === id));
-    memo.placeholder = id === 'etc' ? 'Name (required)' : 'Memo (optional)'; form.hidden = false; memo.focus();
+    memo.placeholder = id === 'etc' ? 'Name (required)' : 'Memo (optional)'; form.hidden = false; memo.focus(); refreshHint();
   } } }, catIcon(id), t); return [id, b]; });
   const list = es.length ? es.map((e) => {
     const canDel = e.state === 'approved' || (e.state === 'pending' && e.by === me), live = e.state !== 'removing';
@@ -1313,7 +1462,7 @@ function openDayModal(key, opts = {}) {
       h('div', { class: 'er-head' }, h('span', { class: 'pr-k', style: `color:${CATCOL[e.kind] || CATCOL.etc}` }, catIcon(e.kind in CATICON ? e.kind : 'etc')), h('b', { text: e.label }),
         h('span', { class: 'pr-bg' }, stBadge(e), e.tentative ? badge('Tentative', 'tn') : null)),
       memo ? h('div', { class: 'er-memo', text: memo }) : null,
-      h('div', { class: 'er-meta', text: `by ${e.by === me ? '0' : '1'}${e.endDate ? ` · ~${fmtMD(e.endDate)}` : ''}` }),
+      h('div', { class: 'er-meta', text: `${e.time ? timeText(e) + ' · ' : ''}by ${e.by === me ? '0' : '1'}${e.endDate ? ` · ~${fmtMD(e.endDate)}` : ''}` }),
       e.state === 'removing' && removeReason(e) ? h('div', { class: 'er-meta', text: 'Reason: ' + removeReason(e) }) : null,
       live || canDel ? h('div', { class: 'er-acts' },
         h('span', { class: 'er-main' },
@@ -1330,7 +1479,7 @@ function openDayModal(key, opts = {}) {
         }), 'small danger txt') : null) : null);
   }) : [];
   const dmCat = h('div', { class: 'cat dm-cat' }, chips.map(([, b]) => b));
-  const body = h('div', { class: 'daymodal' }, list.length ? h('div', { class: 'dm-list' }, list) : null, dmCat, form);
+  const body = h('div', { class: 'daymodal' }, list.length ? h('div', { class: 'dm-list' }, dayClash.n ? h('div', { class: 'dm-ovl', role: 'status' }, icon('warn'), h('span', { text: dayClash.text })) : null, list) : null, dmCat, form);
   close = modal({ title: `${dow} ${fmtMD(key)}`, body, actions: [], x: true });
   if (opts.quiet) $('#modal-root .overlay')?.classList.add('quiet');   // 같은 창을 다시 그릴 때는 또 팝업이 뜨지 않게
 }
@@ -1346,19 +1495,21 @@ function openEditEvent(e, after) {
   const from = h('input', { type: 'date', value: e.date, 'aria-label': 'from' }), until = h('input', { type: 'date', value: e.endDate || '', min: e.date, 'aria-label': 'until' });
   let tent = !!e.tentative;
   const tb = tentRow(tent, (v) => { tent = v; });
+  const wc = whenControl(e.time, e.endTime);
   from.addEventListener('change', () => { until.min = from.value; });
   const save = async (close) => {
     const t = memo.value.trim(), d = from.value, end = until.value && until.value > d ? until.value : null;
     if (!d) { toast('날짜를 골라 주세요'); return false; }
+    const werr = wc.check(); if (werr) { toast(werr); shake(wc.t1.value ? wc.t2 : wc.t1); return false; }
     if (e.kind === 'etc' && !t) { toast('기타는 이름을 적어 주세요'); shake(memo); memo.focus(); return false; }
-    const patch = { date: d, endDate: end, tentative: tent, ...(e.kind === 'etc' ? { label: t.slice(0, 12), memo: '' } : { memo: t.slice(0, 40) }) };
+    const patch = { date: d, endDate: end, tentative: tent, ...wc.get(), ...(e.kind === 'etc' ? { label: t.slice(0, 12), memo: '' } : { memo: t.slice(0, 40) }) };
     close(); await S.store.patch('events', e.id, patch);
     const merged = { ...e, ...patch};
-    if (mine) { const pend = rows('plan_log').find((l) => l.eventId === e.id && l.status === 'pending'); if (pend) await S.store.patch('plan_log', pend.id, { date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent }); }
-    else await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'edit', by: me, ts: Date.now(), status: 'approved', decidedAt: Date.now(), decidedBy: me, date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent });
+    if (mine) { const pend = rows('plan_log').find((l) => l.eventId === e.id && l.status === 'pending'); if (pend) await S.store.patch('plan_log', pend.id, { date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent, ...wc.get() }); }
+    else await S.store.set('plan_log', 'pl_' + uid(), { eventId: e.id, action: 'edit', by: me, ts: Date.now(), status: 'approved', decidedAt: Date.now(), decidedBy: me, date: d, endDate: end, label: merged.label, memo: merged.memo || '', tentative: tent, ...wc.get() });
     renderView(); toast('Saved'); after();
   };
-  const close = modal({ title: `Edit ${e.label}`, body: h('div', { class: 'dm-form' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'From' }), from), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), memo, tb),
+  const close = modal({ title: `Edit ${e.label}`, body: h('div', { class: 'dm-form' }, h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'From' }), from), h('label', { class: 'dm-until' }, h('span', { class: 'sub', text: 'Until' }), until, h('span', { class: 'sub', text: 'optional' })), memo, wc.el, tb),
     actions: [{ label: 'Cancel', cls: 'small', fn: () => after() }, { label: 'Save', cls: 'primary', close: false, fn: () => save(close) }] });
   onEnter(memo, () => save(close));
 }
@@ -1386,12 +1537,13 @@ function planChangesCard() {
     adds.length > 1 ? btn(`Approve all (${adds.length})`, act(async (ev) => {
       const ids = new Set(adds.map((l) => l.id)), rws = [...(ev?.currentTarget?.closest('.pc-bar')?.querySelectorAll('.prow.need') || [])].filter((r) => ids.has(r.dataset.lid));
       await Promise.all(rws.map((r) => settleRow(r, true, r.querySelector('.btn'))));
-      for (const l of adds) await decidePlan(l, true); toast(`${adds.length} approved`); renderView();
+      for (const l of adds) await decidePlan(l, true);
+      renderView(); toastUndo(`${adds.length} approved`, 'Undo', act(async () => { for (const l of adds) await undoDecision(l, true); renderView(); }));
     }), 'small') : null,
     done.length ? btn(S.planHist ? 'Hide history' : `History (${done.length})`, () => { S.planHist = !S.planHist; renderView(); }, 'small quiet') : null);
   const el = h('section', { class: 'card pc-bar span-all' + (needs.length ? ' has' : '') }, head,
     needs.map((l) => h('div', { class: 'prow need', 'data-lid': l.id }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${mdhm(l.ts)}${l.memo ? ' · ' + l.memo : ''}${l.reason ? ' · Reason: ' + l.reason : ''}` })),
-      btn('Approve', act(async (ev) => { const b = ev?.currentTarget; await settleRow(b?.closest('.prow'), true, b); await decidePlan(l, true); }), 'small'), btn('Reject', act(async (ev) => { await settleRow(ev?.currentTarget?.closest('.prow'), false); await decidePlan(l, false); }), 'small'))),
+      btn('Approve', act(async (ev) => { const b = ev?.currentTarget; await settleRow(b?.closest('.prow'), true, b); await decidePlan(l, true); if (l.action === 'add') toastUndo('Approved ' + planText(l), 'Undo', act(async () => { await undoDecision(l, true); renderView(); })); }), 'small'), btn('Reject', act(async (ev) => { await settleRow(ev?.currentTarget?.closest('.prow'), false); await decidePlan(l, false); if (l.action === 'add') toastUndo('Rejected ' + planText(l), 'Undo', act(async () => { await undoDecision(l, false); renderView(); })); }), 'small'))),
     mine.map((l) => h('div', { class: 'prow' }, stIc('pending'), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ' · ' + mdhm(l.ts) + (l.reason ? ' · Reason: ' + l.reason : '') })), badge('pending', 'warn'))),
     S.planHist ? done.map((l) => h('div', { class: 'prow' }, stIc(l.status), h('span', { class: 'sp' }, title(l), h('span', { class: 'sub', text: ` · ${who(l)} · ${l.decidedAt ? mdhm(l.decidedAt) : ''}${l.reason ? ' · Reason: ' + l.reason : ''}${l.status === 'cancelled' ? '' : ` · handled by ${l.decidedBy === me ? '0' : '1'}`}` })),
       badge(l.action === 'edit' ? 'edited' : l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : 'cancelled', l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : ''))) : null);
@@ -1578,7 +1730,7 @@ function viewSettingsW() {
       sw('Do not disturb', !!st.dnd, (v) => S.store.patch('shared', 'status', { kind: 'status', dnd: v, ts: Date.now() }), ''),
       sw('Safety alert', m.alertOn !== false, (v) => setMeta({ alertOn: v }), '"죽고 싶다" 같은 표현이 입력되면 상대에게 안부 확인 신호만 가요(내용은 가지 않아요). 끄면 상대에게 아무것도 가지 않아요.')),
     card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
-    themeCard(), modeCard(), catsCard());
+    themeCard(), modeCard(), catsCard(), backupCard());
 }
 const pushOn = act(async () => {
   try { await Push.enablePush(S.sb); toast('이 기기에서 알림을 켰어요.'); } catch (e) { if (e?.message === 'denied') toast('알림이 허용되지 않았어요. 기기 설정에서 허용해 주세요.'); else throw e; }
@@ -1713,7 +1865,7 @@ function viewPlan() {
 }
 
 function viewSettingsL() {
-  return h('div', { class: 'grid' }, themeCard(), modeCard(), catsCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
+  return h('div', { class: 'grid' }, themeCard(), modeCard(), catsCard(), backupCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
 // ───────── Syslog: 둘이 쓰는 게시판 ─────────

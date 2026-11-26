@@ -2,6 +2,14 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-26-b', date: '11/26', title: '시간 · 겹침 · 검색 · 백업', items: [
+    ['new', '일정에 시간을 넣을 수 있음 (평소엔 All day, At time 을 누르면 시작·끝 시각)'],
+    ['new', '달력 칸에 시각이 보이고, 같은 날은 시각순으로 정렬'],
+    ['new', '겹치는 일정은 달력 날짜 옆에 경고 표시, 날짜를 열면 맨 위에 안내, 등록할 때도 미리 알려 줌'],
+    ['new', '상단 돋보기로 Plan·Syslog·Wins·Commits·Agenda 검색 (Console 에서는 /find 검색어)'],
+    ['new', '설정에 Backup 카드: 전체(.json) · 달력(.ics) · 일정 목록(.csv) 파일로 저장'],
+    ['new', '승인·거절을 잘못 눌렀을 때 Undo'],
+  ] },
   { id: '2026-11-26-a', date: '11/26', title: '움직임 더하기', items: [
     ['new', '승인하면 버튼이 ✓로 바뀌고 줄이 접히며 사라짐 (거절·Approve all도)'],
     ['new', '일정을 취소하면 취소선이 그어지고 밀려 사라짐, Mark firm 하면 달력 칩이 한 번 커짐'],
