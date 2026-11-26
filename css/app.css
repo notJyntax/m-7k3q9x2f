@@ -1179,3 +1179,105 @@ body:has(#modal-root .overlay) .cat-layer { visibility: hidden; }
   .dm-times { padding-left: 0; }
   .ev.timed .ci { display: none; }   /* 좁은 칸에서는 시각이 있는 칩의 아이콘을 빼서 시각과 이름이 보이게 */
 }
+
+/* ───────── 폰 UI/UX 재점검 (24번 시안): 글자 · 여백 · 터치 크기 · 상단바/Plan 구조. 폰(759px 이하)에서만 ───────── */
+.phone-only { display: none; }
+@media (max-width: 759px) {
+  .phone-only { display: flex; }
+  .no-phone, .top .btn.no-phone { display: none !important; }
+  #app { font-size: 15px; grid-template-rows: calc(60px + env(safe-area-inset-top, 0px)) auto 1fr auto auto; }
+  /* 기준: 본문 15 · 보조 13 · 라벨 12 / 눌리는 곳 44 이상 / 가장자리 16 · 카드 안쪽 16 */
+  .view { padding: 12px 16px 16px; }
+  .card { padding: 16px; }
+  .btn, .btn.small { min-height: 44px; font-size: 14px; }
+  .btn.ic, .btn.small.ic { min-width: 44px; }
+  .btn.small.txt { font-size: 14px; }
+  .catb { min-height: 44px; }
+  .sub, small { font-size: 13px; }
+  .prow { font-size: 14px; }
+  .ln .msg { font-size: 15px; line-height: 1.45; }
+  .ln .ts { font-size: 12px; }
+  .ln { padding: 10px 16px; }
+  .ln-detail { margin: 0 16px 8px; }
+  .toolbar { padding: 8px 16px; }
+  .toolbar .grep { min-height: 44px; }
+  .dock { padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .btn.run { min-height: 48px; min-width: 64px; font-size: 15px; }
+  .pbox { min-height: 48px; }
+  .tabs { padding-top: 4px; }
+  .tab { padding: 6px 0; }
+  .tab .ico { width: 24px; height: 24px; }
+  /* 상단바: 제목 + 그 아래 한 줄(0 · 1 상태). 아이콘은 알림·검색·설정만 (새로고침·안내는 Settings > App) */
+  .top { padding-left: 16px; padding-right: 4px; }
+  .top .btn.ghost { width: 44px; height: 44px; }
+  .top .btn.ghost .ico { width: 20px; height: 20px; }
+  .greet { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .greet-t b { font-size: 17px; }
+  .mini-mood { display: flex; gap: 14px; min-width: 0; max-width: 100%; }
+  .mini-mood .mchip { position: relative; flex: 0 1 auto; padding: 0; gap: 4px; border: 0; background: none; min-width: 0; }
+  .mini-mood .mchip:hover { background: none; }
+  .mini-mood .mchip::before { content: ''; position: absolute; inset: -14px -6px; }
+  .mini-mood .mav { width: auto; height: auto; border: 0; background: none; border-radius: 0; }
+  .mini-mood .mav .me-e { font-size: 13px; }
+  .mini-mood .mbody { flex-direction: row; align-items: baseline; gap: 4px; }
+  .mini-mood .mk { font: 600 12.5px var(--sans); letter-spacing: 0; text-transform: none; color: var(--sub); }
+  .mini-mood .mk .ago { display: none; }
+  .mini-mood .mt { font-size: 12.5px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Console: 로그는 카드 안의 카드가 아니라 화면 폭 전체 목록 */
+  .console { margin: -12px -16px -16px; border-width: 1px 0 0; border-radius: 0; min-height: calc(100% + 28px); }
+  .console > .card, .console > .care { margin: 12px 16px 0; }
+  .op, .pl-hd, .cl-toggle, .cl-status, .fold-h, .vseg-b { min-height: 44px; }
+  input[type=text], input[type=search], input[type=email], input[type=password], input[type=date], input[type=time], input[type=datetime-local], select, textarea { min-height: 44px; }
+  .cd.short { min-height: 44px; height: 44px; }
+  /* Dashboard 식물: 도구 3개를 가로 3등분 48px 버튼으로 (가장 자주 누르는 것을 엄지 크기에) */
+  .pl-cmd { gap: 8px; padding: 10px; }
+  .pl-cmd .ps { flex: 0 0 100%; margin: 0; }
+  .pl-cmd .op { flex: 1 1 0; justify-content: center; min-height: 48px; border: 1px solid var(--line2); background: var(--panel); color: var(--text); font-size: 14px; }
+  .pl-cmd .op.on { background: var(--ok); color: var(--bg); border-color: var(--ok); }
+  .pl-cmd .op kbd, .pl-cmd .caret { display: none; }
+  /* Plan: 달력이 첫 화면의 주인공 (확인할 변경이 있을 때만 그 위) */
+  .grid > .cal-phone { order: -1; }
+  .grid > .pc-bar.has { order: -2; }
+}
+/* 폰 달력: 주 띠 + 날짜별 일정 목록 */
+.cal-phone { padding: 8px 0 0; gap: 0; }
+.cp-head { display: flex; align-items: center; gap: 4px; padding: 0 8px 4px 16px; }
+.cp-head .sp { flex: 1; }
+.cp-title { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--hi); cursor: pointer; }
+.cp-title b { font-size: 20px; font-weight: 600; }
+.cp-title .ico { width: 16px; height: 16px; color: var(--sub); }
+.cp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; padding: 0 8px 8px; }
+.cp-wd { text-align: center; font-size: 13px; color: var(--sub); height: 24px; line-height: 24px; }
+.cp-day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; padding: 4px 0; border: 0; background: none; border-radius: 12px; color: var(--text); cursor: pointer; }
+.cp-day.x { visibility: hidden; pointer-events: none; }
+.cp-dw { font-size: 12px; color: var(--sub); }
+.cp-dn { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; }
+.cp-day.today .cp-dn { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.cp-day.sel { background: var(--accent-bg); }
+.cp-dots { display: flex; gap: 3px; height: 7px; }
+.cp-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dot-0); box-sizing: border-box; }
+.cp-dot.u1 { background: var(--dot-1); }
+.cp-dot.h { background: transparent; border: 1.5px solid var(--dot-0); }
+.cp-dot.u1.h { border-color: var(--dot-1); }
+.cp-list { border-top: 1px solid var(--line); padding-bottom: 72px; }
+.cp-gh { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px 6px; font-size: 13px; color: var(--mute); }
+.cp-gh b { font: 600 13px var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--sub); }
+.cp-clash { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--warn); font-size: 12.5px; }
+.cp-clash .ico { width: 14px; height: 14px; }
+.cp-ev { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
+.cp-gh + .cp-ev { border-top: 0; }
+.cp-ic { display: grid; place-items: center; width: 24px; flex: none; }
+.cp-ic .ci { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.cp-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.cp-tx b { font-size: 15px; font-weight: 500; color: var(--hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-tx small { font-size: 13px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-bg { display: flex; gap: 6px; flex: none; }
+.cp-none { display: flex; align-items: center; gap: 8px; padding: 6px 16px 10px; color: var(--mute); font-size: 14px; }
+.cp-none .ico { width: 16px; height: 16px; }
+.cp-fabw { position: sticky; bottom: 12px; height: 0; display: flex; justify-content: flex-end; padding-right: 16px; }
+.cp-fab { position: relative; top: -56px; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 40%, transparent); cursor: pointer; }
+.cp-fab .ico { width: 26px; height: 26px; stroke-width: 2.2; }
+html[data-theme="ops-excel"] .cp-fab { border-radius: 2px; }
+.cl-row > span:last-child { min-width: 0; overflow-wrap: anywhere; }   /* 긴 변경 내용이 좁은 폰에서 옆으로 삐져나오지 않게 */
+/* 폰 달력 칸이 좁은 폰에서도 44px 가까이 되도록 좌우 여백을 줄임 */
+.cp-grid { padding: 0 4px 8px; gap: 0; }

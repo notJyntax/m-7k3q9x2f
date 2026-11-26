@@ -2,11 +2,21 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-26-c', date: '11/26', title: '폰 화면 정리', items: [
+    ['change', '폰 글자를 15px로, 눌리는 곳은 44px 이상, 가장자리 여백 16px로'],
+    ['change', '상태(0 · 1)를 제목 아래 한 줄로 합치고 띠는 없앰'],
+    ['change', '새로고침·안내 버튼은 Settings 의 App 카드로 옮김'],
+    ['change', 'Console 로그를 카드 없이 화면 폭 전체 목록으로'],
+    ['new', 'Plan: 이번 주 띠 + 날짜별 일정 목록 (제목 ▾ 로 한 달 펼침)'],
+    ['new', 'Plan: 일정 추가는 오른쪽 아래 둥근 + 버튼'],
+    ['change', 'Plan 에서 달력이 맨 위로 (확인할 변경이 있을 때만 그 위)'],
+    ['change', '식물 도구(water · sun · feed)를 큰 3칸 버튼으로'],
+  ] },
   { id: '2026-11-26-b', date: '11/26', title: '시간 · 겹침 · 검색 · 백업', items: [
     ['new', '일정에 시간을 넣을 수 있음 (평소엔 All day, At time 을 누르면 시작·끝 시각)'],
     ['new', '달력 칸에 시각이 보이고, 같은 날은 시각순으로 정렬'],
     ['new', '겹치는 일정은 달력 날짜 옆에 경고 표시, 날짜를 열면 맨 위에 안내, 등록할 때도 미리 알려 줌'],
-    ['new', '상단 돋보기로 Plan·Syslog·Wins·Commits·Agenda 검색 (Console 에서는 /find 검색어)'],
+    ['new', '상단 돋보기로 일정·글·commit·아젠다를 한꺼번에 검색 (/find 도 됨)'],
     ['new', '설정에 Backup 카드: 전체(.json) · 달력(.ics) · 일정 목록(.csv) 파일로 저장'],
     ['new', '승인·거절을 잘못 눌렀을 때 Undo'],
   ] },

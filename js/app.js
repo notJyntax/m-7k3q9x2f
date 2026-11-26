@@ -527,6 +527,9 @@ function newCounts() {
 const pcMQ = globalThis.matchMedia ? matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)') : null;
 const isPC = () => !!pcMQ?.matches;
 pcMQ?.addEventListener?.('change', () => { if (!isPC()) closeNotif(); renderChrome(); });
+const phoneMQ = globalThis.matchMedia ? matchMedia('(max-width: 759px)') : null;
+const isPhone = () => !!phoneMQ?.matches;
+phoneMQ?.addEventListener?.('change', () => { if (S.ready) { renderChrome(); renderView(); } });   // 폰↔PC 폭이 바뀌면 상태 칸·달력 모양을 다시 그린다
 function activityFeed() {
   if (!S.store || !S.ready) return [];
   const me = roleName(), now = Date.now(), out = [], other = (x) => x.by && x.by !== me;
@@ -687,8 +690,8 @@ function renderChrome() {
       S.store && isPC() ? h('button', { type: 'button', class: 'btn ghost small ic bell', title: 'Alerts', 'aria-label': 'Alerts', 'aria-expanded': String(!!S.notifOpen), on: { click: toggleNotif } }, icon('inbox'), notifUnread() ? h('span', { class: 'cnt', text: notifUnread() > 99 ? '99+' : notifUnread() }) : null) : null,
       S.store ? notifyBtn() : null,
       S.store ? h('button', { type: 'button', class: 'btn ghost small ic srch-b', title: 'Search', 'aria-label': 'Search', on: { click: () => openSearch() } }, icon('search')) : null,
-      btn('↻', doRefresh, 'ghost small refresh' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
-      btn('?', openHelp, 'ghost small', { title: 'Guide', 'aria-label': 'Guide' }),
+      btn('↻', doRefresh, 'ghost small refresh no-phone' + (S.updateReady ? ' has-update' : ''), { title: S.updateReady ? 'Refresh · new version available' : 'Refresh', 'aria-label': 'Refresh' }),
+      btn('?', openHelp, 'ghost small no-phone', { title: 'Guide', 'aria-label': 'Guide' }),
       S.store ? h('button', { type: 'button', class: 'btn ghost small ic gear' + (S.tab === 'settings' ? ' on' : ''), title: 'Settings', 'aria-label': 'Settings', 'aria-pressed': String(S.tab === 'settings'), on: { click: () => go('settings') } }, icon('tSettings')) : null));
   // 메뉴: PC 는 왼쪽 세로 목록, 폰은 하단 탭바(앞 4개 + More). More 를 누르면 나머지 탭이 작은 메뉴로 뜬다.
   const tabBtn = ([id, label, n], i) => h('button', { type: 'button', class: 'tab t-' + id + (S.tab === id ? ' on' : '') + (i >= PHONE_TABS ? ' hid' : ''), on: { click: () => go(id) } }, icon(TAB_ICON[id] || 'more'), h('span', { class: 'tl', text: label }), n ? h('span', { class: 'cnt', text: n }) : null);
@@ -740,6 +743,16 @@ function renderMood() {
   const theirR = reactDoc(otherRole()), onMe = reactOn(otherRole(), me.ts);
   if (S.prevReact == null) S.prevReact = theirR.ts || 0;
   else if ((theirR.ts || 0) > S.prevReact) { S.prevReact = theirR.ts; if (onMe) toast(`Ack received ${onMe}`); }
+  // 폰: 상태 띠는 따로 두지 않고 제목 아래 한 줄(0 · 1)로 합친다 (고정 영역 51px 절약)
+  if (isPhone()) {
+    box.hidden = true; box.replaceChildren();
+    const g = $('#top .greet'); if (!g) return;
+    g.querySelector('.mini-mood')?.remove();
+    g.append(h('div', { class: 'mini-mood' },
+      moodChip(me, { name: '0', me: true, title: 'Set status 0', onClick: openMood, react: onMe }),
+      moodChip(they, { name: '1', me: false, isNew, title: 'Status 1', onClick: openTheirMood, react: reactOn(roleName(), they.ts) })));
+    return;
+  }
   box.hidden = false;
   // 접어 두면 이 기기 화면에서만 가려진다(상대에게는 그대로 보이고, 새 상태가 오면 점으로만 알려 준다)
   const folded = lsGet('svcmon.mood.fold', false), foldAt = lsGet('svcmon.mood.foldAt', 0);
@@ -996,6 +1009,11 @@ function exportCsv() {
   const lines = [['date', 'end_date', 'time', 'end_time', 'kind', 'label', 'memo', 'by', 'state', 'tentative'].join(',')];
   for (const e of list) lines.push([e.date, e.endDate, e.time, e.endTime, e.kind, e.label, e.memo, e.by === me ? 0 : 1, e.state, e.tentative ? 'yes' : ''].map(cell).join(','));
   saveFile(bkName('csv'), 'text/csv', '﻿' + lines.join('\r\n') + '\r\n'); toast(`Saved ${list.length} rows`);
+}
+// 폰에서 상단바를 비우려고 옮긴 두 동작 (새로고침 · 안내). PC 에서는 상단바에 그대로 있어 이 카드는 숨는다
+function appCard() {
+  const c = card('App', h('div', { class: 'row' }, btn('Refresh', doRefresh, 'small txt' + (S.updateReady ? ' primary' : '')), btn('Guide', openHelp, 'small txt')));
+  c.classList.add('phone-only'); return c;
 }
 function backupCard() {
   const last = lsGet('svcmon.backup.at', 0), days = last ? Math.floor((Date.now() - last) / 864e5) : null;
@@ -1391,7 +1409,58 @@ function markWhileModal(el, cls, open) {
   const root = $('#modal-root'), mo = new MutationObserver(() => { if (!root.childElementCount) { el.classList.remove(cls); mo.disconnect(); } });
   mo.observe(root, { childList: true });
 }
+const addDays = (key, n) => { const d = new Date(key + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; };
+// 폰 전용 달력: 이번 주 띠 + 날짜별 일정 목록 (제목의 ▾ 로 달 전체를 펼침). 일정 이름이 글자로 보이고, 추가는 오른쪽 아래 + 버튼
+function calendarPhone() {
+  const c = calState(), today = dayKey(), evs = rows('events'), me = roleName();
+  c.sel ||= today;
+  const sel = c.sel, onDay = (key) => evs.filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort(byTime);
+  const goto = (key) => { c.sel = key; const d = new Date(key + 'T12:00:00'); c.y = d.getFullYear(); c.m = d.getMonth(); renderView(); };
+  const dots = (key) => h('span', { class: 'cp-dots' }, onDay(key).slice(0, 3).map((e) => h('i', { class: `cp-dot u${e.by === me ? 0 : 1}${e.tentative || e.state !== 'approved' ? ' h' : ''}` })));
+  const dayBtn = (key, wd) => h('button', { type: 'button', class: 'cp-day' + (key === sel ? ' sel' : '') + (key === today ? ' today' : ''), 'aria-label': `${fmtMD(key)} ${DOW_EN[new Date(key + 'T12:00:00').getDay()]}`, 'aria-pressed': String(key === sel), on: { click: () => goto(key) } },
+    wd ? h('span', { class: 'cp-dw', text: wd }) : null, h('span', { class: 'cp-dn', text: String(+key.slice(8, 10)) }), dots(key));
+  let strip;
+  if (c.exp) {
+    const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), cells = [];
+    for (let i = 0; i < first.getDay(); i += 1) cells.push(h('span', { class: 'cp-day x' }));
+    for (let d = 1; d <= dim; d += 1) cells.push(dayBtn(`${c.y}-${p2(c.m + 1)}-${p2(d)}`));
+    strip = h('div', { class: 'cp-grid' }, ['일', '월', '화', '수', '목', '금', '토'].map((t) => h('span', { class: 'cp-wd', text: t })), cells);
+  } else {
+    const ws = addDays(sel, -new Date(sel + 'T12:00:00').getDay());
+    strip = h('div', { class: 'cp-grid cp-week' }, [0, 1, 2, 3, 4, 5, 6].map((i) => dayBtn(addDays(ws, i), '일월화수목금토'[i])));
+  }
+  // 옆으로 밀면 주(펼쳤을 땐 달)가 넘어간다
+  let x0 = null;
+  strip.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  strip.addEventListener('touchend', (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1)(); }, { passive: true });
+  const step = (n) => () => { if (c.exp) { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); c.sel = `${c.y}-${p2(c.m + 1)}-01`; renderView(); } else goto(addDays(sel, 7 * n)); };
+  const head = h('div', { class: 'cp-head' },
+    h('button', { type: 'button', class: 'cp-title', 'aria-expanded': String(!!c.exp), on: { click: () => { c.exp = !c.exp; renderView(); } } }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), icon(c.exp ? 'chevU' : 'chevD')),
+    h('span', { class: 'sp' }),
+    btn('<', step(-1), 'small', { 'aria-label': c.exp ? '이전 달' : '이전 주' }), btn('Today', () => goto(today), 'small txt'), btn('>', step(1), 'small', { 'aria-label': c.exp ? '다음 달' : '다음 주' }));
+  // 일정 목록: 고른 날부터 45일 안의 일정을 날짜별로. 고른 날은 비어 있어도 항상 나온다
+  const groups = [];
+  for (let d = 0; d < 45; d += 1) {
+    const key = addDays(sel, d), list = evs.filter((e) => (d === 0 ? e.date <= key && key <= (e.endDate || e.date) : e.date === key)).sort(byTime);
+    if (list.length || d === 0) groups.push([key, list]);
+  }
+  const dname = (key) => `${DOW_EN[new Date(key + 'T12:00:00').getDay()]} ${fmtMD(key)}`;
+  const row = (key, e) => h('button', { type: 'button', class: 'cp-ev', on: { click: () => openDayModal(key) } },
+    h('span', { class: 'cp-ic', style: `color:${CATCOL[e.kind] || CATCOL.etc}` }, catIcon(e.kind in CATICON ? e.kind : 'etc')),
+    h('span', { class: 'cp-tx' }, h('b', { text: (e.time ? timeText(e) + ' ' : '') + e.label }), h('small', { text: `by ${e.by === me ? '0' : '1'}${e.endDate ? ` · ~${fmtMD(e.endDate)}` : ''}${e.memo ? ' · ' + e.memo : ''}` })),
+    h('span', { class: 'cp-bg' }, e.state === 'removing' ? badge('Delete pending', 'warn') : e.state !== 'approved' ? badge('Pending', 'warn') : null, e.tentative ? badge('Tentative', 'tn') : null));
+  const list = h('div', { class: 'cp-list' }, groups.map(([key, es]) => {
+    const ci = clashInfo(es.filter((e) => e.state !== 'removing'));
+    return h('div', { class: 'cp-grp' },
+      h('div', { class: 'cp-gh' }, h('b', { text: key === today ? 'Today' : dname(key) }), key === today ? h('span', { text: dname(key) }) : null, ci.n ? h('span', { class: 'cp-clash' }, icon('warn'), ci.text) : null),
+      es.length ? es.map((e) => row(key, e)) : h('div', { class: 'cp-none' }, icon('calendar'), h('span', { text: 'No events · tap + to add' })));
+  }));
+  const fab = h('div', { class: 'cp-fabw' }, h('button', { type: 'button', class: 'cp-fab', 'aria-label': 'Add event', title: 'Add event', on: { click: () => openDayModal(sel) } }, icon('plus')));
+  const el = h('section', { class: 'card cal-phone', 'aria-label': 'Shared calendar' }, head, strip, list, fab);
+  return el;
+}
 function calendarCard() {
+  if (isPhone()) return calendarPhone();
   const c = calState(), today = dayKey(), evs = rows('events');
   const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), off = first.getDay(); // 일요일 시작
   const cells = [];
@@ -1730,7 +1799,7 @@ function viewSettingsW() {
       sw('Do not disturb', !!st.dnd, (v) => S.store.patch('shared', 'status', { kind: 'status', dnd: v, ts: Date.now() }), ''),
       sw('Safety alert', m.alertOn !== false, (v) => setMeta({ alertOn: v }), '"죽고 싶다" 같은 표현이 입력되면 상대에게 안부 확인 신호만 가요(내용은 가지 않아요). 끄면 상대에게 아무것도 가지 않아요.')),
     card('Engine', note('변환 엔진: 규칙 기반 (이 기기 안에서 처리돼요. 원문이 AI 같은 외부 서비스로 나가지 않아요)'), note('내가 "공유"한 줄은 원문과 함께 상대에게 가요. 공유하지 않은 원문은 나만 볼 수 있어요. 그 밖에 상대에게 가는 건 상태 색, 집계 숫자, 달력 표시예요.')),
-    themeCard(), modeCard(), catsCard(), backupCard());
+    appCard(), themeCard(), modeCard(), catsCard(), backupCard());
 }
 const pushOn = act(async () => {
   try { await Push.enablePush(S.sb); toast('이 기기에서 알림을 켰어요.'); } catch (e) { if (e?.message === 'denied') toast('알림이 허용되지 않았어요. 기기 설정에서 허용해 주세요.'); else throw e; }
@@ -1865,7 +1934,7 @@ function viewPlan() {
 }
 
 function viewSettingsL() {
-  return h('div', { class: 'grid' }, themeCard(), modeCard(), catsCard(), backupCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
+  return h('div', { class: 'grid' }, appCard(), themeCard(), modeCard(), catsCard(), backupCard(), card('Privacy', note('이 화면에서는 작성자가 공유한 줄의 원문만 볼 수 있어요. 공유하지 않은 원문은 볼 수 없어요. 보이는 건 상태 색, 집계 숫자, 공유된 줄, 공유 달력이에요.'), note('매일 새벽 4시를 기준으로 어제의 공유 줄·리뷰·전달된 메시지가 정리돼요.')));
 }
 
 // ───────── Syslog: 둘이 쓰는 게시판 ─────────
