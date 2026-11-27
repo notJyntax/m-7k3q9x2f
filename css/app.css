@@ -1281,3 +1281,19 @@ html[data-theme="ops-excel"] .cp-fab { border-radius: 2px; }
 .cl-row > span:last-child { min-width: 0; overflow-wrap: anywhere; }   /* 긴 변경 내용이 좁은 폰에서 옆으로 삐져나오지 않게 */
 /* 폰 달력 칸이 좁은 폰에서도 44px 가까이 되도록 좌우 여백을 줄임 */
 .cp-grid { padding: 0 4px 8px; gap: 0; }
+
+/* 폰 상단바 다듬기: 상태 줄 · 새 상태 점 · 좁은 폰 · 안내 띠 */
+@media (max-width: 759px) {
+  .mini-mood { gap: 12px; }
+  .mini-mood .mchip { flex: 1 1 auto; min-width: 72px; }
+  .mini-mood .mchip.they.new { border: 0; background: none; }
+  .mini-mood .mchip.empty .mav { display: none; }   /* 비어 있으면 + · 같은 기호 없이 "0 Set status" 만 */
+  .mini-mood .mchip .ndot { position: static; flex: none; width: 8px; height: 8px; border: 0; margin-left: 2px; align-self: center; }
+  .banner { flex-wrap: wrap; row-gap: 8px; font-size: 13px; }
+  .banner > :first-child { flex: 1 1 140px; min-width: 0; }
+  .banner .row { margin-left: auto; }
+}
+@media (max-width: 359px) {
+  .top { padding-left: 12px; }
+  .top .brand { display: none; }   /* 좁은 폰: 로고를 빼서 제목·상태 줄이 잘리지 않게 */
+}
