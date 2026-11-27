@@ -1297,3 +1297,41 @@ html[data-theme="ops-excel"] .cp-fab { border-radius: 2px; }
   .top { padding-left: 12px; }
   .top .brand { display: none; }   /* 좁은 폰: 로고를 빼서 제목·상태 줄이 잘리지 않게 */
 }
+
+/* ───────── PC 화면 재정리 (25번 시안): Dashboard B · Console A · Plan A + 식물 카드 한 겹 ───────── */
+/* 식물 카드: 카드 안의 터미널 창 테두리(점 3개 줄·바깥 테두리)를 없애 한 겹으로 */
+.pl-term { border: 0; background: transparent; border-radius: 0; overflow: visible; }
+.pl-tt { display: none; }
+html[data-theme="ops-excel"] .pl-term { border-radius: 0; }
+/* Dashboard/Overview: 왼쪽 상태·지표·보고, 오른쪽 340px 식물(고정). 좁으면 식물이 먼저 오는 한 줄 */
+.db-side, .db-main, .dbc { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (min-width: 900px) {
+  .db { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; gap: 16px; }
+  .db-side { grid-column: 2; grid-row: 1; position: sticky; top: 0; }
+  .db-main { grid-column: 1; grid-row: 1; }
+}
+@media (max-width: 899px) { .db-side, .db-main { display: contents; } }
+/* Plan: 달력이 왼쪽 넓게, 오른쪽 300px 열에 Changes·Agenda (비어 있어도 달력을 밀어내지 않음) */
+.plan-pc { display: flex; flex-direction: column; gap: 14px; }
+.plan-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.plan-pc > * { min-width: 0; }
+@media (min-width: 900px) {
+  .plan-pc { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; gap: 16px; }
+  .plan-pc .cal .cd { min-height: 96px; }   /* 칸이 넓어진 만큼 일정 이름이 읽히게 */
+}
+@media (max-width: 899px) { .plan-side { display: contents; } }
+@media (max-width: 759px) { .plan-pc > .cal-phone { order: -1; } .plan-pc .pc-bar.has { order: -2; } }
+/* Console(PC): 로그 카드가 입력줄 바로 위까지 채움, 비어 있어도 의도된 모양으로 맨 아래 한 줄 */
+@media (min-width: 760px) {
+  .view > .page:has(> .console) { min-height: 100%; }
+  .page > .console { flex: 1; }
+  .console::after { content: 'tail -f · new lines appear here'; margin-top: auto; padding: 12px 14px; border-top: 1px solid var(--line); font: 12px var(--mono); color: var(--mute); }
+}
+/* 식물 카드가 좁은 열(PC 오른쪽 340px)일 때도 폰처럼: 프롬프트는 윗줄, 도구 3개는 큰 3칸 */
+@container (max-width: 520px) {
+  .pl-cmd { gap: 8px; padding: 10px; }
+  .pl-cmd .ps { flex: 0 0 100%; margin: 0; }
+  .pl-cmd .op { flex: 1 1 0; justify-content: center; min-height: 44px; border: 1px solid var(--line2); background: var(--panel); color: var(--text); font-size: 13px; }
+  .pl-cmd .op.on { background: var(--ok); color: var(--bg); border-color: var(--ok); }
+  .pl-cmd .op kbd, .pl-cmd .caret { display: none; }
+}

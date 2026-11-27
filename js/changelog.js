@@ -2,6 +2,13 @@
 // items: [종류, 내용] — 종류는 new(새 기능) · change(바뀐 것) · fix(고친 것). 내용은 명사형으로 짧게, 요점만.
 export const CL_TAGS = ['new', 'change', 'fix'];
 export const CHANGELOG = [
+  { id: '2026-11-27-b', date: '11/27', title: '화면 정리 (PC · 폰)', items: [
+    ['change', 'Dashboard: 상태가 맨 위, 식물은 오른쪽 열에 고정 (PC)'],
+    ['change', '식물 카드의 터미널 창 테두리를 없애 카드 한 겹으로'],
+    ['change', 'Console: 로그 카드가 입력줄 바로 위까지 채움 (PC)'],
+    ['change', 'Plan: 달력이 넓어져 일정 이름이 읽힘, 변경·아젠다는 오른쪽 열 (PC)'],
+    ['change', '폰 Plan: 한 달 달력을 먼저 보여주고 제목 ▾ 로 주 띠로 바꿈'],
+  ] },
   { id: '2026-11-27-a', date: '11/27', title: '폰 상단바 고침', items: [
     ['fix', '새 상태 알림 점이 상대 상태 글자를 가리던 것'],
     ['fix', '상대 상태가 길 때 글자가 잘려 안 보이던 것'],

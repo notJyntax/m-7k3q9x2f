@@ -1195,7 +1195,9 @@ function gardenShelf() {
 }
 function viewDash() {
   const m = metrics(), logs = todayLogs(), last = logs.length ? Math.max(...logs.map((l) => l.ts)) : 0;
-  return h('div', { class: 'db' }, gardenCard(), gardenShelf(), statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive());   // 주간 보고와 날짜별 기록(Archive)도 여기에
+  // PC: 왼쪽 = 상태 · 지표 · 주간 보고 · 보관함, 오른쪽 340px = 식물(고정). 폰: 지금처럼 위에서 아래로
+  return h('div', { class: 'db' }, h('div', { class: 'db-side' }, gardenCard(), gardenShelf()),
+    h('div', { class: 'db-main' }, statusBlock(m, last ? `${logs.length} event${logs.length === 1 ? '' : 's'} today · last ${agoEn(last)}` : 'no events yet today'), reportCard(), viewArchive()));
 }
 
 function keepBtn(text, from) {
@@ -1414,13 +1416,14 @@ const addDays = (key, n) => { const d = new Date(key + 'T12:00:00'); d.setDate(d
 function calendarPhone() {
   const c = calState(), today = dayKey(), evs = rows('events'), me = roleName();
   c.sel ||= today;
+  const exp = c.exp ?? true;
   const sel = c.sel, onDay = (key) => evs.filter((e) => e.date <= key && key <= (e.endDate || e.date)).sort(byTime);
   const goto = (key) => { c.sel = key; const d = new Date(key + 'T12:00:00'); c.y = d.getFullYear(); c.m = d.getMonth(); renderView(); };
   const dots = (key) => h('span', { class: 'cp-dots' }, onDay(key).slice(0, 3).map((e) => h('i', { class: `cp-dot u${e.by === me ? 0 : 1}${e.tentative || e.state !== 'approved' ? ' h' : ''}` })));
   const dayBtn = (key, wd) => h('button', { type: 'button', class: 'cp-day' + (key === sel ? ' sel' : '') + (key === today ? ' today' : ''), 'aria-label': `${fmtMD(key)} ${DOW_EN[new Date(key + 'T12:00:00').getDay()]}`, 'aria-pressed': String(key === sel), on: { click: () => goto(key) } },
     wd ? h('span', { class: 'cp-dw', text: wd }) : null, h('span', { class: 'cp-dn', text: String(+key.slice(8, 10)) }), dots(key));
   let strip;
-  if (c.exp) {
+  if (exp) {
     const first = new Date(c.y, c.m, 1), dim = new Date(c.y, c.m + 1, 0).getDate(), cells = [];
     for (let i = 0; i < first.getDay(); i += 1) cells.push(h('span', { class: 'cp-day x' }));
     for (let d = 1; d <= dim; d += 1) cells.push(dayBtn(`${c.y}-${p2(c.m + 1)}-${p2(d)}`));
@@ -1433,11 +1436,11 @@ function calendarPhone() {
   let x0 = null;
   strip.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
   strip.addEventListener('touchend', (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1)(); }, { passive: true });
-  const step = (n) => () => { if (c.exp) { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); c.sel = `${c.y}-${p2(c.m + 1)}-01`; renderView(); } else goto(addDays(sel, 7 * n)); };
+  const step = (n) => () => { if (exp) { const t = new Date(c.y, c.m + n, 1); c.y = t.getFullYear(); c.m = t.getMonth(); c.sel = `${c.y}-${p2(c.m + 1)}-01`; renderView(); } else goto(addDays(sel, 7 * n)); };
   const head = h('div', { class: 'cp-head' },
-    h('button', { type: 'button', class: 'cp-title', 'aria-expanded': String(!!c.exp), on: { click: () => { c.exp = !c.exp; renderView(); } } }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), icon(c.exp ? 'chevU' : 'chevD')),
+    h('button', { type: 'button', class: 'cp-title', 'aria-expanded': String(exp), on: { click: () => { c.exp = !exp; renderView(); } } }, h('b', { text: `${c.y}년 ${c.m + 1}월` }), icon(exp ? 'chevU' : 'chevD')),
     h('span', { class: 'sp' }),
-    btn('<', step(-1), 'small', { 'aria-label': c.exp ? '이전 달' : '이전 주' }), btn('Today', () => goto(today), 'small txt'), btn('>', step(1), 'small', { 'aria-label': c.exp ? '다음 달' : '다음 주' }));
+    btn('<', step(-1), 'small', { 'aria-label': exp ? '이전 달' : '이전 주' }), btn('Today', () => goto(today), 'small txt'), btn('>', step(1), 'small', { 'aria-label': exp ? '다음 달' : '다음 주' }));
   // 일정 목록: 고른 날부터 45일 안의 일정을 날짜별로. 고른 날은 비어 있어도 항상 나온다
   const groups = [];
   for (let d = 0; d < 45; d += 1) {
@@ -1681,7 +1684,8 @@ function agendaCard() {
       S.agHist ? [h('div', { class: 'ag-list' }, solved.map((a) => item(a, 'done')))] : null] : null);
 }
 function viewPlanW() {
-  return h('div', { class: 'grid' }, planChangesCard(), agendaCard(), calendarCard());   // 확인할 변경이 있는 카드를 맨 위에
+  // PC: 달력이 왼쪽 넓게, 오른쪽 300px 열에 변경·아젠다. 폰: 달력이 맨 위(확인할 변경이 있을 때만 그 위)
+  return h('div', { class: 'plan-pc' }, calendarCard(), h('div', { class: 'plan-side' }, planChangesCard(), agendaCard()));
 }
 
 // ───────── Archive (작성자: 날짜별 기록 보관함) ─────────
@@ -1896,11 +1900,10 @@ function openCheckinReply(ck) {
 function viewOverview() {
   const st = statusToday();
   const alerts = rows('alerts').filter((a) => !a.ackAt).sort((a, b) => b.ts - a.ts);
-  return h('div', { class: 'grid' },
-    gardenCard(), gardenShelf(),
-    st.level ? h('div', { class: 'db span-all' }, statusBlock(st, 'updated ' + (st.ts ? mdhm(st.ts) : '–'), st.dnd ? badge('Do not disturb', 'warn') : null)) : card('Service status', note('아직 신호가 없어요.')),
+  return h('div', { class: 'db' }, h('div', { class: 'db-side' }, gardenCard(), gardenShelf()), h('div', { class: 'db-main' },
+    st.level ? h('div', { class: 'dbc' }, statusBlock(st, 'updated ' + (st.ts ? mdhm(st.ts) : '–'), st.dnd ? badge('Do not disturb', 'warn') : null)) : card('Service status', note('아직 신호가 없어요.')),
     checkinCardL(st), updatesCard(), reportCard(),
-    alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null, updateHistoryCard());
+    alerts.length ? card('Needs attention', alerts.map((a) => h('div', { class: 'item care-item' }, h('b', { text: '안부 확인 신호' }), h('span', { class: 'sub', text: mdhm(a.ts) }), note('내용은 전달되지 않아요. 가볍게 안부를 물어봐 주세요.'), btn('Got it', act(() => S.store.patch('alerts', a.id, { ackAt: Date.now() })), 'small primary')))) : null, updateHistoryCard()));
 }
 function viewQueue() {
   const lines = [...rows('lines')].sort((a, b) => b.ts - a.ts);
@@ -1930,7 +1933,7 @@ function viewSend() {
   return h('div', { class: 'grid' }, commitPanel());
 }
 function viewPlan() {
-  return h('div', { class: 'grid' }, planChangesCard(), agendaCard(), calendarCard());
+  return h('div', { class: 'plan-pc' }, calendarCard(), h('div', { class: 'plan-side' }, planChangesCard(), agendaCard()));
 }
 
 function viewSettingsL() {
